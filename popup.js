@@ -174,6 +174,15 @@
         setStatus("Nenhum vídeo encontrado nesta página", "unavailable");
       } else if (!settings.sia_enabled) {
         setStatus("S·IA desativada", "unavailable");
+      } else if (!status.syncEngineReady) {
+        setStatus("Motor de sincronia indisponível", "paused");
+      } else if (status.speechError) {
+        const errors = {
+          "not-allowed": "Voz bloqueada pelo navegador",
+          "synthesis-unavailable": "Síntese de voz indisponível",
+          "voice-unavailable": "Voz selecionada indisponível"
+        };
+        setStatus(errors[status.speechError] || "Falha temporária na síntese de voz", "paused");
       } else if (status.ended) {
         setStatus("Aula finalizada", "paused");
       } else if (status.paused) {

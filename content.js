@@ -11,6 +11,7 @@
         velocidadeVideoMinima: 0.55,
         palavrasPorSegundo: 2.7
     });
+    const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
 
     const SELETORES_LEGENDA = [
         '[data-testid="video-captions"]',
@@ -55,6 +56,9 @@
     let taxaFalaEfetiva = velocidadeFala;
     let videoComVelocidadeAjustada = null;
     let velocidadeOriginalVideo = null;
+    let velocidadeAplicadaVideo = null;
+    let ultimoErroSintese = "";
+    let sinteseBloqueada = false;
 
     function normalizarTexto(valor) {
         return String(valor || "")
@@ -162,56 +166,77 @@
         return { texto: obterLegendasDoDom(video), origem: "dom", video };
     }
 
-    function estimarDuracaoFala(texto) {
-        const palavras = normalizarTexto(texto).split(/\s+/).filter(Boolean).length;
-        const pausas = (texto.match(/[,.!?;:]/g) || []).length;
-        return Math.max(0.6, palavras / CONFIG.palavrasPorSegundo + pausas * 0.12);
+    function observarAlteracaoManualDeVelocidade() {
+        if (!videoComVelocidadeAjustada || velocidadeAplicadaVideo === null) return;
+        if (Math.abs(videoComVelocidadeAjustada.playbackRate - velocidadeAplicadaVideo) < 0.01) {
+            return;
+        }
+
+        // O usuário mudou a velocidade no player. Essa escolha passa a ter
+        // prioridade e não será sobrescrita quando a fala terminar.
+        videoComVelocidadeAjustada.removeEventListener(
+            "ratechange",
+            observarAlteracaoManualDeVelocidade
+        );
+        videoComVelocidadeAjustada = null;
+        velocidadeOriginalVideo = null;
+        velocidadeAplicadaVideo = null;
     }
 
     function restaurarVelocidadeVideo() {
         if (videoComVelocidadeAjustada && velocidadeOriginalVideo !== null) {
+            videoComVelocidadeAjustada.removeEventListener(
+                "ratechange",
+                observarAlteracaoManualDeVelocidade
+            );
             if (videoComVelocidadeAjustada.isConnected) {
                 videoComVelocidadeAjustada.playbackRate = velocidadeOriginalVideo;
             }
         }
         videoComVelocidadeAjustada = null;
         velocidadeOriginalVideo = null;
+        velocidadeAplicadaVideo = null;
     }
 
     function calcularAjusteSincronia(texto, contexto) {
         taxaFalaEfetiva = velocidadeFala;
         const video = contexto?.video;
         const fimCue = Number(contexto?.fimCue);
-        if (!video || !fimCue || fimCue <= video.currentTime) return;
+        if (!MOTOR_SINCRONIA || !video || !fimCue || fimCue <= video.currentTime) return;
 
-        const segundosDeMidia = Math.max(0.1, fimCue - video.currentTime);
-        const duracaoNaTaxaUm = estimarDuracaoFala(texto);
-        const taxaAtualVideo = video.playbackRate || 1;
-        const segundosReaisDisponiveis = segundosDeMidia / taxaAtualVideo;
+        const ajuste = MOTOR_SINCRONIA.calcularAjusteAdaptativo({
+            texto,
+            modo: comportamentoSincronia,
+            taxaBase: velocidadeFala,
+            taxaMaxima: CONFIG.velocidadeMaxima,
+            taxaVideo: video.playbackRate || 1,
+            taxaVideoMinima: CONFIG.velocidadeVideoMinima,
+            segundosMidia: fimCue - video.currentTime,
+            palavrasPorSegundo: CONFIG.palavrasPorSegundo
+        });
 
-        if (comportamentoSincronia === "accelerate_voice") {
-            const taxaNecessaria = duracaoNaTaxaUm / segundosReaisDisponiveis;
-            taxaFalaEfetiva = Math.min(
-                CONFIG.velocidadeMaxima,
-                Math.max(velocidadeFala, taxaNecessaria)
-            );
-            return;
-        }
+        taxaFalaEfetiva = ajuste.taxaFala;
+        if (!ajuste.ajustarVideo) return;
 
-        const duracaoFala = duracaoNaTaxaUm / velocidadeFala;
-        if (duracaoFala <= segundosReaisDisponiveis) return;
-
-        velocidadeOriginalVideo = taxaAtualVideo;
+        velocidadeOriginalVideo = video.playbackRate || 1;
         videoComVelocidadeAjustada = video;
-        video.playbackRate = Math.min(
-            taxaAtualVideo,
-            Math.max(CONFIG.velocidadeVideoMinima, segundosDeMidia / duracaoFala)
+        velocidadeAplicadaVideo = ajuste.taxaVideo;
+        video.addEventListener(
+            "ratechange",
+            observarAlteracaoManualDeVelocidade
         );
+        video.playbackRate = ajuste.taxaVideo;
     }
 
     function falar(texto, contexto = {}) {
         const valor = normalizarTexto(texto);
-        if (!valor || !extensaoAtiva) return;
+        if (!valor || !extensaoAtiva || sinteseBloqueada) return;
+
+        if (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis)) {
+            ultimoErroSintese = "synthesis-unavailable";
+            sinteseBloqueada = true;
+            return;
+        }
 
         // Não interrompe uma frase em andamento. Mantém apenas a legenda mais
         // recente na fila para evitar tanto cortes quanto atrasos acumulados.
@@ -236,7 +261,7 @@
             );
             if (voz) utterance.voice = voz;
         }
-        utterance.onend = utterance.onerror = () => {
+        const finalizarFala = () => {
             if (minhaGeracao !== geracaoDaFala) return;
 
             falaAtual = null;
@@ -245,7 +270,22 @@
 
             const proximaLegenda = textoPendente;
             textoPendente = null;
-            if (proximaLegenda) falar(proximaLegenda.texto, proximaLegenda.contexto);
+            if (proximaLegenda && !sinteseBloqueada) {
+                falar(proximaLegenda.texto, proximaLegenda.contexto);
+            }
+        };
+
+        utterance.onend = () => {
+            ultimoErroSintese = "";
+            finalizarFala();
+        };
+        utterance.onerror = evento => {
+            ultimoErroSintese = evento.error || "speech-error";
+            if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
+                sinteseBloqueada = true;
+                textoPendente = null;
+            }
+            finalizarFala();
         };
 
         falaAtual = utterance;
@@ -330,9 +370,12 @@
             case "sia_enabled":
                 extensaoAtiva = Boolean(valor);
                 if (!extensaoAtiva) interromperFala();
+                if (extensaoAtiva) sinteseBloqueada = false;
                 break;
             case "sia_voice":
                 vozSelecionada = String(valor || "");
+                sinteseBloqueada = false;
+                ultimoErroSintese = "";
                 break;
             case "sia_lang":
                 idiomaFala = String(valor || CONFIG.idioma);
@@ -391,7 +434,9 @@
                     syncMode: comportamentoSincronia,
                     effectiveSpeechRate: Number(taxaFalaEfetiva.toFixed(2)),
                     videoRate: Number((video?.playbackRate || 1).toFixed(2)),
-                    videoRateAdjusted: video === videoComVelocidadeAjustada
+                    videoRateAdjusted: video === videoComVelocidadeAjustada,
+                    speechError: ultimoErroSintese,
+                    syncEngineReady: Boolean(MOTOR_SINCRONIA)
                 });
             }
         });
@@ -400,6 +445,7 @@
     function iniciarSia() {
         conectarConfiguracoes();
         setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
+        addEventListener("pagehide", interromperFala, { once: true });
         console.info("S.ia: leitor de legendas do Coursera ativo.");
     }
 
