@@ -51,7 +51,8 @@
     let candidatoDesde = 0;
     let geracaoDaFala = 0;
     let falaAtual = null;
-    let textoPendente = null;
+    let falaEnfileirada = null;
+    let legendaReserva = null;
     let videoMonitorado = null;
     let taxaFalaEfetiva = velocidadeFala;
     let videoComVelocidadeAjustada = null;
@@ -228,6 +229,106 @@
         video.playbackRate = ajuste.taxaVideo;
     }
 
+    function calcularTaxaAntecipada(texto, contexto) {
+        if (comportamentoSincronia !== "accelerate_voice" || !MOTOR_SINCRONIA) {
+            return velocidadeFala;
+        }
+
+        const video = contexto?.video;
+        const fimCue = Number(contexto?.fimCue);
+        if (!video || !fimCue || fimCue <= video.currentTime) return velocidadeFala;
+
+        return MOTOR_SINCRONIA.calcularAjusteAdaptativo({
+            texto,
+            modo: "accelerate_voice",
+            taxaBase: velocidadeFala,
+            taxaMaxima: CONFIG.velocidadeMaxima,
+            taxaVideo: video.playbackRate || 1,
+            taxaVideoMinima: CONFIG.velocidadeVideoMinima,
+            segundosMidia: fimCue - video.currentTime,
+            palavrasPorSegundo: CONFIG.palavrasPorSegundo
+        }).taxaFala;
+    }
+
+    function criarFalaEnfileiravel(texto, contexto) {
+        const utterance = new SpeechSynthesisUtterance(texto);
+        const registro = {
+            texto,
+            contexto,
+            utterance,
+            geracao: geracaoDaFala
+        };
+
+        utterance.lang = idiomaFala;
+        utterance.rate = calcularTaxaAntecipada(texto, contexto);
+        utterance.pitch = tomFala;
+        utterance.volume = volumeFala;
+
+        if (vozSelecionada) {
+            const voz = speechSynthesis.getVoices().find(
+                item => item.voiceURI === vozSelecionada || item.name === vozSelecionada
+            );
+            if (voz) utterance.voice = voz;
+        }
+
+        utterance.onstart = () => {
+            if (registro.geracao !== geracaoDaFala) return;
+
+            falaAtual = registro;
+            if (falaEnfileirada === registro) falaEnfileirada = null;
+            textoEmFala = registro.texto;
+            taxaFalaEfetiva = utterance.rate;
+            ultimoErroSintese = "";
+
+            restaurarVelocidadeVideo();
+            if (comportamentoSincronia === "slow_video") {
+                calcularAjusteSincronia(registro.texto, registro.contexto);
+            }
+
+            // Assim que a fala pré-carregada começa, ocupa novamente a fila
+            // nativa com a legenda mais recente mantida como reserva.
+            const reserva = legendaReserva;
+            legendaReserva = null;
+            if (reserva && reserva.texto !== registro.texto) {
+                enfileirarFala(reserva.texto, reserva.contexto);
+            }
+        };
+
+        utterance.onend = () => {
+            if (registro.geracao !== geracaoDaFala) return;
+            if (falaAtual === registro) {
+                falaAtual = null;
+                textoEmFala = "";
+                restaurarVelocidadeVideo();
+            }
+        };
+
+        utterance.onerror = evento => {
+            if (registro.geracao !== geracaoDaFala) return;
+
+            ultimoErroSintese = evento.error || "speech-error";
+            if (falaAtual === registro) falaAtual = null;
+            if (falaEnfileirada === registro) falaEnfileirada = null;
+            textoEmFala = "";
+            restaurarVelocidadeVideo();
+
+            if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
+                sinteseBloqueada = true;
+                legendaReserva = null;
+                geracaoDaFala++;
+                speechSynthesis.cancel();
+            }
+        };
+
+        return registro;
+    }
+
+    function enfileirarFala(texto, contexto = {}) {
+        const registro = criarFalaEnfileiravel(texto, contexto);
+        falaEnfileirada = registro;
+        speechSynthesis.speak(registro.utterance);
+    }
+
     function falar(texto, contexto = {}) {
         const valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
@@ -238,66 +339,22 @@
             return;
         }
 
-        // Não interrompe uma frase em andamento. Mantém apenas a legenda mais
-        // recente na fila para evitar tanto cortes quanto atrasos acumulados.
-        if (falaAtual || speechSynthesis.speaking || speechSynthesis.pending) {
-            if (valor !== textoEmFala) textoPendente = { texto: valor, contexto };
+        if (valor === textoEmFala || valor === falaEnfileirada?.texto) return;
+
+        if (falaEnfileirada) {
+            legendaReserva = { texto: valor, contexto };
             return;
         }
 
-        restaurarVelocidadeVideo();
-        calcularAjusteSincronia(valor, contexto);
-        const minhaGeracao = ++geracaoDaFala;
-
-        const utterance = new SpeechSynthesisUtterance(valor);
-        utterance.lang = idiomaFala;
-        utterance.rate = taxaFalaEfetiva;
-        utterance.pitch = tomFala;
-        utterance.volume = volumeFala;
-
-        if (vozSelecionada) {
-            const voz = speechSynthesis.getVoices().find(
-                item => item.voiceURI === vozSelecionada || item.name === vozSelecionada
-            );
-            if (voz) utterance.voice = voz;
-        }
-        const finalizarFala = () => {
-            if (minhaGeracao !== geracaoDaFala) return;
-
-            falaAtual = null;
-            textoEmFala = "";
-            restaurarVelocidadeVideo();
-
-            const proximaLegenda = textoPendente;
-            textoPendente = null;
-            if (proximaLegenda && !sinteseBloqueada) {
-                falar(proximaLegenda.texto, proximaLegenda.contexto);
-            }
-        };
-
-        utterance.onend = () => {
-            ultimoErroSintese = "";
-            finalizarFala();
-        };
-        utterance.onerror = evento => {
-            ultimoErroSintese = evento.error || "speech-error";
-            if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
-                sinteseBloqueada = true;
-                textoPendente = null;
-            }
-            finalizarFala();
-        };
-
-        falaAtual = utterance;
-        textoEmFala = valor;
-        speechSynthesis.speak(utterance);
+        enfileirarFala(valor, contexto);
     }
 
     function interromperFala() {
         geracaoDaFala++;
         falaAtual = null;
+        falaEnfileirada = null;
         textoEmFala = "";
-        textoPendente = null;
+        legendaReserva = null;
         restaurarVelocidadeVideo();
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
