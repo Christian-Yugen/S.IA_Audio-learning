@@ -24,11 +24,21 @@
       pitchLabel: document.getElementById("label-pitch"),
       volume: document.getElementById("input-volume"),
       volumeLabel: document.getElementById("label-volume"),
-      sync: [...document.querySelectorAll('input[name="sync-behavior"]')]
+      sync: [...document.querySelectorAll('input[name="sync-behavior"]')],
+      testVoice: document.getElementById("test-voice"),
+      reset: document.getElementById("reset-settings"),
+      status: document.getElementById("connection-status"),
+      saveFeedback: document.getElementById("save-feedback")
     };
 
     const saved = await chrome.storage.local.get(Object.keys(DEFAULTS));
     const settings = { ...DEFAULTS, ...saved };
+    let feedbackTimer = 0;
+
+    function setStatus(text, state = "unavailable") {
+      ui.status.className = `connection-status ${state}`;
+      ui.status.querySelector("span").textContent = text;
+    }
 
     function renderPower() {
       const enabled = Boolean(settings.sia_enabled);
@@ -36,6 +46,7 @@
       ui.power.setAttribute("aria-checked", String(enabled));
       ui.powerText.textContent = enabled ? "ON" : "OFF";
       ui.container.classList.toggle("is-disabled", !enabled);
+      ui.testVoice.disabled = !enabled;
     }
 
     function render() {
@@ -50,18 +61,33 @@
       renderPower();
     }
 
-    function loadVoices() {
-      const voices = speechSynthesis.getVoices().slice().sort(
-        (a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)
+    function matchingVoices() {
+      const language = settings.sia_lang.toLowerCase();
+      const baseLanguage = language.split("-")[0];
+      const allVoices = speechSynthesis.getVoices().slice();
+      const exact = allVoices.filter(voice => voice.lang.toLowerCase() === language);
+      const sameLanguage = allVoices.filter(
+        voice => voice.lang.toLowerCase().split("-")[0] === baseLanguage
       );
+      return (exact.length ? exact : sameLanguage).sort(
+        (a, b) => a.name.localeCompare(b.name)
+      );
+    }
 
-      ui.voice.replaceChildren();
-      ui.voice.append(new Option("Automática (recomendada)", ""));
+    function loadVoices() {
+      const voices = matchingVoices();
+      ui.voice.replaceChildren(new Option("Automática (recomendada)", ""));
+
       voices.forEach(voice => {
         const option = new Option(`${voice.name} — ${voice.lang}`, voice.voiceURI);
         option.dataset.name = voice.name;
         ui.voice.append(option);
       });
+
+      if (!voices.length) {
+        ui.voice.append(new Option(`Nenhuma voz para ${settings.sia_lang}`, "__none__"));
+        ui.voice.options[1].disabled = true;
+      }
 
       const match = [...ui.voice.options].find(
         option => option.value === settings.sia_voice || option.dataset.name === settings.sia_voice
@@ -69,25 +95,106 @@
       ui.voice.value = match?.value || "";
     }
 
-    async function saveAndSend(key, value) {
+    function showSavedFeedback(message = "Configurações salvas") {
+      clearTimeout(feedbackTimer);
+      ui.saveFeedback.textContent = `✓ ${message}`;
+      ui.saveFeedback.classList.add("visible");
+      feedbackTimer = setTimeout(() => ui.saveFeedback.classList.remove("visible"), 1400);
+    }
+
+    async function activeTab() {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      return tab;
+    }
+
+    async function sendToContent(message) {
+      const tab = await activeTab();
+      if (!tab?.id) return null;
+      try {
+        return await chrome.tabs.sendMessage(tab.id, message);
+      } catch {
+        return null;
+      }
+    }
+
+    async function saveAndSend(key, value, showFeedback = true) {
       settings[key] = value;
       await chrome.storage.local.set({ [key]: value });
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) return;
-      try {
-        await chrome.tabs.sendMessage(tab.id, { type: "SIA_CONFIG_UPDATE", key, value });
-      } catch {
-        // A aba ativa pode não executar o content script da extensão.
+      await sendToContent({ type: "SIA_CONFIG_UPDATE", key, value });
+      if (showFeedback) showSavedFeedback();
+    }
+
+    async function updateConnectionStatus() {
+      const tab = await activeTab();
+      if (!tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i)) {
+        setStatus("Abra uma aula do Coursera", "unavailable");
+        return;
       }
+
+      const status = await sendToContent({ type: "SIA_GET_STATUS" });
+      if (!status?.videoFound) {
+        setStatus("Nenhum vídeo encontrado nesta página", "unavailable");
+      } else if (!settings.sia_enabled) {
+        setStatus("S·IA desativada", "unavailable");
+      } else if (status.ended) {
+        setStatus("Aula finalizada", "paused");
+      } else if (status.paused) {
+        setStatus("Vídeo pausado", "paused");
+      } else if (status.captionActive) {
+        setStatus("Lendo legendas em tempo real", "connected");
+      } else {
+        setStatus("Conectada ao vídeo · aguardando legenda", "connected");
+      }
+    }
+
+    function selectedVoice() {
+      return speechSynthesis.getVoices().find(
+        voice => voice.voiceURI === settings.sia_voice || voice.name === settings.sia_voice
+      );
+    }
+
+    function testVoice() {
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(
+        "S IA está pronta para transformar suas aulas em áudio."
+      );
+      utterance.lang = settings.sia_lang;
+      utterance.rate = Number(settings.sia_speed);
+      utterance.pitch = Number(settings.sia_pitch);
+      utterance.volume = Number(settings.sia_volume) / 100;
+      const voice = selectedVoice();
+      if (voice) utterance.voice = voice;
+      speechSynthesis.speak(utterance);
+    }
+
+    async function resetSettings() {
+      Object.assign(settings, DEFAULTS);
+      await chrome.storage.local.set(DEFAULTS);
+      await Promise.all(Object.entries(DEFAULTS).map(([key, value]) =>
+        sendToContent({ type: "SIA_CONFIG_UPDATE", key, value })
+      ));
+      speechSynthesis.cancel();
+      render();
+      loadVoices();
+      showSavedFeedback("Padrões restaurados");
+      void updateConnectionStatus();
     }
 
     ui.power.addEventListener("click", () => {
       settings.sia_enabled = !settings.sia_enabled;
       renderPower();
-      void saveAndSend("sia_enabled", settings.sia_enabled);
+      void saveAndSend("sia_enabled", settings.sia_enabled).then(updateConnectionStatus);
     });
     ui.voice.addEventListener("change", () => void saveAndSend("sia_voice", ui.voice.value));
-    ui.lang.addEventListener("change", () => void saveAndSend("sia_lang", ui.lang.value));
+    ui.lang.addEventListener("change", () => {
+      settings.sia_lang = ui.lang.value;
+      settings.sia_voice = "";
+      loadVoices();
+      void chrome.storage.local.set({ sia_lang: settings.sia_lang, sia_voice: "" });
+      void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_lang", value: settings.sia_lang });
+      void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_voice", value: "" });
+      showSavedFeedback();
+    });
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);
       ui.speedLabel.value = `${value.toFixed(1)}x`;
@@ -106,9 +213,13 @@
     ui.sync.forEach(radio => radio.addEventListener("change", () => {
       if (radio.checked) void saveAndSend("sia_sync", radio.value);
     }));
+    ui.testVoice.addEventListener("click", testVoice);
+    ui.reset.addEventListener("click", () => void resetSettings());
 
     render();
     loadVoices();
+    void updateConnectionStatus();
     speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    setInterval(updateConnectionStatus, 1000);
   });
 })();

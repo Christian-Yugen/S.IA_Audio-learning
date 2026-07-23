@@ -311,9 +311,23 @@
             });
         });
 
-        chrome.runtime.onMessage.addListener(mensagem => {
-            if (mensagem?.type !== "SIA_CONFIG_UPDATE") return;
-            aplicarConfiguracao(mensagem.key, mensagem.value);
+        chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
+            if (mensagem?.type === "SIA_CONFIG_UPDATE") {
+                aplicarConfiguracao(mensagem.key, mensagem.value);
+                responder({ ok: true });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_GET_STATUS") {
+                const video = document.querySelector("video");
+                responder({
+                    enabled: extensaoAtiva,
+                    videoFound: Boolean(video),
+                    paused: video?.paused ?? false,
+                    ended: video?.ended ?? false,
+                    captionActive: Boolean(ultimoTextoDetectado || textoEmFala)
+                });
+            }
         });
     }
 

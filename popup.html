@@ -23,6 +23,11 @@
 
     <div class="divider"></div>
 
+    <div id="connection-status" class="connection-status checking" role="status">
+      <i aria-hidden="true"></i>
+      <span>Verificando página atual…</span>
+    </div>
+
     <section class="section" aria-labelledby="voice-title">
       <h2 id="voice-title" class="section-title"><span>01</span> Motor de voz</h2>
       <label class="field" for="select-voice">
@@ -72,7 +77,15 @@
       </div>
     </section>
 
-    <footer class="footer"><span><i></i> Coursera</span><span>v1.1.2</span></footer>
+    <div class="actions">
+      <button id="test-voice" class="button primary" type="button">Testar voz</button>
+      <button id="reset-settings" class="button secondary" type="button">Restaurar padrões</button>
+    </div>
+
+    <footer class="footer">
+      <span id="save-feedback" class="save-feedback" aria-live="polite">Configurações salvas</span>
+      <span>v1.2.0</span>
+    </footer>
   </main>
   <script src="popup.js"></script>
 </body>
