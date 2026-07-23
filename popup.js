@@ -192,6 +192,17 @@
       } else if (status.captionActive) {
         if (status.videoRateAdjusted) {
           setStatus(`Lendo · vídeo adaptado para ${status.videoRate.toFixed(2)}x`, "connected");
+        } else if (
+          status.syncMode === "accelerate_voice"
+          && (
+            status.plannedSpeechRate > Number(settings.sia_speed) + 0.05
+            || status.estimatedQueueDelay > 0.4
+          )
+        ) {
+          setStatus(
+            `Lendo · correção ${status.plannedSpeechRate.toFixed(1)}x · fila ${status.estimatedQueueDelay.toFixed(1)}s`,
+            "connected"
+          );
         } else if (status.timelineSentenceActive) {
           setStatus(
             `Lendo · frase sincronizada em ${status.effectiveSpeechRate.toFixed(1)}x`,

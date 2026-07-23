@@ -12,7 +12,11 @@
         palavrasPorSegundo: 2.7,
         maximoCaracteresSemPonto: 280,
         maximoSegundosSemPonto: 12,
-        maximoCuesAntecipadas: 6
+        maximoCuesAntecipadas: 6,
+        passoMaximoTaxaAdaptativa: 0.3,
+        toleranciaTaxaAdaptativa: 0.15,
+        pesoCalibracaoVoz: 0.2,
+        janelaDeduplicacaoConcluidaMs: 5000
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
 
@@ -66,6 +70,13 @@
     let coberturaLegendaAte = 0;
     let ultimaPosicaoVideo = 0;
     let sentencaAntecipadaAtiva = false;
+    let previsaoFimFilaEm = 0;
+    let ultimaTaxaPlanejada = velocidadeFala;
+    let fatorDuracaoVoz = 1;
+    let atrasoFilaEstimado = 0;
+    let erroInicioFila = 0;
+    let ultimoTextoConcluido = "";
+    let ultimoTextoConcluidoEm = 0;
     let bufferSentenca = {
         texto: "",
         inicioVideo: null,
@@ -389,6 +400,48 @@
         const fimCue = Number(contexto?.fimCue);
         if (!video || !fimCue || fimCue <= video.currentTime) return velocidadeFala;
 
+        if (typeof MOTOR_SINCRONIA.calcularTaxaSincronizacaoContinua === "function") {
+            const agora = performance.now();
+            const inicioPrevistoEm = Math.max(
+                agora,
+                Number(contexto?.inicioPrevistoEm) || agora
+            );
+            const esperaFila = Math.max(0, (inicioPrevistoEm - agora) / 1000);
+            const segundosAteFim = Math.max(
+                0,
+                (fimCue - video.currentTime) / (video.playbackRate || 1)
+            );
+            atrasoFilaEstimado = esperaFila;
+            const taxaReferencia = (
+                contexto?.sentencaAntecipada
+                && typeof MOTOR_SINCRONIA.calcularTaxaParaIntervalo === "function"
+            )
+                ? MOTOR_SINCRONIA.calcularTaxaParaIntervalo({
+                    texto,
+                    taxaBase: velocidadeFala,
+                    taxaMinima: Math.max(CONFIG.velocidadeMinima, velocidadeFala * 0.75),
+                    taxaMaxima: CONFIG.velocidadeMaxima,
+                    taxaVideo: video.playbackRate || 1,
+                    segundosMidia: fimCue - video.currentTime,
+                    palavrasPorSegundo: CONFIG.palavrasPorSegundo
+                })
+                : velocidadeFala;
+
+            const ajuste = MOTOR_SINCRONIA.calcularTaxaSincronizacaoContinua({
+                texto,
+                taxaBase: taxaReferencia,
+                taxaAnterior: ultimaTaxaPlanejada,
+                taxaMaxima: CONFIG.velocidadeMaxima,
+                passoMaximo: CONFIG.passoMaximoTaxaAdaptativa,
+                tolerancia: CONFIG.toleranciaTaxaAdaptativa,
+                fatorDuracao: fatorDuracaoVoz,
+                segundosReaisDisponiveis: Math.max(0, segundosAteFim - esperaFila),
+                palavrasPorSegundo: CONFIG.palavrasPorSegundo
+            });
+            ultimaTaxaPlanejada = ajuste.taxaFala;
+            return ajuste.taxaFala;
+        }
+
         if (
             contexto?.sentencaAntecipada
             && typeof MOTOR_SINCRONIA.calcularTaxaParaIntervalo === "function"
@@ -422,7 +475,14 @@
             texto,
             contexto,
             utterance,
-            geracao: geracaoDaFala
+            geracao: geracaoDaFala,
+            inicioPrevistoEm: Number(contexto?.inicioPrevistoEm) || performance.now(),
+            inicioRealEm: 0,
+            duracaoTaxaUm: MOTOR_SINCRONIA?.estimarDuracaoFala
+                ? MOTOR_SINCRONIA.estimarDuracaoFala(texto, {
+                    palavrasPorSegundo: CONFIG.palavrasPorSegundo
+                })
+                : Math.max(0.6, texto.split(/\s+/).length / CONFIG.palavrasPorSegundo)
         };
 
         utterance.lang = idiomaFala;
@@ -440,6 +500,12 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-iniciada", registro.texto);
+            registro.inicioRealEm = performance.now();
+            erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
+            previsaoFimFilaEm = Math.max(
+                registro.inicioRealEm,
+                previsaoFimFilaEm + (registro.inicioRealEm - registro.inicioPrevistoEm)
+            );
             falaAtual = registro;
             if (falaEnfileirada === registro) falaEnfileirada = null;
             textoEmFala = registro.texto;
@@ -464,6 +530,18 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-finalizada", registro.texto);
+            ultimoTextoConcluido = registro.texto;
+            ultimoTextoConcluidoEm = performance.now();
+            if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
+                const duracaoReal = (performance.now() - registro.inicioRealEm) / 1000;
+                const fatorObservado = Math.min(
+                    1.8,
+                    Math.max(0.6, duracaoReal * utterance.rate / registro.duracaoTaxaUm)
+                );
+                fatorDuracaoVoz += (
+                    fatorObservado - fatorDuracaoVoz
+                ) * CONFIG.pesoCalibracaoVoz;
+            }
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
@@ -495,7 +573,15 @@
     }
 
     function enfileirarFala(texto, contexto = {}) {
-        const registro = criarFalaEnfileiravel(texto, contexto);
+        const agora = performance.now();
+        const inicioPrevistoEm = Math.max(agora, previsaoFimFilaEm);
+        const contextoPlanejado = { ...contexto, inicioPrevistoEm };
+        const registro = criarFalaEnfileiravel(texto, contextoPlanejado);
+        const duracaoPrevistaMs = registro.duracaoTaxaUm
+            * fatorDuracaoVoz
+            / registro.utterance.rate
+            * 1000;
+        previsaoFimFilaEm = inicioPrevistoEm + duracaoPrevistaMs;
         falaEnfileirada = registro;
         registrarDiagnostico("fala-enfileirada", texto);
         speechSynthesis.speak(registro.utterance);
@@ -512,10 +598,18 @@
         }
 
         if (typeof MOTOR_SINCRONIA?.removerSobreposicaoInicial === "function") {
+            const textoConcluidoRecente = (
+                ultimoTextoConcluido
+                && performance.now() - ultimoTextoConcluidoEm
+                    <= CONFIG.janelaDeduplicacaoConcluidaMs
+            )
+                ? ultimoTextoConcluido
+                : "";
             const referencias = [
                 textoEmFala,
                 falaEnfileirada?.texto,
-                legendaReserva?.texto
+                legendaReserva?.texto,
+                textoConcluidoRecente
             ].filter(Boolean);
 
             for (const referencia of referencias) {
@@ -553,6 +647,12 @@
         coberturaLegendaAte = 0;
         ultimaPosicaoVideo = 0;
         sentencaAntecipadaAtiva = false;
+        previsaoFimFilaEm = 0;
+        ultimaTaxaPlanejada = velocidadeFala;
+        atrasoFilaEstimado = 0;
+        erroInicioFila = 0;
+        ultimoTextoConcluido = "";
+        ultimoTextoConcluidoEm = 0;
         limparBufferSentenca();
         restaurarVelocidadeVideo();
         if (speechSynthesis.speaking || speechSynthesis.pending) {
@@ -648,6 +748,7 @@
                 break;
             case "sia_voice":
                 vozSelecionada = String(valor || "");
+                fatorDuracaoVoz = 1;
                 sinteseBloqueada = false;
                 ultimoErroSintese = "";
                 break;
@@ -659,6 +760,7 @@
                     CONFIG.velocidadeMaxima,
                     Math.max(CONFIG.velocidadeMinima, Number(valor) || 1.2)
                 );
+                ultimaTaxaPlanejada = velocidadeFala;
                 break;
             case "sia_pitch":
                 tomFala = Math.min(1.5, Math.max(0.5, Number(valor) || 1));
@@ -710,6 +812,10 @@
                     timelineSentenceActive: sentencaAntecipadaAtiva,
                     syncMode: comportamentoSincronia,
                     effectiveSpeechRate: Number(taxaFalaEfetiva.toFixed(2)),
+                    plannedSpeechRate: Number(ultimaTaxaPlanejada.toFixed(2)),
+                    estimatedQueueDelay: Number(atrasoFilaEstimado.toFixed(2)),
+                    queueStartError: Number(erroInicioFila.toFixed(2)),
+                    voiceDurationFactor: Number(fatorDuracaoVoz.toFixed(2)),
                     videoRate: Number((video?.playbackRate || 1).toFixed(2)),
                     videoRateAdjusted: video === videoComVelocidadeAjustada,
                     speechError: ultimoErroSintese,

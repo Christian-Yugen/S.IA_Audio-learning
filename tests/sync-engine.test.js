@@ -8,7 +8,8 @@ const {
     prepararTextoParaSintese,
     removerSobreposicaoInicial,
     calcularAjusteAdaptativo,
-    calcularTaxaParaIntervalo
+    calcularTaxaParaIntervalo,
+    calcularTaxaSincronizacaoContinua
 } = require("../sync-engine.js");
 
 test("estima uma duração mínima para textos curtos", () => {
@@ -64,6 +65,59 @@ test("distribui a fala antecipada pelo intervalo completo da sentença", () => {
     });
     assert.ok(taxa >= 0.75);
     assert.ok(taxa < 1);
+});
+
+test("remove sobreposição após uma frase concluída com ponto final", () => {
+    assert.equal(
+        removerSobreposicaoInicial(
+            "A análise representa toda a população ou os dados.",
+            "ou os dados. Agora podemos avaliar a qualidade."
+        ),
+        "Agora podemos avaliar a qualidade."
+    );
+});
+
+test("aumenta a taxa gradualmente quando a fila reduz o tempo disponível", () => {
+    const resultado = calcularTaxaSincronizacaoContinua({
+        texto: "Uma frase relativamente longa precisa recuperar parte do atraso acumulado.",
+        taxaBase: 1,
+        taxaAnterior: 1,
+        taxaMaxima: 3.5,
+        passoMaximo: 0.3,
+        segundosReaisDisponiveis: 1
+    });
+    assert.equal(resultado.taxaFala, 1.3);
+    assert.ok(resultado.taxaNecessaria > resultado.taxaFala);
+});
+
+test("reduz a correção gradualmente quando o atraso desaparece", () => {
+    const resultado = calcularTaxaSincronizacaoContinua({
+        texto: "Legenda curta.",
+        taxaBase: 1,
+        taxaAnterior: 1.6,
+        taxaMaxima: 3.5,
+        passoMaximo: 0.3,
+        segundosReaisDisponiveis: 8
+    });
+    assert.equal(resultado.taxaFala, 1.3);
+});
+
+test("considera a calibração de uma voz mais lenta", () => {
+    const comum = calcularTaxaSincronizacaoContinua({
+        texto: "Esta voz precisa caber no intervalo.",
+        taxaBase: 1,
+        taxaAnterior: 1,
+        segundosReaisDisponiveis: 2,
+        fatorDuracao: 1
+    });
+    const lenta = calcularTaxaSincronizacaoContinua({
+        texto: "Esta voz precisa caber no intervalo.",
+        taxaBase: 1,
+        taxaAnterior: 1,
+        segundosReaisDisponiveis: 2,
+        fatorDuracao: 1.4
+    });
+    assert.ok(lenta.taxaNecessaria > comum.taxaNecessaria);
 });
 
 test("mantém a taxa base quando a cue tem tempo suficiente", () => {

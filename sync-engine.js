@@ -118,12 +118,61 @@
         return limitar(duracaoTaxaUm / segundosReais, taxaMinima, taxaMaxima);
     }
 
+    function calcularTaxaSincronizacaoContinua(entrada) {
+        const taxaBase = limitar(Number(entrada.taxaBase) || 1.2, 0.1, 10);
+        const taxaMaxima = limitar(Number(entrada.taxaMaxima) || 3.5, taxaBase, 10);
+        const taxaAnterior = limitar(
+            Number(entrada.taxaAnterior) || taxaBase,
+            taxaBase,
+            taxaMaxima
+        );
+        const passoMaximo = limitar(Number(entrada.passoMaximo) || 0.3, 0.05, 1);
+        const tolerancia = limitar(Number(entrada.tolerancia) || 0.15, 0, 1);
+        const fatorDuracao = limitar(Number(entrada.fatorDuracao) || 1, 0.6, 1.8);
+        const segundosDisponiveis = Math.max(
+            0,
+            Number(entrada.segundosReaisDisponiveis) || 0
+        );
+        const duracaoTaxaUm = estimarDuracaoFala(entrada.texto, entrada) * fatorDuracao;
+
+        if (!segundosDisponiveis) {
+            return {
+                taxaFala: limitar(taxaAnterior + passoMaximo, taxaBase, taxaMaxima),
+                taxaNecessaria: taxaMaxima,
+                duracaoTaxaUm,
+                saturada: taxaAnterior + passoMaximo >= taxaMaxima
+            };
+        }
+
+        const taxaNecessaria = limitar(
+            duracaoTaxaUm / segundosDisponiveis,
+            taxaBase,
+            taxaMaxima
+        );
+        const alvo = taxaNecessaria <= taxaBase + tolerancia
+            ? taxaBase
+            : taxaNecessaria;
+        const taxaFala = limitar(
+            alvo,
+            Math.max(taxaBase, taxaAnterior - passoMaximo),
+            Math.min(taxaMaxima, taxaAnterior + passoMaximo)
+        );
+
+        return {
+            taxaFala,
+            taxaNecessaria,
+            duracaoTaxaUm,
+            saturada: taxaNecessaria >= taxaMaxima
+        };
+    }
+
     return Object.freeze({
         estimarDuracaoFala,
         terminaComPontuacaoFinal,
         prepararTextoParaSintese,
         removerSobreposicaoInicial,
         calcularAjusteAdaptativo,
-        calcularTaxaParaIntervalo
+        calcularTaxaParaIntervalo,
+        calcularTaxaSincronizacaoContinua
     });
 });
