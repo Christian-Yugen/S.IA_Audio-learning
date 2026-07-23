@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "S.ia | Audio-learning da UXBRAS®",
+  "version": "1.0",
+  "description": "Lê transcrições em português no Coursera em voz alta.",
+  "permissions": ["activeTab", "scripting"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.coursera.org/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
