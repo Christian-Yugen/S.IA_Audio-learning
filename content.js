@@ -16,7 +16,8 @@
         passoMaximoTaxaAdaptativa: 0.3,
         toleranciaTaxaAdaptativa: 0.15,
         pesoCalibracaoVoz: 0.2,
-        janelaDeduplicacaoConcluidaMs: 5000
+        janelaDeduplicacaoConcluidaMs: 5000,
+        maximoHistoricoFrases: 60
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
 
@@ -77,6 +78,10 @@
     let erroInicioFila = 0;
     let ultimoTextoConcluido = "";
     let ultimoTextoConcluidoEm = 0;
+    let historicoFrases = [];
+    const chaveHistorico = `sia_history_${location.pathname
+        .replace(/[^a-z0-9]+/gi, "_")
+        .slice(0, 120)}`;
     let bufferSentenca = {
         texto: "",
         inicioVideo: null,
@@ -280,6 +285,7 @@
 
             return {
                 texto,
+                inicioCue,
                 fimCue,
                 video,
                 sentencaAntecipada: cuesAntecipadas > 0
@@ -326,7 +332,62 @@
             return { ...textoTrack, origem: "track" };
         }
 
-        return { texto: obterLegendasDoDom(video), origem: "dom", video };
+        return {
+            texto: obterLegendasDoDom(video),
+            origem: "dom",
+            video,
+            inicioCue: video.currentTime,
+            fimCue: 0
+        };
+    }
+
+    function criarEntradaHistorico(registro) {
+        const video = registro.contexto?.video || videoMonitorado;
+        const inicio = Number(registro.contexto?.inicioCue);
+        const fim = Number(registro.contexto?.fimCue);
+        return {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            texto: registro.texto,
+            inicio: Number.isFinite(inicio) ? inicio : Number(video?.currentTime) || 0,
+            fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
+            url: location.href,
+            titulo: document.title,
+            curso: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "coursera",
+            criadoEm: Date.now(),
+            favorito: false,
+            nota: ""
+        };
+    }
+
+    async function registrarFraseNoHistorico(registro) {
+        const entrada = criarEntradaHistorico(registro);
+        const ultima = historicoFrases.at(-1);
+        if (
+            ultima
+            && ultima.texto === entrada.texto
+            && Math.abs(ultima.inicio - entrada.inicio) < 0.25
+        ) {
+            return;
+        }
+
+        historicoFrases.push(entrada);
+        historicoFrases = historicoFrases.slice(-CONFIG.maximoHistoricoFrases);
+        await chrome.storage.local.set({ [chaveHistorico]: historicoFrases });
+    }
+
+    function repetirEntradaHistorico(id = "") {
+        const entrada = id
+            ? historicoFrases.find(item => item.id === id)
+            : historicoFrases.at(-1);
+        const video = document.querySelector("video");
+        if (!entrada || !video) return false;
+
+        interromperFala();
+        ultimoTextoDetectado = "";
+        textoCandidato = "";
+        video.currentTime = Math.max(0, entrada.inicio - 0.05);
+        void video.play();
+        return true;
     }
 
     function observarAlteracaoManualDeVelocidade() {
@@ -500,6 +561,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-iniciada", registro.texto);
+            void registrarFraseNoHistorico(registro);
             registro.inicioRealEm = performance.now();
             erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
             previsaoFimFilaEm = Math.max(
@@ -786,8 +848,14 @@
             "sia_sync"
         ];
 
-        chrome.storage.local.get(chaves, configuracoes => {
-            Object.entries(configuracoes).forEach(([chave, valor]) => {
+        chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
+            chaves.forEach(chave => {
+                if (!(chave in configuracoes)) return;
+                aplicarConfiguracao(chave, configuracoes[chave]);
+            });
+            const curso = location.pathname.match(/\/learn\/([^/]+)/)?.[1];
+            const perfil = curso && configuracoes.sia_course_profiles?.[curso];
+            Object.entries(perfil || {}).forEach(([chave, valor]) => {
                 aplicarConfiguracao(chave, valor);
             });
         });
@@ -821,12 +889,58 @@
                     speechError: ultimoErroSintese,
                     syncEngineReady: Boolean(MOTOR_SINCRONIA)
                 });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_GET_LEARNING_CONTEXT") {
+                responder({
+                    ok: true,
+                    courseKey: chaveHistorico,
+                    title: document.title,
+                    url: location.href,
+                    history: historicoFrases
+                });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_REPLAY_LAST") {
+                responder({ ok: repetirEntradaHistorico(mensagem.id) });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_UPDATE_HISTORY_ENTRY") {
+                const entrada = historicoFrases.find(item => item.id === mensagem.id);
+                if (!entrada) {
+                    responder({ ok: false });
+                    return;
+                }
+                if (typeof mensagem.favorite === "boolean") {
+                    entrada.favorito = mensagem.favorite;
+                }
+                if (typeof mensagem.note === "string") {
+                    entrada.nota = mensagem.note.slice(0, 1000);
+                }
+                void chrome.storage.local.set({ [chaveHistorico]: historicoFrases });
+                responder({ ok: true, entry: entrada });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_CLEAR_HISTORY") {
+                historicoFrases = [];
+                void chrome.storage.local.remove(chaveHistorico);
+                responder({ ok: true });
             }
         });
     }
 
     function iniciarSia() {
         conectarConfiguracoes();
+        chrome.storage.local.get(chaveHistorico, resultado => {
+            const salvo = resultado[chaveHistorico];
+            historicoFrases = Array.isArray(salvo)
+                ? salvo.slice(-CONFIG.maximoHistoricoFrases)
+                : [];
+        });
         setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
         addEventListener("pagehide", interromperFala, { once: true });
         console.info("S.ia: leitor de legendas do Coursera ativo.");

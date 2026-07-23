@@ -15,8 +15,11 @@ gerar fala por meio da API de síntese de voz do próprio dispositivo.
 
 ## Armazenamento
 
-As preferências de voz, idioma, velocidade, tom, volume, sincronização e interface
-são armazenadas localmente com `chrome.storage.local`.
+As preferências de voz, idioma, velocidade, tom, volume, sincronização e interface,
+os perfis configurados por curso e o histórico recente de frases são armazenados
+localmente com `chrome.storage.local`. Trechos favoritos e anotações criadas pelo
+próprio usuário também permanecem somente no dispositivo. A remoção da extensão
+apaga esses dados.
 
 ## Compartilhamento e transmissão
 
@@ -28,6 +31,8 @@ para servidores externos. A extensão não vende nem compartilha dados pessoais.
 - `storage`: salva as preferências localmente.
 - `activeTab`: identifica a aba ativa quando o usuário abre o pop-up e envia as
   alterações de configuração ao leitor da página.
+- `sidePanel`: exibe o S·IA Companion com o histórico local, favoritos, anotações
+  e controles de repetição da aula.
 - Acesso a `coursera.org`: detecta o vídeo e as legendas exclusivamente nas páginas
   compatíveis do Coursera.
 
