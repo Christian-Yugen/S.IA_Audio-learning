@@ -7,8 +7,7 @@
         tamanhoMinimo: 4,
         idioma: "pt-BR",
         velocidadeMinima: 0.6,
-        velocidadeMaxima: 3.5,
-        passoVelocidade: 0.2
+        velocidadeMaxima: 3.5
     });
 
     const SELETORES_LEGENDA = [
@@ -37,6 +36,12 @@
     ].join(",");
 
     let velocidadeFala = 1.2;
+    let extensaoAtiva = true;
+    let idiomaFala = CONFIG.idioma;
+    let tomFala = 1;
+    let volumeFala = 1;
+    let vozSelecionada = "";
+    let comportamentoSincronia = "accelerate_voice";
     let textoEmFala = "";
     let ultimoTextoDetectado = "";
     let textoCandidato = "";
@@ -45,7 +50,6 @@
     let falaAtual = null;
     let textoPendente = "";
     let videoMonitorado = null;
-    let usuarioTestandoVoz = false;
 
     function normalizarTexto(valor) {
         return String(valor || "")
@@ -148,13 +152,13 @@
         return { texto: obterLegendasDoDom(video), origem: "dom" };
     }
 
-    function falar(texto, opcoes = {}) {
+    function falar(texto) {
         const valor = normalizarTexto(texto);
-        if (!valor) return;
+        if (!valor || !extensaoAtiva) return;
 
         // Não interrompe uma frase em andamento. Mantém apenas a legenda mais
         // recente na fila para evitar tanto cortes quanto atrasos acumulados.
-        if (!opcoes.teste && (falaAtual || speechSynthesis.speaking || speechSynthesis.pending)) {
+        if (falaAtual || speechSynthesis.speaking || speechSynthesis.pending) {
             if (valor !== textoEmFala) textoPendente = valor;
             return;
         }
@@ -162,14 +166,22 @@
         const minhaGeracao = ++geracaoDaFala;
 
         const utterance = new SpeechSynthesisUtterance(valor);
-        utterance.lang = CONFIG.idioma;
+        utterance.lang = idiomaFala;
         utterance.rate = velocidadeFala;
+        utterance.pitch = tomFala;
+        utterance.volume = volumeFala;
+
+        if (vozSelecionada) {
+            const voz = speechSynthesis.getVoices().find(
+                item => item.voiceURI === vozSelecionada || item.name === vozSelecionada
+            );
+            if (voz) utterance.voice = voz;
+        }
         utterance.onend = utterance.onerror = () => {
             if (minhaGeracao !== geracaoDaFala) return;
 
             falaAtual = null;
             textoEmFala = "";
-            usuarioTestandoVoz = false;
 
             const proximoTexto = textoPendente;
             textoPendente = "";
@@ -177,7 +189,7 @@
         };
 
         falaAtual = utterance;
-        textoEmFala = opcoes.teste ? "" : valor;
+        textoEmFala = valor;
         speechSynthesis.speak(utterance);
     }
 
@@ -186,13 +198,14 @@
         falaAtual = null;
         textoEmFala = "";
         textoPendente = "";
-        usuarioTestandoVoz = false;
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
         }
     }
 
     function observarLegenda() {
+        if (!extensaoAtiva) return;
+
         const video = document.querySelector("video");
 
         if (!video) {
@@ -211,7 +224,7 @@
         }
 
         if (video.paused || video.ended) {
-            if (!usuarioTestandoVoz) interromperFala();
+            interromperFala();
             textoCandidato = "";
             return;
         }
@@ -251,99 +264,68 @@
         falar(textoAtual);
     }
 
-    function atualizarRotuloVelocidade() {
-        const rotulo = document.getElementById("lectio-speed-label");
-        if (rotulo) rotulo.textContent = velocidadeFala.toFixed(1);
+    function aplicarConfiguracao(chave, valor) {
+        switch (chave) {
+            case "sia_enabled":
+                extensaoAtiva = Boolean(valor);
+                if (!extensaoAtiva) interromperFala();
+                break;
+            case "sia_voice":
+                vozSelecionada = String(valor || "");
+                break;
+            case "sia_lang":
+                idiomaFala = String(valor || CONFIG.idioma);
+                break;
+            case "sia_speed":
+                velocidadeFala = Math.min(
+                    CONFIG.velocidadeMaxima,
+                    Math.max(CONFIG.velocidadeMinima, Number(valor) || 1.2)
+                );
+                break;
+            case "sia_pitch":
+                tomFala = Math.min(1.5, Math.max(0.5, Number(valor) || 1));
+                break;
+            case "sia_volume":
+                volumeFala = Math.min(1, Math.max(0, Number(valor) / 100));
+                break;
+            case "sia_sync":
+                comportamentoSincronia = String(valor || "accelerate_voice");
+                break;
+        }
     }
 
-    function criarBotao(id, texto, titulo) {
-        const botao = document.createElement("button");
-        botao.id = id;
-        botao.type = "button";
-        botao.textContent = texto;
-        botao.title = titulo;
-        botao.style.cssText = [
-            "background:#444",
-            "color:#fff",
-            "border:0",
-            "padding:5px 9px",
-            "border-radius:4px",
-            "cursor:pointer",
-            "font:inherit"
-        ].join(";");
-        return botao;
-    }
+    function conectarConfiguracoes() {
+        const chaves = [
+            "sia_enabled",
+            "sia_voice",
+            "sia_lang",
+            "sia_speed",
+            "sia_pitch",
+            "sia_volume",
+            "sia_sync"
+        ];
 
-    function criarPainelControle() {
-        if (!document.body || document.getElementById("lectio-control-panel")) return;
-
-        const painel = document.createElement("div");
-        painel.id = "lectio-control-panel";
-        painel.setAttribute("aria-label", "Controles do Lectio");
-        painel.style.cssText = [
-            "position:fixed",
-            "right:20px",
-            "bottom:20px",
-            "z-index:2147483647",
-            "display:flex",
-            "align-items:center",
-            "gap:9px",
-            "padding:12px 14px",
-            "border-radius:8px",
-            "background:rgba(28,28,28,.95)",
-            "box-shadow:0 4px 12px rgba(0,0,0,.4)",
-            "color:#fff",
-            "font:14px Arial,sans-serif"
-        ].join(";");
-
-        const titulo = document.createElement("span");
-        titulo.append("Lectio (");
-        const rotulo = document.createElement("span");
-        rotulo.id = "lectio-speed-label";
-        titulo.append(rotulo, "x)");
-
-        const menos = criarBotao("lectio-menos", "−", "Diminuir velocidade");
-        const mais = criarBotao("lectio-mais", "+", "Aumentar velocidade");
-        const testar = criarBotao("lectio-testar", "Testar voz", "Testar sintetizador de voz");
-        testar.style.background = "#e74c3c";
-        testar.style.fontWeight = "bold";
-
-        painel.append(titulo, menos, mais, testar);
-        document.body.appendChild(painel);
-        atualizarRotuloVelocidade();
-
-        menos.addEventListener("click", () => {
-            velocidadeFala = Math.max(
-                CONFIG.velocidadeMinima,
-                Number((velocidadeFala - CONFIG.passoVelocidade).toFixed(1))
-            );
-            atualizarRotuloVelocidade();
+        chrome.storage.local.get(chaves, configuracoes => {
+            Object.entries(configuracoes).forEach(([chave, valor]) => {
+                aplicarConfiguracao(chave, valor);
+            });
         });
 
-        mais.addEventListener("click", () => {
-            velocidadeFala = Math.min(
-                CONFIG.velocidadeMaxima,
-                Number((velocidadeFala + CONFIG.passoVelocidade).toFixed(1))
-            );
-            atualizarRotuloVelocidade();
-        });
-
-        testar.addEventListener("click", () => {
-            interromperFala();
-            usuarioTestandoVoz = true;
-            falar("Lectio conectado às legendas do player do Coursera.", { teste: true });
+        chrome.runtime.onMessage.addListener(mensagem => {
+            if (mensagem?.type !== "SIA_CONFIG_UPDATE") return;
+            aplicarConfiguracao(mensagem.key, mensagem.value);
         });
     }
 
-    function iniciar() {
-        criarPainelControle();
+    function iniciarSia() {
+        conectarConfiguracoes();
         setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
-        console.info("Lectio TTS: leitor de legendas do Coursera ativo.");
+        console.info("S.ia: leitor de legendas do Coursera ativo.");
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+        document.addEventListener("DOMContentLoaded", iniciarSia, { once: true });
     } else {
-        iniciar();
+        iniciarSia();
     }
 })();
