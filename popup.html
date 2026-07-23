@@ -14,11 +14,17 @@
         <span class="product-type">AUDIO-LEARNING</span>
         <span class="brand-credit">Powered by <strong>UXBRAS®</strong></span>
       </div>
-      <button id="toggle-power" class="power active" type="button" role="switch"
-        aria-checked="true" aria-label="Ativar ou desativar extensão">
-        <span class="power-dot" aria-hidden="true"></span>
-        <span class="power-text">ON</span>
-      </button>
+      <div class="header-actions">
+        <button id="toggle-compact" class="compact-toggle" type="button"
+          aria-pressed="false" aria-label="Ativar modo compacto" title="Modo compacto">
+          <span aria-hidden="true">▣</span>
+        </button>
+        <button id="toggle-power" class="power active" type="button" role="switch"
+          aria-checked="true" aria-label="Ativar ou desativar extensão">
+          <span class="power-dot" aria-hidden="true"></span>
+          <span class="power-text">ON</span>
+        </button>
+      </div>
     </header>
 
     <div class="divider"></div>
@@ -28,7 +34,14 @@
       <span>Verificando página atual…</span>
     </div>
 
-    <section class="section" aria-labelledby="voice-title">
+    <section id="compact-summary" class="compact-summary" aria-label="Resumo das configurações">
+      <div><span>Voz</span><strong id="summary-voice">Automática</strong></div>
+      <div><span>Velocidade</span><strong id="summary-speed">1.2x</strong></div>
+      <div><span>Áudio</span><strong id="summary-audio">Pitch 1.0 · 100%</strong></div>
+      <div><span>Sincronia</span><strong id="summary-sync">Ajustar voz</strong></div>
+    </section>
+
+    <section class="section card" aria-labelledby="voice-title">
       <h2 id="voice-title" class="section-title"><span>01</span> Motor de voz</h2>
       <label class="field" for="select-voice">
         <span>Voz</span>
@@ -44,23 +57,26 @@
       </label>
     </section>
 
-    <section class="section" aria-labelledby="audio-title">
+    <section class="section card" aria-labelledby="audio-title">
       <h2 id="audio-title" class="section-title"><span>02</span> Ajustes de áudio</h2>
       <label class="slider-field" for="input-speed">
         <span class="slider-header"><span>Velocidade base</span><output id="label-speed">1.2x</output></span>
         <input type="range" id="input-speed" min="0.6" max="3.5" step="0.1" value="1.2">
+        <span class="range-scale"><span>0.6x</span><span>3.5x</span></span>
       </label>
       <label class="slider-field" for="input-pitch">
         <span class="slider-header"><span>Tom <em>(pitch)</em></span><output id="label-pitch">1.0</output></span>
         <input type="range" id="input-pitch" min="0.5" max="1.5" step="0.1" value="1">
+        <span class="range-scale"><span>0.5</span><span>1.5</span></span>
       </label>
       <label class="slider-field" for="input-volume">
         <span class="slider-header"><span>Volume</span><output id="label-volume">100%</output></span>
         <input type="range" id="input-volume" min="0" max="100" step="5" value="100">
+        <span class="range-scale"><span>0%</span><span>100%</span></span>
       </label>
     </section>
 
-    <section class="section" aria-labelledby="sync-title">
+    <section class="section card" aria-labelledby="sync-title">
       <h2 id="sync-title" class="section-title"><span>03</span> Comportamento de sincronia</h2>
       <p class="section-description">Quando a legenda for extensa</p>
       <div class="radio-group">
@@ -84,7 +100,7 @@
 
     <footer class="footer">
       <span id="save-feedback" class="save-feedback" aria-live="polite">Configurações salvas</span>
-      <span>v1.2.0</span>
+      <span>v1.3.0</span>
     </footer>
   </main>
   <script src="popup.js"></script>
