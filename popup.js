@@ -174,14 +174,41 @@
         setStatus("Nenhum vídeo encontrado nesta página", "unavailable");
       } else if (!settings.sia_enabled) {
         setStatus("S·IA desativada", "unavailable");
+      } else if (!status.syncEngineReady) {
+        setStatus("Motor de sincronia indisponível", "paused");
+      } else if (status.speechError) {
+        const errors = {
+          "not-allowed": "Voz bloqueada pelo navegador",
+          "synthesis-unavailable": "Síntese de voz indisponível",
+          "voice-unavailable": "Voz selecionada indisponível"
+        };
+        setStatus(errors[status.speechError] || "Falha temporária na síntese de voz", "paused");
       } else if (status.ended) {
         setStatus("Aula finalizada", "paused");
       } else if (status.paused) {
         setStatus("Vídeo pausado", "paused");
       } else if (status.captionActive) {
-        setStatus("Lendo legendas em tempo real", "connected");
+        if (status.videoRateAdjusted) {
+          setStatus(`Lendo · vídeo adaptado para ${status.videoRate.toFixed(2)}x`, "connected");
+        } else if (
+          status.syncMode === "accelerate_voice"
+          && status.effectiveSpeechRate > Number(settings.sia_speed) + 0.05
+        ) {
+          setStatus(
+            `Lendo · voz adaptada para ${status.effectiveSpeechRate.toFixed(1)}x`,
+            "connected"
+          );
+        } else {
+          const strategy = status.syncMode === "slow_video"
+            ? "desaceleração automática"
+            : "velocidade de voz";
+          setStatus(`Lendo · estratégia: ${strategy}`, "connected");
+        }
       } else {
-        setStatus("Conectada ao vídeo · aguardando legenda", "connected");
+        const strategy = status.syncMode === "slow_video"
+          ? "desacelerar vídeo"
+          : "ajustar voz";
+        setStatus(`Conectada · ${strategy}`, "connected");
       }
     }
 

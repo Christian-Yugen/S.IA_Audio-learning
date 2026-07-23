@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning da UXBRAS®",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "description": "Lê as legendas de aulas do Coursera em voz alta.",
   "permissions": ["activeTab", "storage"],
   "icons": {
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["https://*.coursera.org/*"],
-      "js": ["content.js"]
+      "js": ["sync-engine.js", "content.js"]
     }
   ]
 }
