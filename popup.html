@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S·IA | Audio-learning da UXBRAS®</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="brand">
+        <strong class="logo">S<span>·</span>IA</strong>
+        <span class="product-type">AUDIO-LEARNING</span>
+        <span class="brand-credit">Powered by <strong>UXBRAS®</strong></span>
+      </div>
+      <button id="toggle-power" class="power active" type="button" role="switch"
+        aria-checked="true" aria-label="Ativar ou desativar extensão">
+        <span class="power-dot" aria-hidden="true"></span>
+        <span class="power-text">ON</span>
+      </button>
+    </header>
+
+    <div class="divider"></div>
+
+    <section class="section" aria-labelledby="voice-title">
+      <h2 id="voice-title" class="section-title"><span>01</span> Motor de voz</h2>
+      <label class="field" for="select-voice">
+        <span>Voz</span>
+        <select id="select-voice"><option value="">Carregando vozes…</option></select>
+      </label>
+      <label class="field" for="select-lang">
+        <span>Idioma das legendas</span>
+        <select id="select-lang">
+          <option value="pt-BR">PT — Português (Brasil)</option>
+          <option value="en-US">EN — Inglês (EUA)</option>
+          <option value="es-ES">ES — Espanhol</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="section" aria-labelledby="audio-title">
+      <h2 id="audio-title" class="section-title"><span>02</span> Ajustes de áudio</h2>
+      <label class="slider-field" for="input-speed">
+        <span class="slider-header"><span>Velocidade base</span><output id="label-speed">1.2x</output></span>
+        <input type="range" id="input-speed" min="0.6" max="3.5" step="0.1" value="1.2">
+      </label>
+      <label class="slider-field" for="input-pitch">
+        <span class="slider-header"><span>Tom <em>(pitch)</em></span><output id="label-pitch">1.0</output></span>
+        <input type="range" id="input-pitch" min="0.5" max="1.5" step="0.1" value="1">
+      </label>
+      <label class="slider-field" for="input-volume">
+        <span class="slider-header"><span>Volume</span><output id="label-volume">100%</output></span>
+        <input type="range" id="input-volume" min="0" max="100" step="5" value="100">
+      </label>
+    </section>
+
+    <section class="section" aria-labelledby="sync-title">
+      <h2 id="sync-title" class="section-title"><span>03</span> Comportamento de sincronia</h2>
+      <p class="section-description">Quando a legenda for extensa</p>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" name="sync-behavior" value="accelerate_voice" checked>
+          <i class="custom-radio" aria-hidden="true"></i>
+          <span><strong>Ajustar velocidade da voz</strong><small>Mantém o vídeo em ritmo normal</small></span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="sync-behavior" value="slow_video">
+          <i class="custom-radio" aria-hidden="true"></i>
+          <span><strong>Desacelerar vídeo temporariamente</strong><small>Prioriza a compreensão da fala</small></span>
+        </label>
+      </div>
+    </section>
+
+    <footer class="footer"><span><i></i> Coursera</span><span>v1.1.2</span></footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
