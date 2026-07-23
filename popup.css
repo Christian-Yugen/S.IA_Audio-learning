@@ -36,6 +36,12 @@ button, select, input { font: inherit; }
   justify-content: space-between;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .brand, .field, .slider-field, .section {
   display: flex;
   flex-direction: column;
@@ -97,6 +103,26 @@ button, select, input { font: inherit; }
   background: #666;
 }
 
+.compact-toggle {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.compact-toggle:hover,
+.compact-toggle[aria-pressed="true"] {
+  border-color: rgb(46 204 113 / 35%);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .power.active {
   border-color: rgb(46 204 113 / 35%);
   background: var(--accent-soft);
@@ -110,6 +136,14 @@ button, select, input { font: inherit; }
 
 .divider, .footer { border-top: 1px solid var(--border); }
 .section { gap: 11px; }
+
+.card {
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #191919, #161616);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 2%) inset;
+}
 
 .connection-status {
   display: flex;
@@ -161,6 +195,44 @@ button, select, input { font: inherit; }
   font-size: 10px;
 }
 
+.compact-summary {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--border);
+}
+
+.compact-summary div {
+  min-width: 0;
+  padding: 11px;
+  background: var(--surface);
+}
+
+.compact-summary span,
+.compact-summary strong {
+  display: block;
+}
+
+.compact-summary span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.compact-summary strong {
+  overflow: hidden;
+  color: #ddd;
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .field, .slider-field {
   gap: 6px;
   color: #cfcfcf;
@@ -197,12 +269,39 @@ em {
 }
 
 input[type="range"] {
+  --range-progress: 50%;
   width: 100%;
   height: 4px;
   margin: 4px 0;
+  border: 0;
   border-radius: 999px;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0 var(--range-progress),
+    var(--border) var(--range-progress) 100%
+  );
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  appearance: none;
+  background: var(--bg);
+  box-shadow: 0 0 0 3px rgb(46 204 113 / 12%);
+}
+
+.range-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -4px;
+  color: #5e5e5e;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .radio-group {
@@ -321,6 +420,27 @@ input:checked + .custom-radio::after {
 
 .container.is-disabled .section { opacity: .45; }
 .container.is-disabled .section :is(select, input, label) { pointer-events: none; }
+
+.container.is-compact {
+  min-height: 0;
+  gap: 14px;
+}
+
+.container.is-compact .section {
+  display: none;
+}
+
+.container.is-compact .compact-summary {
+  display: grid;
+}
+
+.container.is-compact .actions {
+  grid-template-columns: 1fr;
+}
+
+.container.is-compact .actions .secondary {
+  display: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

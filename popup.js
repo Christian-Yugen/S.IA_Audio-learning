@@ -8,7 +8,8 @@
     sia_speed: 1.2,
     sia_pitch: 1,
     sia_volume: 100,
-    sia_sync: "accelerate_voice"
+    sia_sync: "accelerate_voice",
+    sia_compact: false
   });
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -16,6 +17,11 @@
       container: document.querySelector(".container"),
       power: document.getElementById("toggle-power"),
       powerText: document.querySelector(".power-text"),
+      compactToggle: document.getElementById("toggle-compact"),
+      summaryVoice: document.getElementById("summary-voice"),
+      summarySpeed: document.getElementById("summary-speed"),
+      summaryAudio: document.getElementById("summary-audio"),
+      summarySync: document.getElementById("summary-sync"),
       voice: document.getElementById("select-voice"),
       lang: document.getElementById("select-lang"),
       speed: document.getElementById("input-speed"),
@@ -49,6 +55,34 @@
       ui.testVoice.disabled = !enabled;
     }
 
+    function updateRangeFill(input) {
+      const min = Number(input.min);
+      const max = Number(input.max);
+      const progress = ((Number(input.value) - min) / (max - min)) * 100;
+      input.style.setProperty("--range-progress", `${progress}%`);
+    }
+
+    function renderSummary() {
+      const selectedVoice = ui.voice.selectedOptions[0]?.textContent || "Automática";
+      ui.summaryVoice.textContent = selectedVoice.replace(/\s+—\s+.+$/, "");
+      ui.summarySpeed.textContent = `${Number(settings.sia_speed).toFixed(1)}x`;
+      ui.summaryAudio.textContent =
+        `Pitch ${Number(settings.sia_pitch).toFixed(1)} · ${Number(settings.sia_volume)}%`;
+      ui.summarySync.textContent =
+        settings.sia_sync === "slow_video" ? "Desacelerar vídeo" : "Ajustar voz";
+    }
+
+    function renderCompactMode() {
+      const compact = Boolean(settings.sia_compact);
+      ui.container.classList.toggle("is-compact", compact);
+      ui.compactToggle.setAttribute("aria-pressed", String(compact));
+      ui.compactToggle.setAttribute(
+        "aria-label",
+        compact ? "Exibir todos os ajustes" : "Ativar modo compacto"
+      );
+      ui.compactToggle.title = compact ? "Expandir ajustes" : "Modo compacto";
+    }
+
     function render() {
       ui.lang.value = settings.sia_lang;
       ui.speed.value = settings.sia_speed;
@@ -58,7 +92,10 @@
       ui.volume.value = settings.sia_volume;
       ui.volumeLabel.value = `${Number(settings.sia_volume)}%`;
       ui.sync.forEach(radio => radio.checked = radio.value === settings.sia_sync);
+      [ui.speed, ui.pitch, ui.volume].forEach(updateRangeFill);
       renderPower();
+      renderCompactMode();
+      renderSummary();
     }
 
     function matchingVoices() {
@@ -93,6 +130,7 @@
         option => option.value === settings.sia_voice || option.dataset.name === settings.sia_voice
       );
       ui.voice.value = match?.value || "";
+      renderSummary();
     }
 
     function showSavedFeedback(message = "Configurações salvas") {
@@ -185,7 +223,16 @@
       renderPower();
       void saveAndSend("sia_enabled", settings.sia_enabled).then(updateConnectionStatus);
     });
-    ui.voice.addEventListener("change", () => void saveAndSend("sia_voice", ui.voice.value));
+    ui.compactToggle.addEventListener("click", () => {
+      settings.sia_compact = !settings.sia_compact;
+      renderCompactMode();
+      renderSummary();
+      void chrome.storage.local.set({ sia_compact: settings.sia_compact });
+    });
+    ui.voice.addEventListener("change", () => {
+      renderSummary();
+      void saveAndSend("sia_voice", ui.voice.value);
+    });
     ui.lang.addEventListener("change", () => {
       settings.sia_lang = ui.lang.value;
       settings.sia_voice = "";
@@ -193,26 +240,50 @@
       void chrome.storage.local.set({ sia_lang: settings.sia_lang, sia_voice: "" });
       void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_lang", value: settings.sia_lang });
       void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_voice", value: "" });
+      renderSummary();
       showSavedFeedback();
     });
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);
       ui.speedLabel.value = `${value.toFixed(1)}x`;
+      updateRangeFill(ui.speed);
+      settings.sia_speed = value;
+      renderSummary();
       void saveAndSend("sia_speed", value);
     });
     ui.pitch.addEventListener("input", () => {
       const value = Number(ui.pitch.value);
       ui.pitchLabel.value = value.toFixed(1);
+      updateRangeFill(ui.pitch);
+      settings.sia_pitch = value;
+      renderSummary();
       void saveAndSend("sia_pitch", value);
     });
     ui.volume.addEventListener("input", () => {
       const value = Number(ui.volume.value);
       ui.volumeLabel.value = `${value}%`;
+      updateRangeFill(ui.volume);
+      settings.sia_volume = value;
+      renderSummary();
       void saveAndSend("sia_volume", value);
     });
     ui.sync.forEach(radio => radio.addEventListener("change", () => {
-      if (radio.checked) void saveAndSend("sia_sync", radio.value);
+      if (radio.checked) {
+        settings.sia_sync = radio.value;
+        renderSummary();
+        void saveAndSend("sia_sync", radio.value);
+      }
     }));
+    [
+      [ui.speed, "sia_speed"],
+      [ui.pitch, "sia_pitch"],
+      [ui.volume, "sia_volume"]
+    ].forEach(([input, key]) => {
+      input.addEventListener("dblclick", () => {
+        input.value = DEFAULTS[key];
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    });
     ui.testVoice.addEventListener("click", testVoice);
     ui.reset.addEventListener("click", () => void resetSettings());
 
