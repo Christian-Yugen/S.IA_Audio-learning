@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S·IA Companion</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <strong class="logo">S<span>·</span>IA</strong>
+        <p>COMPANION DE APRENDIZAGEM</p>
+      </div>
+      <span class="local-badge">100% local</span>
+    </header>
+
+    <section class="hero">
+      <span>AGORA</span>
+      <p id="current-sentence">Aguardando a primeira frase da aula…</p>
+      <button id="replay-current" type="button">↺ Repetir frase</button>
+      <small>Atalho: Alt + Shift + R</small>
+    </section>
+
+    <nav aria-label="Filtros do histórico">
+      <button class="filter active" data-filter="all" type="button">Histórico</button>
+      <button class="filter" data-filter="favorites" type="button">★ Salvos</button>
+    </nav>
+
+    <section>
+      <div class="section-heading">
+        <h1>Trilha da aula</h1>
+        <span id="history-count">0 frases</span>
+      </div>
+      <div class="history-tools">
+        <button id="export-saved" type="button">Exportar salvos</button>
+        <button id="clear-history" type="button">Limpar histórico</button>
+      </div>
+      <div id="history" class="history" aria-live="polite"></div>
+    </section>
+  </main>
+  <template id="history-item-template">
+    <article class="history-item">
+      <button class="time" type="button" title="Voltar e repetir"></button>
+      <p></p>
+      <div class="item-actions">
+        <button class="replay" type="button">Repetir</button>
+        <button class="favorite" type="button" aria-label="Salvar trecho">☆</button>
+        <button class="note" type="button">Nota</button>
+      </div>
+      <small class="note-text"></small>
+    </article>
+  </template>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

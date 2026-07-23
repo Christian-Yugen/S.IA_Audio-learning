@@ -368,6 +368,24 @@ input:checked + .custom-radio::after {
   gap: 8px;
 }
 
+.actions .recall,
+.actions .companion {
+  grid-column: 1 / -1;
+}
+
+.button.recall {
+  border-color: rgb(46 204 113 / 45%);
+  background: var(--accent);
+  color: #07150d;
+  font-weight: 750;
+}
+
+.button.companion {
+  border-color: rgb(46 204 113 / 30%);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .button {
   min-height: 34px;
   border: 1px solid var(--border);

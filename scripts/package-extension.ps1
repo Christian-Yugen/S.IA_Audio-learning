@@ -17,7 +17,11 @@ $files = @(
     "sync-engine.js",
     "popup.html",
     "popup.css",
-    "popup.js"
+    "popup.js",
+    "sidepanel.html",
+    "sidepanel.css",
+    "sidepanel.js",
+    "service-worker.js"
 )
 
 try {

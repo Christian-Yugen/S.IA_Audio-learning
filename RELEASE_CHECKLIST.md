@@ -9,6 +9,7 @@
 - [x] Testes automatizados do motor adaptativo.
 - [x] Manifesto e JavaScript validados.
 - [x] Empacotador com allowlist de arquivos.
+- [x] Service worker, painel lateral e atalhos incluídos no pacote.
 - [x] `manifest.json` na raiz do ZIP.
 - [ ] Teste manual final da versão empacotada.
 - [ ] Conferir se a versão do ZIP é superior à última enviada à loja.

@@ -31,14 +31,22 @@
       volume: document.getElementById("input-volume"),
       volumeLabel: document.getElementById("label-volume"),
       sync: [...document.querySelectorAll('input[name="sync-behavior"]')],
+      replayLast: document.getElementById("replay-last"),
+      openCompanion: document.getElementById("open-companion"),
       testVoice: document.getElementById("test-voice"),
       reset: document.getElementById("reset-settings"),
       status: document.getElementById("connection-status"),
       saveFeedback: document.getElementById("save-feedback")
     };
 
-    const saved = await chrome.storage.local.get(Object.keys(DEFAULTS));
-    const settings = { ...DEFAULTS, ...saved };
+    const saved = await chrome.storage.local.get([
+      ...Object.keys(DEFAULTS),
+      "sia_course_profiles"
+    ]);
+    const tabAtivo = await activeTab();
+    const courseId = tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
+    const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
+    const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
     let feedbackTimer = 0;
 
     function setStatus(text, state = "unavailable") {
@@ -53,6 +61,7 @@
       ui.powerText.textContent = enabled ? "ON" : "OFF";
       ui.container.classList.toggle("is-disabled", !enabled);
       ui.testVoice.disabled = !enabled;
+      ui.replayLast.disabled = !enabled;
     }
 
     function updateRangeFill(input) {
@@ -158,6 +167,16 @@
     async function saveAndSend(key, value, showFeedback = true) {
       settings[key] = value;
       await chrome.storage.local.set({ [key]: value });
+      if (
+        courseId
+        && ["sia_voice", "sia_lang", "sia_speed", "sia_pitch", "sia_volume", "sia_sync"]
+          .includes(key)
+      ) {
+        const result = await chrome.storage.local.get("sia_course_profiles");
+        const profiles = result.sia_course_profiles || {};
+        profiles[courseId] = { ...(profiles[courseId] || {}), [key]: value };
+        await chrome.storage.local.set({ sia_course_profiles: profiles });
+      }
       await sendToContent({ type: "SIA_CONFIG_UPDATE", key, value });
       if (showFeedback) showSavedFeedback();
     }
@@ -253,6 +272,12 @@
     async function resetSettings() {
       Object.assign(settings, DEFAULTS);
       await chrome.storage.local.set(DEFAULTS);
+      if (courseId) {
+        const result = await chrome.storage.local.get("sia_course_profiles");
+        const profiles = result.sia_course_profiles || {};
+        delete profiles[courseId];
+        await chrome.storage.local.set({ sia_course_profiles: profiles });
+      }
       await Promise.all(Object.entries(DEFAULTS).map(([key, value]) =>
         sendToContent({ type: "SIA_CONFIG_UPDATE", key, value })
       ));
@@ -282,9 +307,10 @@
       settings.sia_lang = ui.lang.value;
       settings.sia_voice = "";
       loadVoices();
-      void chrome.storage.local.set({ sia_lang: settings.sia_lang, sia_voice: "" });
-      void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_lang", value: settings.sia_lang });
-      void sendToContent({ type: "SIA_CONFIG_UPDATE", key: "sia_voice", value: "" });
+      void Promise.all([
+        saveAndSend("sia_lang", settings.sia_lang, false),
+        saveAndSend("sia_voice", "", false)
+      ]);
       renderSummary();
       showSavedFeedback();
     });
@@ -330,6 +356,21 @@
       });
     });
     ui.testVoice.addEventListener("click", testVoice);
+    ui.replayLast.addEventListener("click", async () => {
+      const result = await sendToContent({ type: "SIA_REPLAY_LAST" });
+      if (result?.ok) window.close();
+      else setStatus("Nenhuma frase disponível para repetir", "paused");
+    });
+    ui.openCompanion.addEventListener("click", async () => {
+      const tab = await activeTab();
+      if (!tab?.id) return;
+      try {
+        await chrome.sidePanel.open({ tabId: tab.id });
+        window.close();
+      } catch {
+        setStatus("Painel lateral indisponível nesta página", "paused");
+      }
+    });
     ui.reset.addEventListener("click", () => void resetSettings());
 
     render();
