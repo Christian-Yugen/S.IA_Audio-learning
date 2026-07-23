@@ -9,7 +9,10 @@
         velocidadeMinima: 0.6,
         velocidadeMaxima: 3.5,
         velocidadeVideoMinima: 0.55,
-        palavrasPorSegundo: 2.7
+        palavrasPorSegundo: 2.7,
+        maximoCaracteresSemPonto: 280,
+        maximoSegundosSemPonto: 12,
+        maximoCuesAntecipadas: 6
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
 
@@ -60,12 +63,34 @@
     let velocidadeAplicadaVideo = null;
     let ultimoErroSintese = "";
     let sinteseBloqueada = false;
+    let coberturaLegendaAte = 0;
+    let ultimaPosicaoVideo = 0;
+    let sentencaAntecipadaAtiva = false;
+    let bufferSentenca = {
+        texto: "",
+        inicioVideo: null,
+        fragmentos: 0
+    };
 
     function normalizarTexto(valor) {
         return String(valor || "")
             .replace(/\u200B/g, "")
             .replace(/\s+/g, " ")
             .trim();
+    }
+
+    function registrarDiagnostico(evento, texto = "") {
+        console.info("[S·IA diagnóstico]", {
+            evento,
+            tempoVideo: Number((videoMonitorado?.currentTime || 0).toFixed(2)),
+            texto: normalizarTexto(texto).slice(0, 160),
+            speaking: speechSynthesis.speaking,
+            pending: speechSynthesis.pending,
+            paused: speechSynthesis.paused,
+            falaAtual: Boolean(falaAtual),
+            falaEnfileirada: Boolean(falaEnfileirada),
+            reserva: Boolean(legendaReserva)
+        });
     }
 
     function pareceMarcacaoDeTempo(texto) {
@@ -92,6 +117,97 @@
         return !/^(play|pause|reproduzir|pausar|volume|mute|mudo|fullscreen|tela cheia)$/iu.test(valor);
     }
 
+    function terminaComPontuacaoFinal(texto) {
+        if (MOTOR_SINCRONIA?.terminaComPontuacaoFinal) {
+            return MOTOR_SINCRONIA.terminaComPontuacaoFinal(texto);
+        }
+        return /[.!?…]["'”’)\]]*\s*$/u.test(normalizarTexto(texto));
+    }
+
+    function prepararTextoParaSintese(texto) {
+        const valor = normalizarTexto(texto);
+        if (MOTOR_SINCRONIA?.prepararTextoParaSintese) {
+            return MOTOR_SINCRONIA.prepararTextoParaSintese(valor);
+        }
+        if (terminaComPontuacaoFinal(valor) || /[,;:]["'”’)\]]*\s*$/u.test(valor)) {
+            return valor;
+        }
+
+        // A vírgula informa ao motor de voz que o bloco continua. Como a próxima
+        // utterance já está pré-carregada, isso reduz a entonação de encerramento
+        // sem antecipar conteúdo que ainda não apareceu no vídeo.
+        return `${valor},`;
+    }
+
+    function unirFragmentosSemRepetir(textoAtual, novoFragmento) {
+        const atual = normalizarTexto(textoAtual);
+        const novo = normalizarTexto(novoFragmento);
+        if (!atual) return novo;
+        if (!novo || atual === novo || atual.endsWith(novo)) return atual;
+        if (novo.startsWith(atual)) return novo;
+
+        const palavrasAtuais = atual.split(" ");
+        const palavrasNovas = novo.split(" ");
+        const limite = Math.min(palavrasAtuais.length, palavrasNovas.length);
+
+        for (let tamanho = limite; tamanho > 0; tamanho--) {
+            const finalAtual = palavrasAtuais.slice(-tamanho).join(" ").toLocaleLowerCase();
+            const inicioNovo = palavrasNovas.slice(0, tamanho).join(" ").toLocaleLowerCase();
+            if (finalAtual === inicioNovo) {
+                return normalizarTexto(
+                    [...palavrasAtuais, ...palavrasNovas.slice(tamanho)].join(" ")
+                );
+            }
+        }
+
+        return normalizarTexto(`${atual} ${novo}`);
+    }
+
+    function limparBufferSentenca() {
+        bufferSentenca = {
+            texto: "",
+            inicioVideo: null,
+            fragmentos: 0
+        };
+    }
+
+    function liberarBufferSentenca(contexto = {}) {
+        const texto = normalizarTexto(bufferSentenca.texto);
+        const quantidadeFragmentos = bufferSentenca.fragmentos;
+        limparBufferSentenca();
+        if (!texto) return;
+
+        // A sentença foi construída ao longo de várias cues. O tempo restante
+        // da última cue não representa sua duração total, então não deve forçar
+        // uma aceleração extrema para "recuperar" o trecho já transcorrido.
+        falar(texto, {
+            ...contexto,
+            fimCue: quantidadeFragmentos === 1 ? contexto.fimCue : 0
+        });
+    }
+
+    function processarFragmentoDeSentenca(texto, contexto = {}) {
+        const video = contexto.video;
+        if (bufferSentenca.inicioVideo === null) {
+            bufferSentenca.inicioVideo = Number(video?.currentTime) || 0;
+        }
+
+        bufferSentenca.texto = unirFragmentosSemRepetir(bufferSentenca.texto, texto);
+        bufferSentenca.fragmentos++;
+        const tempoEmBuffer = Math.max(
+            0,
+            (Number(video?.currentTime) || 0) - bufferSentenca.inicioVideo
+        );
+
+        if (
+            terminaComPontuacaoFinal(bufferSentenca.texto)
+            || bufferSentenca.texto.length >= CONFIG.maximoCaracteresSemPonto
+            || tempoEmBuffer >= CONFIG.maximoSegundosSemPonto
+        ) {
+            liberarBufferSentenca(contexto);
+        }
+    }
+
     function elementoVisivel(elemento) {
         if (!(elemento instanceof HTMLElement)) return false;
         const estilo = getComputedStyle(elemento);
@@ -106,25 +222,60 @@
     function obterLegendasDaTextTrack(video) {
         if (!video.textTracks) return null;
 
-        const partes = [];
-        let fimCue = 0;
         for (const track of video.textTracks) {
             if (track.kind !== "subtitles" && track.kind !== "captions") continue;
 
-            const cues = track.activeCues;
-            if (!cues) continue;
+            const cuesAtivas = [...(track.activeCues || [])];
+            if (!cuesAtivas.length) continue;
 
-            for (const cue of cues) {
-                const texto = normalizarTexto(cue.text);
-                if (textoValidoDeLegenda(texto)) {
-                    partes.push(texto);
+            let texto = "";
+            let fimCue = 0;
+            let inicioCue = Number.POSITIVE_INFINITY;
+            for (const cue of cuesAtivas) {
+                const fragmento = normalizarTexto(cue.text);
+                if (textoValidoDeLegenda(fragmento)) {
+                    texto = unirFragmentosSemRepetir(texto, fragmento);
                     fimCue = Math.max(fimCue, Number(cue.endTime) || 0);
+                    inicioCue = Math.min(inicioCue, Number(cue.startTime) || video.currentTime);
                 }
             }
+
+            if (!texto) continue;
+
+            const fimCueAtiva = fimCue;
+            let cuesAntecipadas = 0;
+            const todasAsCues = [...(track.cues || [])];
+            const futuras = todasAsCues.filter(cue =>
+                Number(cue.startTime) >= fimCueAtiva - 0.04
+            );
+
+            for (const cue of futuras) {
+                if (terminaComPontuacaoFinal(texto)) break;
+                if (cuesAntecipadas >= CONFIG.maximoCuesAntecipadas) break;
+                if ((Number(cue.endTime) || fimCue) - inicioCue > CONFIG.maximoSegundosSemPonto) {
+                    break;
+                }
+
+                const fragmento = normalizarTexto(cue.text);
+                if (!textoValidoDeLegenda(fragmento)) continue;
+
+                const combinado = unirFragmentosSemRepetir(texto, fragmento);
+                if (combinado.length > CONFIG.maximoCaracteresSemPonto) break;
+
+                texto = combinado;
+                fimCue = Math.max(fimCue, Number(cue.endTime) || 0);
+                cuesAntecipadas++;
+            }
+
+            return {
+                texto,
+                fimCue,
+                video,
+                sentencaAntecipada: cuesAntecipadas > 0
+            };
         }
 
-        const texto = normalizarTexto([...new Set(partes)].join(" "));
-        return texto ? { texto, fimCue, video } : null;
+        return null;
     }
 
     function obterRaizDoPlayer(video) {
@@ -238,6 +389,21 @@
         const fimCue = Number(contexto?.fimCue);
         if (!video || !fimCue || fimCue <= video.currentTime) return velocidadeFala;
 
+        if (
+            contexto?.sentencaAntecipada
+            && typeof MOTOR_SINCRONIA.calcularTaxaParaIntervalo === "function"
+        ) {
+            return MOTOR_SINCRONIA.calcularTaxaParaIntervalo({
+                texto,
+                taxaBase: velocidadeFala,
+                taxaMinima: Math.max(CONFIG.velocidadeMinima, velocidadeFala * 0.75),
+                taxaMaxima: CONFIG.velocidadeMaxima,
+                taxaVideo: video.playbackRate || 1,
+                segundosMidia: fimCue - video.currentTime,
+                palavrasPorSegundo: CONFIG.palavrasPorSegundo
+            });
+        }
+
         return MOTOR_SINCRONIA.calcularAjusteAdaptativo({
             texto,
             modo: "accelerate_voice",
@@ -251,7 +417,7 @@
     }
 
     function criarFalaEnfileiravel(texto, contexto) {
-        const utterance = new SpeechSynthesisUtterance(texto);
+        const utterance = new SpeechSynthesisUtterance(prepararTextoParaSintese(texto));
         const registro = {
             texto,
             contexto,
@@ -263,7 +429,6 @@
         utterance.rate = calcularTaxaAntecipada(texto, contexto);
         utterance.pitch = tomFala;
         utterance.volume = volumeFala;
-
         if (vozSelecionada) {
             const voz = speechSynthesis.getVoices().find(
                 item => item.voiceURI === vozSelecionada || item.name === vozSelecionada
@@ -274,10 +439,12 @@
         utterance.onstart = () => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            registrarDiagnostico("fala-iniciada", registro.texto);
             falaAtual = registro;
             if (falaEnfileirada === registro) falaEnfileirada = null;
             textoEmFala = registro.texto;
             taxaFalaEfetiva = utterance.rate;
+            sentencaAntecipadaAtiva = Boolean(registro.contexto?.sentencaAntecipada);
             ultimoErroSintese = "";
 
             restaurarVelocidadeVideo();
@@ -296,9 +463,11 @@
 
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
+            registrarDiagnostico("fala-finalizada", registro.texto);
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
+                sentencaAntecipadaAtiva = false;
                 restaurarVelocidadeVideo();
             }
         };
@@ -306,10 +475,12 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
             textoEmFala = "";
+            sentencaAntecipadaAtiva = false;
             restaurarVelocidadeVideo();
 
             if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
@@ -326,11 +497,12 @@
     function enfileirarFala(texto, contexto = {}) {
         const registro = criarFalaEnfileiravel(texto, contexto);
         falaEnfileirada = registro;
+        registrarDiagnostico("fala-enfileirada", texto);
         speechSynthesis.speak(registro.utterance);
     }
 
     function falar(texto, contexto = {}) {
-        const valor = normalizarTexto(texto);
+        let valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
 
         if (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis)) {
@@ -339,10 +511,33 @@
             return;
         }
 
+        if (typeof MOTOR_SINCRONIA?.removerSobreposicaoInicial === "function") {
+            const referencias = [
+                textoEmFala,
+                falaEnfileirada?.texto,
+                legendaReserva?.texto
+            ].filter(Boolean);
+
+            for (const referencia of referencias) {
+                const semSobreposicao = normalizarTexto(
+                    MOTOR_SINCRONIA.removerSobreposicaoInicial(referencia, valor)
+                );
+                if (semSobreposicao.length < valor.length) {
+                    registrarDiagnostico(
+                        semSobreposicao ? "sobreposicao-removida" : "repeticao-descartada",
+                        valor
+                    );
+                    valor = semSobreposicao;
+                }
+                if (!valor) return;
+            }
+        }
+
         if (valor === textoEmFala || valor === falaEnfileirada?.texto) return;
 
         if (falaEnfileirada) {
             legendaReserva = { texto: valor, contexto };
+            registrarDiagnostico("reserva-atualizada", valor);
             return;
         }
 
@@ -355,6 +550,10 @@
         falaEnfileirada = null;
         textoEmFala = "";
         legendaReserva = null;
+        coberturaLegendaAte = 0;
+        ultimaPosicaoVideo = 0;
+        sentencaAntecipadaAtiva = false;
+        limparBufferSentenca();
         restaurarVelocidadeVideo();
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
@@ -381,11 +580,27 @@
             textoCandidato = "";
         }
 
+        if (video.currentTime + 0.25 < ultimaPosicaoVideo) {
+            interromperFala();
+            ultimoTextoDetectado = "";
+            textoCandidato = "";
+        }
+        ultimaPosicaoVideo = video.currentTime;
+
         if (video.paused || video.ended) {
             interromperFala();
             textoCandidato = "";
             return;
         }
+
+        if (
+            bufferSentenca.texto
+            && video.currentTime - bufferSentenca.inicioVideo >= CONFIG.maximoSegundosSemPonto
+        ) {
+            liberarBufferSentenca({ video, fimCue: 0 });
+        }
+
+        if (video.currentTime < coberturaLegendaAte - 0.04) return;
 
         const legenda = obterTextoAtual(video);
         const textoAtual = legenda.texto;
@@ -404,6 +619,8 @@
         if (legenda.origem === "track") {
             ultimoTextoDetectado = textoAtual;
             textoCandidato = "";
+            limparBufferSentenca();
+            coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
             falar(textoAtual, legenda);
             return;
         }
@@ -419,7 +636,7 @@
 
         ultimoTextoDetectado = textoAtual;
         textoCandidato = "";
-        falar(textoAtual, legenda);
+        processarFragmentoDeSentenca(textoAtual, legenda);
     }
 
     function aplicarConfiguracao(chave, valor) {
@@ -488,6 +705,9 @@
                     paused: video?.paused ?? false,
                     ended: video?.ended ?? false,
                     captionActive: Boolean(ultimoTextoDetectado || textoEmFala),
+                    speechActive: Boolean(falaAtual || falaEnfileirada),
+                    bufferingSentence: Boolean(bufferSentenca.texto),
+                    timelineSentenceActive: sentencaAntecipadaAtiva,
                     syncMode: comportamentoSincronia,
                     effectiveSpeechRate: Number(taxaFalaEfetiva.toFixed(2)),
                     videoRate: Number((video?.playbackRate || 1).toFixed(2)),

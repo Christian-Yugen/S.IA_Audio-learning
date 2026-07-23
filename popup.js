@@ -187,15 +187,22 @@
         setStatus("Aula finalizada", "paused");
       } else if (status.paused) {
         setStatus("Vídeo pausado", "paused");
+      } else if (status.bufferingSentence && !status.speechActive) {
+        setStatus("Preparando frase · aguardando pontuação", "connected");
       } else if (status.captionActive) {
         if (status.videoRateAdjusted) {
           setStatus(`Lendo · vídeo adaptado para ${status.videoRate.toFixed(2)}x`, "connected");
+        } else if (status.timelineSentenceActive) {
+          setStatus(
+            `Lendo · frase sincronizada em ${status.effectiveSpeechRate.toFixed(1)}x`,
+            "connected"
+          );
         } else if (
           status.syncMode === "accelerate_voice"
           && status.effectiveSpeechRate > Number(settings.sia_speed) + 0.05
         ) {
           setStatus(
-            `Lendo · voz adaptada para ${status.effectiveSpeechRate.toFixed(1)}x`,
+            `Lendo · base ${Number(settings.sia_speed).toFixed(1)}x → adaptada ${status.effectiveSpeechRate.toFixed(1)}x`,
             "connected"
           );
         } else {
