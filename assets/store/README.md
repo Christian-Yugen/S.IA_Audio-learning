@@ -19,14 +19,26 @@ Prompt final usado no gerador de imagens:
 
 Modo de geração: ferramenta integrada de geração de imagens.
 
-## Screenshot pendente
+## `screenshot-popup-1280x800.png`
 
-Capturar a interface real em execução no Chrome, preferencialmente em 1280x800,
+Composição 1280x800 baseada na captura real da interface em execução no Chrome,
 mostrando:
 
-1. uma aula do Coursera com legendas ativas;
-2. o pop-up S·IA aberto;
-3. o status de conexão visível;
-4. nenhum dado pessoal, nome de conta ou informação sensível.
+1. o pop-up S·IA aberto;
+2. status de leitura e estratégia ativa;
+3. voz e idioma selecionados;
+4. ajustes de velocidade, pitch e volume;
+5. nenhum dado pessoal ou informação sensível.
 
-Não usar mockup gerado por IA como screenshot funcional.
+A captura fornecida foi usada como alvo de composição e posicionada sobre um
+fundo gráfico dark mode. Nenhuma funcionalidade inexistente foi adicionada.
+
+Prompt de edição:
+
+> Place the complete attached S·IA popup screenshot centered on a clean 16:10
+> landscape canvas. Preserve the popup content and do not invent or remove
+> controls, text or branding. Extend only the surrounding canvas with a deep
+> #121212 background, subtle #181818 geometric panels and restrained #2ecc71
+> accents. No additional text, logos, people or third-party marks.
+
+Modo de edição: ferramenta integrada de geração de imagens.

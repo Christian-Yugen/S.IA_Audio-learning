@@ -33,7 +33,7 @@
 - [x] Propósito único.
 - [x] Instruções de revisão.
 - [x] Ícone 128x128 com margem adequada.
-- [ ] Pelo menos uma captura 1280x800 ou 640x400.
+- [x] Pelo menos uma captura 1280x800 ou 640x400.
 - [x] Imagem promocional 440x280.
 - [ ] Marquee 1400x560, opcional.
 - [ ] URL oficial da marca, se disponível.
