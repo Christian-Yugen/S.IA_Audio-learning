@@ -7,7 +7,9 @@
         tamanhoMinimo: 4,
         idioma: "pt-BR",
         velocidadeMinima: 0.6,
-        velocidadeMaxima: 3.5
+        velocidadeMaxima: 3.5,
+        velocidadeVideoMinima: 0.55,
+        palavrasPorSegundo: 2.7
     });
 
     const SELETORES_LEGENDA = [
@@ -48,8 +50,11 @@
     let candidatoDesde = 0;
     let geracaoDaFala = 0;
     let falaAtual = null;
-    let textoPendente = "";
+    let textoPendente = null;
     let videoMonitorado = null;
+    let taxaFalaEfetiva = velocidadeFala;
+    let videoComVelocidadeAjustada = null;
+    let velocidadeOriginalVideo = null;
 
     function normalizarTexto(valor) {
         return String(valor || "")
@@ -94,9 +99,10 @@
     }
 
     function obterLegendasDaTextTrack(video) {
-        if (!video.textTracks) return "";
+        if (!video.textTracks) return null;
 
         const partes = [];
+        let fimCue = 0;
         for (const track of video.textTracks) {
             if (track.kind !== "subtitles" && track.kind !== "captions") continue;
 
@@ -105,11 +111,15 @@
 
             for (const cue of cues) {
                 const texto = normalizarTexto(cue.text);
-                if (textoValidoDeLegenda(texto)) partes.push(texto);
+                if (textoValidoDeLegenda(texto)) {
+                    partes.push(texto);
+                    fimCue = Math.max(fimCue, Number(cue.endTime) || 0);
+                }
             }
         }
 
-        return normalizarTexto([...new Set(partes)].join(" "));
+        const texto = normalizarTexto([...new Set(partes)].join(" "));
+        return texto ? { texto, fimCue, video } : null;
     }
 
     function obterRaizDoPlayer(video) {
@@ -146,28 +156,77 @@
         // activeCues não contém botões nem o relógio do player e tem prioridade.
         const textoTrack = obterLegendasDaTextTrack(video);
         if (textoTrack) {
-            return { texto: textoTrack, origem: "track" };
+            return { ...textoTrack, origem: "track" };
         }
 
-        return { texto: obterLegendasDoDom(video), origem: "dom" };
+        return { texto: obterLegendasDoDom(video), origem: "dom", video };
     }
 
-    function falar(texto) {
+    function estimarDuracaoFala(texto) {
+        const palavras = normalizarTexto(texto).split(/\s+/).filter(Boolean).length;
+        const pausas = (texto.match(/[,.!?;:]/g) || []).length;
+        return Math.max(0.6, palavras / CONFIG.palavrasPorSegundo + pausas * 0.12);
+    }
+
+    function restaurarVelocidadeVideo() {
+        if (videoComVelocidadeAjustada && velocidadeOriginalVideo !== null) {
+            if (videoComVelocidadeAjustada.isConnected) {
+                videoComVelocidadeAjustada.playbackRate = velocidadeOriginalVideo;
+            }
+        }
+        videoComVelocidadeAjustada = null;
+        velocidadeOriginalVideo = null;
+    }
+
+    function calcularAjusteSincronia(texto, contexto) {
+        taxaFalaEfetiva = velocidadeFala;
+        const video = contexto?.video;
+        const fimCue = Number(contexto?.fimCue);
+        if (!video || !fimCue || fimCue <= video.currentTime) return;
+
+        const segundosDeMidia = Math.max(0.1, fimCue - video.currentTime);
+        const duracaoNaTaxaUm = estimarDuracaoFala(texto);
+        const taxaAtualVideo = video.playbackRate || 1;
+        const segundosReaisDisponiveis = segundosDeMidia / taxaAtualVideo;
+
+        if (comportamentoSincronia === "accelerate_voice") {
+            const taxaNecessaria = duracaoNaTaxaUm / segundosReaisDisponiveis;
+            taxaFalaEfetiva = Math.min(
+                CONFIG.velocidadeMaxima,
+                Math.max(velocidadeFala, taxaNecessaria)
+            );
+            return;
+        }
+
+        const duracaoFala = duracaoNaTaxaUm / velocidadeFala;
+        if (duracaoFala <= segundosReaisDisponiveis) return;
+
+        velocidadeOriginalVideo = taxaAtualVideo;
+        videoComVelocidadeAjustada = video;
+        video.playbackRate = Math.min(
+            taxaAtualVideo,
+            Math.max(CONFIG.velocidadeVideoMinima, segundosDeMidia / duracaoFala)
+        );
+    }
+
+    function falar(texto, contexto = {}) {
         const valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva) return;
 
         // Não interrompe uma frase em andamento. Mantém apenas a legenda mais
         // recente na fila para evitar tanto cortes quanto atrasos acumulados.
         if (falaAtual || speechSynthesis.speaking || speechSynthesis.pending) {
-            if (valor !== textoEmFala) textoPendente = valor;
+            if (valor !== textoEmFala) textoPendente = { texto: valor, contexto };
             return;
         }
 
+        restaurarVelocidadeVideo();
+        calcularAjusteSincronia(valor, contexto);
         const minhaGeracao = ++geracaoDaFala;
 
         const utterance = new SpeechSynthesisUtterance(valor);
         utterance.lang = idiomaFala;
-        utterance.rate = velocidadeFala;
+        utterance.rate = taxaFalaEfetiva;
         utterance.pitch = tomFala;
         utterance.volume = volumeFala;
 
@@ -182,10 +241,11 @@
 
             falaAtual = null;
             textoEmFala = "";
+            restaurarVelocidadeVideo();
 
-            const proximoTexto = textoPendente;
-            textoPendente = "";
-            if (proximoTexto) falar(proximoTexto);
+            const proximaLegenda = textoPendente;
+            textoPendente = null;
+            if (proximaLegenda) falar(proximaLegenda.texto, proximaLegenda.contexto);
         };
 
         falaAtual = utterance;
@@ -197,7 +257,8 @@
         geracaoDaFala++;
         falaAtual = null;
         textoEmFala = "";
-        textoPendente = "";
+        textoPendente = null;
+        restaurarVelocidadeVideo();
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
         }
@@ -246,7 +307,7 @@
         if (legenda.origem === "track") {
             ultimoTextoDetectado = textoAtual;
             textoCandidato = "";
-            falar(textoAtual);
+            falar(textoAtual, legenda);
             return;
         }
 
@@ -261,7 +322,7 @@
 
         ultimoTextoDetectado = textoAtual;
         textoCandidato = "";
-        falar(textoAtual);
+        falar(textoAtual, legenda);
     }
 
     function aplicarConfiguracao(chave, valor) {
@@ -290,6 +351,7 @@
                 break;
             case "sia_sync":
                 comportamentoSincronia = String(valor || "accelerate_voice");
+                if (comportamentoSincronia !== "slow_video") restaurarVelocidadeVideo();
                 break;
         }
     }
@@ -325,7 +387,11 @@
                     videoFound: Boolean(video),
                     paused: video?.paused ?? false,
                     ended: video?.ended ?? false,
-                    captionActive: Boolean(ultimoTextoDetectado || textoEmFala)
+                    captionActive: Boolean(ultimoTextoDetectado || textoEmFala),
+                    syncMode: comportamentoSincronia,
+                    effectiveSpeechRate: Number(taxaFalaEfetiva.toFixed(2)),
+                    videoRate: Number((video?.playbackRate || 1).toFixed(2)),
+                    videoRateAdjusted: video === videoComVelocidadeAjustada
                 });
             }
         });
