@@ -41,6 +41,16 @@
     {
       "matches": ["https://*.coursera.org/*"],
       "js": ["sync-engine.js", "dom-fallback.js", "neural-tts/piper-bridge.js", "content.js"]
+    },
+    {
+      "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
+      "js": [
+        "platform-adapters/platform-router.js",
+        "platform-adapters/core-event-bridge.js",
+        "platform-adapters/core-diagnostic-state.js",
+        "platform-adapters/udemy/udemy-host.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
@@ -50,6 +60,13 @@
         "neural-tts/runtime/*"
       ],
       "matches": ["https://*.coursera.org/*"]
+    },
+    {
+      "resources": [
+        "platform-adapters/udemy/udemy-adapter.js",
+        "platform-adapters/udemy/udemy-adapter-contract.js"
+      ],
+      "matches": ["https://www.udemy.com/*"]
     }
   ]
 }

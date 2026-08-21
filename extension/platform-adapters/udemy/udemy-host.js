@@ -4,6 +4,7 @@
   const ADAPTER_ID = "udemy";
   const ADAPTER_MODULE = "platform-adapters/udemy/udemy-adapter.js";
   let stopBridge = () => {};
+  let stopDiagnostic = () => {};
   let booted = false;
 
   function isUdemyLecture(url) {
@@ -28,6 +29,7 @@
     if (!isUdemyLecture(location.href)) return;
     booted = true;
     stopBridge = globalThis.SiaCoreEventBridge.install(window);
+    stopDiagnostic = globalThis.SiaCoreDiagnostic?.install?.(window) || (() => {});
     globalThis.SiaPlatformRouter.register({
       id: ADAPTER_ID,
       matches: isUdemyLecture,
@@ -53,6 +55,7 @@
 
   window.addEventListener("pagehide", () => {
     stopBridge();
+    stopDiagnostic();
     globalThis.SiaPlatformRouter?.stop?.();
     booted = false;
   }, { once: true });
