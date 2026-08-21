@@ -27,12 +27,16 @@
     if (!detail || typeof detail !== "object") return get();
     const cue = detail.cue || {};
     const diagnostic = detail.diagnostic || {};
+    const playerIdentity = detail.playerIdentity || diagnostic.playerIdentity || cue.playerIdentity || state.playerIdentity;
+    const player = diagnostic.player
+      || detail.player
+      || (detail.type === "SIA_PLAYER_FOUND" || playerIdentity ? "found" : state.player);
     const next = {
       ...state,
       platformId: detail.platformId || cue.platformId || diagnostic.platformId || state.platformId,
       adapterVersion: detail.adapterVersion || cue.adapterVersion || diagnostic.adapterVersion || state.adapterVersion,
-      player: diagnostic.player || detail.player || state.player,
-      playerIdentity: copy(detail.playerIdentity || diagnostic.playerIdentity || cue.playerIdentity || state.playerIdentity),
+      player,
+      playerIdentity: copy(playerIdentity),
       source: detail.source || cue.source || diagnostic.source || state.source,
       confidence: detail.confidence || cue.sourceConfidence || diagnostic.confidence || state.confidence,
       state: detail.state || diagnostic.state || state.state,
