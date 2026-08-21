@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "S·IA · Udemy Runtime Probe",
+  "version": "0.1.0",
+  "description": "Probe temporário, passivo e local para observar player, legendas e ciclo de vida da Udemy.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.udemy.com/course/*/learn/lecture/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
+      "js": ["probe.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "S·IA Udemy Probe",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}
