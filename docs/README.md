@@ -15,6 +15,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | Documento | Uso |
 |---|---|
 | [Arquitetura do sistema](architecture/SYSTEM-ARCHITECTURE.md) | Camadas, eventos, estados e limites de acoplamento. |
+| [Especificação do adaptador Udemy](architecture/UDEMY-ADAPTER-DESIGN.md) | Fontes candidatas, cue, ciclo de vida, diagnóstico e fallback. |
 
 ## Roadmap
 
@@ -22,6 +23,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 |---|---|
 | [Expansão multiplataforma](roadmap/MULTIPLATFORM-EXPANSION-STRATEGY.md) | Coursera, Udemy e plataformas futuras. |
 | [Melhorias de aprendizagem](roadmap/LEARNING-IMPROVEMENTS-ROADMAP.md) | Notas, flashcards, modo prova, tutor e revisão. |
+| [Plano oficial de execução](roadmap/PLAN-EXECUTION-UDEMY-AND-LEARNING.md) | Fases, gates e aprovação para Udemy e aprendizagem ativa. |
 
 ## Releases e operação
 
@@ -37,6 +39,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 |---|---|
 | [Licenças de terceiros](legal/THIRD-PARTY-DISTRIBUTION.md) | Runtime, modelo, voz e distribuição. |
 | [Status da licença do projeto](legal/PROJECT-LICENSE-STATUS.md) | Decisão pendente sobre a licença do código. |
+| [Pesquisa inicial Udemy](research/UDEMY-OFFICIAL-RESEARCH.md) | Evidências oficiais e hipóteses verificáveis do player e das legendas. |
 | [Pesquisa de voz feminina](research/VOICE-FEMALE-PTBR.md) | Situação de vozes PT-BR e futura gravação autorizada. |
 | [Plano Piper](research/PIPER-IMPLEMENTATION-PLAN.md) | Histórico e base técnica do motor neural. |
 | [Recomendação TTS PT-BR](research/PTBR-TTS-RECOMMENDATION.md) | Pesquisa de alternativas de síntese. |
