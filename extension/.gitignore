@@ -1,0 +1,9 @@
+.agents/
+
+# Arquivos locais do sistema e dos editores
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+dist/

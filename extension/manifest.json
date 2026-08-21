@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "S·IA | Audio-learning by UXBRAS®",
+  "version": "1.8.5",
+  "version_name": "1.8.5 · Piper PT-BR neural sync fix",
+  "description": "Lê, sincroniza e permite revisar as legendas de aulas do Coursera.",
+  "minimum_chrome_version": "114",
+  "permissions": ["activeTab", "storage", "sidePanel", "offscreen"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "S·IA",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "commands": {
+    "replay-last-sentence": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Repetir a última frase com a S·IA"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.coursera.org/*"],
+      "js": ["sync-engine.js", "dom-fallback.js", "neural-tts/piper-bridge.js", "content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "neural-tts/piper-worker.js",
+        "neural-tts/runtime/*"
+      ],
+      "matches": ["https://*.coursera.org/*"]
+    }
+  ]
+}

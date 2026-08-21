@@ -1,453 +1,132 @@
 # S·IA — Audio-learning by UXBRAS®
 
-> Transforme as legendas das aulas do Coursera em uma experiência de áudio
-> sincronizada, contínua e revisável.
+A **S·IA** é uma extensão para Google Chrome criada para transformar legendas de cursos online em uma experiência de aprendizagem por áudio. O projeto começou com o Coursera e está sendo preparado para uma expansão controlada a outras plataformas, começando pela Udemy.
 
-![Versão](https://img.shields.io/badge/versão-1.7.0-2ecc71)
-![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
-![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
-![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
+A extensão lê as legendas exibidas pelo player, organiza os fragmentos em sentenças, gera fala pela voz nativa do navegador ou pelo motor neural Piper PT-BR local, aplica sincronização adaptativa e oferece mecanismos de fallback quando a fonte principal de legendas não está disponível.
 
-## Sobre a S·IA
+> **Princípio do projeto:** a S·IA deve crescer sem comprometer o que já funciona. Toda nova plataforma será adicionada por um adaptador isolado, enquanto o núcleo de áudio permanecerá único, compartilhado e protegido.
 
-A **S·IA** é uma extensão para Google Chrome criada pela **UXBRAS®** para apoiar
-acessibilidade, foco e aprendizado por áudio em aulas do Coursera.
+## Estado atual
 
-A extensão identifica as legendas nativas do vídeo, organiza os fragmentos em
-sentenças, elimina palavras repetidas, converte o texto em voz e adapta a
-sincronização conforme o ritmo da aula.
+A versão funcional de referência é a **1.8.5**, com suporte validado ao caminho atual do Coursera e com o Piper PT-BR experimental executado localmente por WebAssembly. O motor nativo do navegador continua sendo a alternativa padrão; o Piper é opcional e deve ser ativado pelo usuário.
 
-Além da leitura, o **S·IA Companion** permite repetir frases, navegar pelo
-histórico da aula, salvar trechos, criar anotações e exportar material de estudo.
+| Capacidade | Estado |
+|---|---|
+| Leitura de legendas no Coursera | Validada |
+| Fallback de legenda pelo DOM | Implementado |
+| Voz nativa do navegador | Padrão e preservada |
+| Piper PT-BR local | Experimental e opcional |
+| Pré-síntese da próxima legenda | Implementada |
+| Fallback automático para voz nativa | Implementado |
+| Diagnóstico de fonte e estado | Em evolução e obrigatório para novas plataformas |
+| Adaptador Udemy | Planejado; ainda não declarado compatível |
+| Recursos educacionais avançados | Roadmap posterior à expansão multiplataforma |
 
-Tudo funciona localmente no navegador. A versão atual não utiliza servidor,
-analytics, anúncios ou API externa de inteligência artificial.
+## Garantias de preservação
 
-## Destaques
+As regras abaixo são obrigatórias para qualquer alteração futura:
 
-- Leitura automática das legendas do Coursera.
-- Vozes disponíveis no navegador e no sistema operacional.
-- Velocidade de 0.6x a 3.5x.
-- Controle de tom e volume.
-- Sincronização adaptativa contínua.
-- Desaceleração temporária e reversível do vídeo.
-- Respeito à pontuação e à continuidade das frases.
-- Remoção de palavras repetidas entre cues sobrepostas.
-- Transição por fila, sem cortes abruptos.
-- Configurações e status em tempo real.
-- Perfis automáticos por curso.
-- S·IA Recall para repetir a última frase.
-- Histórico local com timestamps.
-- Favoritos e anotações.
-- Exportação dos trechos salvos em Markdown.
-- Painel lateral nativo S·IA Companion.
-- Tema escuro, compacto e acessível.
-- Processamento e armazenamento locais.
+1. **Nenhuma alteração no motor funcional atual do Coursera.** O adaptador existente deve ser preservado e o novo suporte deve ser aditivo.
+2. **Nenhuma cópia independente da lógica de áudio.** Coursera e Udemy devem utilizar o mesmo núcleo de voz, fila, sincronização, Piper e fallback.
+3. **Diagnóstico e fallback desde o primeiro protótipo.** O usuário precisa saber se a S·IA está usando a fonte principal de legendas ou uma estratégia alternativa.
 
-## Demonstração
+Essas regras estão formalizadas no [Documento Mestre de Expansão Multiplataforma](docs/governance/MASTER-SIA-EXPANSION.md). Nenhuma alteração dessas regras é permitida sem hipóteses investigadas, evidências reproduzíveis, comparação mensurável, regressão completa e aprovação prévia, explícita e específica do usuário.
 
-### Pop-up de configurações
-
-![Pop-up da S·IA](assets/store/screenshot-popup-1280x800.png)
-
-> As imagens da Chrome Web Store serão atualizadas para incluir o S·IA Companion
-> e os recursos da versão 1.7.0.
-
-## Como funciona
-
-```text
-Legenda do Coursera
-        │
-        ▼
-TextTrack nativa ─── fallback DOM
-        │
-        ▼
-Validação e isolamento do texto
-        │
-        ▼
-Montagem da sentença e deduplicação
-        │
-        ▼
-Estimativa de duração e sincronização
-        │
-        ├── ajustar velocidade da voz
-        └── desacelerar vídeo temporariamente
-        │
-        ▼
-SpeechSynthesisUtterance
-        │
-        ├── histórico local
-        ├── Recall
-        └── S·IA Companion
-```
-
-### Detecção das legendas
-
-A S·IA prioriza as `TextTrack.cues` do vídeo. Essa fonte contém o texto e os
-tempos das legendas sem misturar elementos da interface.
-
-Quando a faixa nativa não está disponível, a extensão utiliza um fallback pelo
-DOM. O filtro rejeita:
-
-- botões e controles do player;
-- barra de progresso;
-- relógios como `0:14` e `0:14 / 2:21`;
-- textos sem conteúdo linguístico;
-- containers invisíveis ou duplicados.
-
-### Continuidade da fala
-
-As legendas podem dividir uma única sentença em vários blocos. A S·IA combina os
-fragmentos relacionados, respeita a pontuação e utiliza a fila nativa do
-`speechSynthesis`.
-
-Durante transições normais, a fala atual não é cancelada. Isso evita palavras
-cortadas, reinícios e gagueira.
-
-### Deduplicação
-
-O Coursera pode publicar uma nova cue repetindo as últimas palavras da anterior.
-A S·IA compara o final do texto já pronunciado com o início do próximo texto e
-remove somente a região sobreposta.
-
-### Sincronização adaptativa
-
-O motor considera:
-
-- tamanho e pontuação da frase;
-- duração estimada da fala;
-- velocidade base;
-- velocidade do vídeo;
-- intervalo das cues;
-- atraso previsto da fila;
-- duração observada da voz selecionada.
-
-A correção é gradual e respeita o limite máximo configurado. Uma fala que já
-começou não tem sua taxa alterada.
-
-## S·IA Recall
-
-Quando uma frase não for compreendida, use:
-
-```text
-Alt + Shift + R
-```
-
-Também é possível selecionar **Repetir última frase** no pop-up ou repetir
-qualquer item pelo S·IA Companion.
-
-O Recall volta ao timestamp original e reutiliza o mesmo motor de leitura e
-sincronização.
-
-## S·IA Companion
-
-O painel lateral oferece:
-
-- frase atual;
-- últimas 60 frases da aula;
-- navegação por timestamp;
-- repetição de frases;
-- favoritos;
-- anotações;
-- filtro de trechos salvos;
-- exportação em Markdown;
-- limpeza controlada do histórico.
-
-Para abrir, selecione **Abrir S·IA Companion** no pop-up.
-
-## Instalação para desenvolvimento
-
-### Requisitos
-
-- Google Chrome 114 ou superior.
-- Uma aula do Coursera com legendas disponíveis.
-- Git, caso queira clonar o repositório.
-- Node.js, apenas para executar os testes automatizados.
-
-### Clonar o projeto
-
-```bash
-git clone https://github.com/Christian-Yugen/S.IA_Audio-learning.git
-cd S.IA_Audio-learning
-```
-
-### Carregar no Chrome
-
-1. Abra `chrome://extensions`.
-2. Ative **Modo do desenvolvedor**.
-3. Clique em **Carregar sem compactação**.
-4. Selecione a pasta raiz do projeto.
-5. Abra uma aula do Coursera.
-6. Ative as legendas nativas no player.
-7. Atualize a página após recarregar a extensão.
-
-## Utilização
-
-1. Abra uma aula com vídeo no Coursera.
-2. Ative as legendas do player.
-3. Abra o pop-up da S·IA.
-4. Escolha voz e idioma.
-5. Ajuste velocidade, tom e volume.
-6. Escolha a estratégia de sincronização.
-7. Inicie o vídeo.
-
-### Estratégias de sincronização
-
-#### Ajustar velocidade da voz
-
-Mantém o vídeo na velocidade escolhida e aumenta gradualmente a taxa da voz
-quando existe risco de atraso.
-
-#### Desacelerar vídeo temporariamente
-
-Reduz o vídeo quando uma frase exige mais tempo e restaura a velocidade original
-ao final da fala.
-
-Se o usuário alterar manualmente a velocidade durante o ajuste, sua escolha passa
-a ter prioridade.
-
-## Configurações
-
-| Controle | Intervalo | Padrão |
-|---|---:|---:|
-| Velocidade base | 0.6x–3.5x | 1.2x |
-| Tom | 0.5–1.5 | 1.0 |
-| Volume | 0%–100% | 100% |
-| Sincronização | voz ou vídeo | ajustar voz |
-
-As preferências de voz, idioma, velocidade, tom, volume e sincronização podem ser
-memorizadas por curso.
-
-## Arquitetura
+## Arquitetura do repositório
 
 ```text
 S.IA_Audio-learning/
-├── manifest.json
-├── content.js
-├── sync-engine.js
-├── service-worker.js
-├── popup.html
-├── popup.css
-├── popup.js
-├── sidepanel.html
-├── sidepanel.css
-├── sidepanel.js
-├── tests/
-│   └── sync-engine.test.js
-├── scripts/
-│   └── package-extension.ps1
-├── icons/
-├── assets/
-├── PRIVACY.md
-├── RELEASE_CHECKLIST.md
-├── STORE_LISTING.md
-└── RELATORIO_TECNICO_SIA.md
+├── extension/                    # Código carregável em chrome://extensions
+│   ├── manifest.json             # Manifest V3
+│   ├── content.js                # Orquestração na página do curso
+│   ├── sync-engine.js             # Núcleo protegido de sincronização
+│   ├── dom-fallback.js            # Fallback de leitura de legenda
+│   ├── neural-tts/                # Piper + runtime WebAssembly local
+│   ├── offscreen.html/js          # Host autorizado para o Worker neural
+│   ├── service-worker.js          # Roteamento de mensagens
+│   ├── popup.*                    # Configuração do usuário
+│   ├── sidepanel.*                # S·IA Companion
+│   ├── tests/                     # Testes automatizados
+│   └── scripts/                   # Empacotamento da extensão
+├── docs/
+│   ├── architecture/              # Contratos e decisões técnicas
+│   ├── governance/                # Regras mestres e controle de mudanças
+│   ├── roadmap/                   # Expansão e melhorias planejadas
+│   ├── research/                  # Pesquisa de voz e alternativas técnicas
+│   ├── reports/                   # Diagnósticos e validações
+│   ├── releases/                  # Notas e checklists de releases
+│   ├── legal/                     # Licenças, privacidade e pendências legais
+│   ├── operations/                # Operação local e manutenção
+│   └── decisions/                 # Registro de decisões arquiteturais
+├── tools/                         # Utilitários auxiliares não executados pela extensão
+└── .github/                       # Templates de issues e pull requests
 ```
 
-### Componentes
+## Execução local
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `content.js` | Detectar legendas, controlar fala, vídeo, histórico e Recall |
-| `sync-engine.js` | Regras puras de tempo, pontuação e deduplicação |
-| `popup.*` | Configuração rápida e status da aula |
-| `sidepanel.*` | Histórico, favoritos, notas e exportação |
-| `service-worker.js` | Atalhos e comunicação com a aba ativa |
-| `manifest.json` | Permissões e componentes da extensão |
-
-## Tecnologias
-
-- Chrome Extensions Manifest V3.
-- JavaScript nativo.
-- HTML semântico.
-- CSS Grid, Flexbox e custom properties.
-- Web Speech API.
-- `SpeechSynthesisUtterance`.
-- HTMLMediaElement API.
-- TextTrack API.
-- DOM API.
-- Chrome Storage API.
-- Chrome Side Panel API.
-- Chrome Commands API.
-- Service Worker.
-- Node.js Test Runner.
-- PowerShell para empacotamento.
-
-## Mensagens internas
-
-Os contextos da extensão se comunicam por mensagens explícitas:
-
-```text
-SIA_CONFIG_UPDATE
-SIA_GET_STATUS
-SIA_GET_LEARNING_CONTEXT
-SIA_REPLAY_LAST
-SIA_UPDATE_HISTORY_ENTRY
-SIA_CLEAR_HISTORY
-```
-
-## Permissões
-
-| Permissão | Finalidade |
-|---|---|
-| `activeTab` | Comunicar o pop-up, painel e atalhos com a aula ativa |
-| `storage` | Salvar configurações, perfis, histórico, favoritos e notas |
-| `sidePanel` | Exibir o S·IA Companion |
-| `https://*.coursera.org/*` | Detectar vídeo e legendas nas páginas compatíveis |
-
-A S·IA não solicita acesso genérico a todos os sites.
-
-## Privacidade
-
-A versão atual:
-
-- processa as legendas localmente;
-- não envia textos para a UXBRAS®;
-- não utiliza analytics;
-- não apresenta anúncios;
-- não vende ou compartilha dados;
-- não executa código remoto;
-- não utiliza API externa de IA;
-- não exige conta.
-
-Configurações, histórico, favoritos e notas ficam em `chrome.storage.local` e são
-apagados quando a extensão é removida.
-
-Leia a [Política de Privacidade](PRIVACY.md).
-
-## Testes
-
-Execute:
+A extensão não utiliza um processo de servidor para inferência neural. Para testar o código da extensão, instale o Node.js e execute:
 
 ```bash
-node --test tests/sync-engine.test.js
+cd extension
+node --test tests/sync-engine.test.js tests/piper-bridge.test.js
 ```
 
-Validação de sintaxe:
+Para carregá-la no Chrome, abra `chrome://extensions`, ative o **Modo do desenvolvedor**, escolha **Carregar sem compactação** e selecione a pasta `extension/`. Depois, abra uma nova aba da plataforma compatível para garantir que o content script seja carregado de novo.
 
-```bash
-node --check content.js
-node --check sync-engine.js
-node --check popup.js
-node --check sidepanel.js
-node --check service-worker.js
-```
+O uso do Piper neural é experimental. A ativação deve ser feita pelo popup da extensão, depois que o modelo e o runtime estiverem presentes no pacote. Quando o Piper falhar, a extensão deverá retornar à voz nativa do navegador.
 
-O motor possui testes para:
+## Estratégia de expansão
 
-- pontuação;
-- duração estimada;
-- sobreposição entre cues;
-- descarte de repetições;
-- distribuição temporal;
-- sincronização contínua;
-- calibração de voz;
-- limites de voz e vídeo.
+A expansão seguirá a sequência abaixo:
 
-## Empacotamento
+| Fase | Resultado esperado |
+|---|---|
+| **1. Contrato de plataforma** | Definir eventos e responsabilidades comuns sem alterar o núcleo protegido. |
+| **2. Observação passiva da Udemy** | Compreender player, legendas, recargas, troca de aula e situações de fallback. |
+| **3. Adaptador Udemy mínimo** | Detectar player e cue sem iniciar recursos de áudio próprios. |
+| **4. Diagnóstico e fallback** | Mostrar a fonte utilizada e degradar com segurança quando necessário. |
+| **5. Integração com o núcleo único** | Encaminhar cues ao mesmo motor usado pelo Coursera. |
+| **6. Regressão e validação física** | Repetir os testes do Coursera e validar aulas reais da Udemy. |
+| **7. Compatibilidade experimental** | Liberar apenas com limitações documentadas e rollback pronto. |
+| **8. Recursos de aprendizagem** | Adicionar notas, flashcards, tutor e revisão após a base multiplataforma estar estável. |
 
-No PowerShell:
+Nenhuma plataforma será considerada compatível apenas porque uma aula isolada funcionou. A plataforma deverá possuir adaptador identificado, diagnóstico, fallback, testes automatizados, validação real e regressão do Coursera.
 
-```powershell
-.\scripts\package-extension.ps1
-```
+## Estratégia de melhorias educacionais
 
-O pacote será criado em:
+Depois que a base multiplataforma estiver estável, a S·IA poderá evoluir para uma camada de aprendizagem ativa, sem misturar essa lógica com o núcleo de áudio. O roadmap prioriza notas sincronizadas, marcadores, flashcards, modo prova, revisão espaçada, glossário contextual, explicações em níveis e um Tutor Socrático.
 
-```text
-dist/sia-extension-<versão>.zip
-```
+O objetivo é transformar o ciclo passivo de assistir e ouvir em:
 
-O script utiliza uma allowlist e inclui somente os arquivos necessários para a
-execução da extensão.
+> **Ouvir → compreender → lembrar → responder → revisar.**
 
-## Princípios de qualidade
+A camada educacional deverá consumir eventos padronizados da extensão, trabalhar localmente por padrão e continuar desligável sem alterar a leitura e a sincronização.
 
-Mudanças futuras devem preservar:
+## Privacidade, licenças e distribuição
 
-1. nenhuma leitura de temporizadores ou controles;
-2. nenhuma repetição de palavras sobrepostas;
-3. nenhuma interrupção agressiva em transições normais;
-4. respeito à pontuação;
-5. continuidade natural;
-6. restauração da velocidade do vídeo;
-7. prioridade para ajustes manuais do usuário;
-8. funcionamento local por padrão;
-9. compatibilidade com Recall e Companion.
+A extensão foi estruturada para processar localmente as legendas e as preferências do usuário. Entretanto, a distribuição pública do runtime, do modelo neural e de componentes de terceiros exige auditoria documental própria. O dataset declarado no model card não deve ser confundido automaticamente com uma licença de redistribuição comercial dos pesos finais.
 
-## Roadmap
+O estado das licenças e pendências está registrado em [Licenças e distribuição](docs/legal/THIRD-PARTY-DISTRIBUTION.md). Até a conclusão dessa auditoria, o suporte neural deve ser tratado como **experimental/técnico**, não como uma promessa de uso comercial irrestrito.
 
-### 1.7.1 — Estabilidade
+## Documentação essencial
 
-- ampliar testes de histórico e Recall;
-- limitar armazenamento entre diferentes aulas;
-- salvar histórico em lotes;
-- preservar favoritos na limpeza automática;
-- reforçar cenários com múltiplas abas.
+| Documento | Finalidade |
+|---|---|
+| [Documento Mestre](docs/governance/MASTER-SIA-EXPANSION.md) | Norma obrigatória de preservação e expansão. |
+| [Arquitetura do sistema](docs/architecture/SYSTEM-ARCHITECTURE.md) | Separação entre adaptadores, núcleo de áudio e camada educacional. |
+| [Estratégia de expansão](docs/roadmap/MULTIPLATFORM-EXPANSION-STRATEGY.md) | Roadmap Coursera → Udemy → futuras plataformas. |
+| [Roadmap de melhorias](docs/roadmap/LEARNING-IMPROVEMENTS-ROADMAP.md) | Evolução para aprendizagem ativa. |
+| [Política de mudanças](docs/governance/CHANGE-CONTROL.md) | Processo normal, exceções e aprovação. |
+| [Status da versão 1.8.5](docs/releases/1.8.5.md) | Escopo, testes e limitações da release. |
+| [Licenças de terceiros](docs/legal/THIRD-PARTY-DISTRIBUTION.md) | Situação do runtime, modelo e distribuição. |
+| [Guia de contribuição](CONTRIBUTING.md) | Como propor e validar alterações. |
 
-### 1.8.0 — Experiência
+## Princípio de publicação
 
-- editor de notas integrado;
-- notificações próprias;
-- destaque da frase atual;
-- onboarding;
-- pesquisa local;
-- gerenciamento de perfis;
-- backup e importação;
-- acessibilidade ampliada.
+Este diretório foi preparado para ser a base de um repositório GitHub. Nenhum `push`, publicação de release ou abertura de repositório remoto está sendo presumido sem a definição do repositório de destino e a autorização do responsável pelo projeto.
 
-### Premium — evolução futura
+Antes da publicação pública, devem ser revisados os dados pessoais, endereços de suporte, screenshots, termos de uso das plataformas, licença do produto e autorização de redistribuição dos pesos neurais.
 
-- explicação de trechos;
-- tradução;
-- definição de termos;
-- perguntas de revisão;
-- resumos;
-- vozes neurais;
-- sincronização em nuvem.
+## Licença do projeto
 
-Os recursos premium serão opcionais. A leitura e as ferramentas locais devem
-continuar úteis sem assinatura.
-
-## Documentação
-
-- [Relatório técnico e de produto](RELATORIO_TECNICO_SIA.md)
-- [Política de Privacidade](PRIVACY.md)
-- [Ficha da Chrome Web Store](STORE_LISTING.md)
-- [Checklist de publicação](RELEASE_CHECKLIST.md)
-- [Orientações dos assets da loja](assets/store/README.md)
-
-## Contribuição
-
-Antes de propor uma alteração:
-
-1. crie uma branch a partir da `main`;
-2. preserve os princípios de qualidade;
-3. adicione testes para regras do motor;
-4. execute as validações de sintaxe;
-5. teste em uma aula real do Coursera;
-6. abra um pull request descrevendo impacto e riscos.
-
-Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
-
-## Estado do projeto
-
-A S·IA está em desenvolvimento ativo. A versão 1.7.0 estabelece a primeira linha
-gratuita com leitura sincronizada, Recall e Companion local.
-
-Antes da publicação pública ainda serão definidos:
-
-- e-mail oficial de suporte;
-- URL pública da política de privacidade;
-- URL oficial da UXBRAS®;
-- imagens finais da Chrome Web Store.
-
-## Licença
-
-Nenhuma licença pública foi definida até o momento. Até que um arquivo de licença
-seja adicionado, todos os direitos permanecem reservados à UXBRAS®.
-
----
-
-**S·IA — Audio-learning by UXBRAS®**
-
+A licença do código da S·IA ainda deve ser definida pelo responsável pela UXBRAS®. Não é correto inserir uma licença permissiva ou proprietária sem essa decisão. Enquanto isso, o código permanece com **licença não especificada**, e os avisos de terceiros devem ser respeitados conforme documentado.

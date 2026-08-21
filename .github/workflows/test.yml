@@ -1,0 +1,40 @@
+name: S·IA tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Regression tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run extension tests
+        run: node --test tests/sync-engine.test.js tests/piper-bridge.test.js
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check content.js
+          node --check dom-fallback.js
+          node --check neural-tts/piper-bridge.js
+          node --check neural-tts/piper-worker.js
+          node --check offscreen.js
+          node --check popup.js
+          node --check service-worker.js
+          node --check sidepanel.js
