@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>S·IA Probe Fixture Runner</title>
+  <style>
+    body { margin: 24px; background: #111827; color: #f3f4f6; font: 16px system-ui, sans-serif; }
+    [data-purpose="shaka-video-player"] { max-width: 760px; }
+    video { display: block; width: 100%; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Fixture de runtime do probe</h1>
+  <div data-purpose="shaka-video-player" id="shaka-video-container-fixture">
+    <video id="lecture-fixture" controls preload="metadata">
+      <source src="fixture.mp4" type="video/mp4">
+      <track kind="subtitles" srclang="pt-BR" label="Português" src="fixture-pt.vtt" default>
+    </video>
+    <button type="button" data-purpose="captions-dropdown-button">Legendas</button>
+    <button type="button" data-purpose="transcript-toggle" aria-label="Transcrição na área da barra lateral">Transcrição</button>
+    <div data-purpose="caption" class="captions-display-module--captions-container"></div>
+    <div data-purpose="transcript-panel">Transcrição de fixture</div>
+  </div>
+  <script>
+    window.chrome = { runtime: { sendMessage: () => Promise.resolve({ ok: true }) } };
+    const caption = document.querySelector('[data-purpose="caption"]');
+    let turn = 0;
+    setInterval(() => {
+      turn += 1;
+      caption.textContent = turn % 2 ? 'Legenda de fixture um.' : 'Legenda de fixture dois.';
+    }, 1200);
+  </script>
+  <script src="../probe.js"></script>
+</body>
+</html>

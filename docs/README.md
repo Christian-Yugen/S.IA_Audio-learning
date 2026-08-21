@@ -33,6 +33,8 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |
+| [Relatório da Fase 2 Udemy](reports/PHASE2-UDEMY-RUNTIME-REPORT.md) | Runtime real, fontes de cue, diagnóstico e regressão. |
+| [Log de runtime Fase 2](reports/PHASE2-RUNTIME-OBSERVATION-LOG.md) | Métricas sanitizadas das capturas e do probe. |
 | [Plano de publicação no GitHub](operations/GITHUB-PUBLICATION-PLAN.md) | Staging, revisão e publicação remota. |
 | [Histórico técnico](history/README.md) | Análises e diagnósticos anteriores. |
 
@@ -43,6 +45,8 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [Licenças de terceiros](legal/THIRD-PARTY-DISTRIBUTION.md) | Runtime, modelo, voz e distribuição. |
 | [Status da licença do projeto](legal/PROJECT-LICENSE-STATUS.md) | Decisão pendente sobre a licença do código. |
 | [Pesquisa inicial Udemy](research/UDEMY-OFFICIAL-RESEARCH.md) | Evidências oficiais e hipóteses verificáveis do player e das legendas. |
+| [Protocolo experimental Fase 2](experiments/PHASE2-RUNTIME-PROTOCOL.md) | Isolamento, privacidade, métricas e critérios do probe. |
+| [Comparação de fontes Fase 2](experiments/PHASE2-SOURCE-COMPARISON.md) | `TextTrack`, DOM, transcrição, ciclo de vida e confiança. |
 | [Pesquisa de voz feminina](research/VOICE-FEMALE-PTBR.md) | Situação de vozes PT-BR e futura gravação autorizada. |
 | [Plano Piper](research/PIPER-IMPLEMENTATION-PLAN.md) | Histórico e base técnica do motor neural. |
 | [Recomendação TTS PT-BR](research/PTBR-TTS-RECOMMENDATION.md) | Pesquisa de alternativas de síntese. |
