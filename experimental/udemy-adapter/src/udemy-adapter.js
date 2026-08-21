@@ -61,11 +61,18 @@ function tracksFromVideo(video) {
 }
 
 export class UdemyAdapter {
-  constructor({ documentRef, locationRef, windowRef, emit } = {}) {
+  constructor({ documentRef, locationRef, windowRef, emit, mutationFilter } = {}) {
     this.documentRef = documentRef || globalThis.document;
     this.locationRef = locationRef || globalThis.location;
     this.windowRef = windowRef || globalThis.window;
     this.emit = typeof emit === 'function' ? emit : () => {};
+    this.mutationFilter = typeof mutationFilter === 'function'
+      ? mutationFilter
+      : (mutation) => {
+        const target = mutation?.target;
+        return target?.dataset?.siaDiagnostic !== 'true'
+          && !target?.closest?.('[data-sia-diagnostic="true"]');
+      };
     this.state = STATES.IDLE;
     this.started = false;
     this.destroyed = false;
@@ -75,8 +82,11 @@ export class UdemyAdapter {
     this.videoListeners = [];
     this.pageObserver = null;
     this.pollHandle = null;
+    this.scanScheduled = false;
     this.lastDiagnosticKey = '';
     this.lastDiagnostic = null;
+    this.lastSourceKey = '';
+    this.lastFallbackKey = '';
   }
 
   currentUrl() {
@@ -117,6 +127,8 @@ export class UdemyAdapter {
     this.video = null;
     this.playerIdentity = null;
     this.previousCue = null;
+    this.lastSourceKey = '';
+    this.lastFallbackKey = '';
     this.started = false;
     this.destroyed = true;
     this.emit({ type: EVENTS.PLATFORM_LEFT, platformId: PLATFORM_ID, adapterVersion: ADAPTER_VERSION });
@@ -126,7 +138,16 @@ export class UdemyAdapter {
     const Observer = this.windowRef?.MutationObserver || globalThis.MutationObserver;
     if (!Observer || !this.documentRef?.documentElement) return;
     this.pageObserver?.disconnect?.();
-    this.pageObserver = new Observer(() => this.scan());
+    this.pageObserver = new Observer((mutations) => {
+      const relevant = mutations.some((mutation) => {
+        try {
+          return this.mutationFilter(mutation) !== false;
+        } catch {
+          return true;
+        }
+      });
+      if (relevant) this.scheduleScan();
+    });
     this.pageObserver.observe(this.documentRef.documentElement, {
       subtree: true,
       childList: true,
@@ -151,11 +172,22 @@ export class UdemyAdapter {
     this.videoListeners = [];
   }
 
+  scheduleScan() {
+    if (this.scanScheduled || this.destroyed) return;
+    this.scanScheduled = true;
+    const run = () => {
+      this.scanScheduled = false;
+      this.scan();
+    };
+    if (typeof this.windowRef?.setTimeout === 'function') this.windowRef.setTimeout(run, 0);
+    else run();
+  }
+
   installVideoListeners(video) {
     this.removeVideoListeners();
     if (!video?.addEventListener) return;
     for (const name of ['play', 'pause', 'timeupdate', 'loadedmetadata', 'emptied', 'ended', 'ratechange']) {
-      const listener = () => this.scan();
+      const listener = () => this.scheduleScan();
       video.addEventListener(name, listener, { passive: true });
       this.videoListeners.push({ target: video, name, listener });
     }
@@ -166,6 +198,8 @@ export class UdemyAdapter {
     if (isSamePlayer(this.playerIdentity, nextIdentity)) return;
     if (this.video && video !== this.video) {
       this.previousCue = null;
+      this.lastSourceKey = '';
+      this.lastFallbackKey = '';
       this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
     }
     this.removeVideoListeners();
@@ -245,13 +279,19 @@ export class UdemyAdapter {
       hasTemporalCue,
     });
 
+    const sourceKey = JSON.stringify({ source, confidence, state: this.state, playerIdentity: this.playerIdentity });
     if (cue && primaryCue && shouldEmitCue(cue, this.previousCue)) {
       this.previousCue = cue;
       this.emit({ type: EVENTS.CAPTION_CHANGED, cue, state: this.state });
     } else if (cue && !primaryCue) {
-      this.emit({ type: EVENTS.ADAPTER_FALLBACK, source, confidence, state: this.state, safeToSpeak: false });
+      const fallbackKey = JSON.stringify({ source, confidence, text: cue.text, playerIdentity: this.playerIdentity });
+      if (fallbackKey !== this.lastFallbackKey) {
+        this.lastFallbackKey = fallbackKey;
+        this.emit({ type: EVENTS.ADAPTER_FALLBACK, source, confidence, state: this.state, safeToSpeak: false });
+      }
     }
-    if (source !== SOURCES.NONE) {
+    if (source !== SOURCES.NONE && sourceKey !== this.lastSourceKey) {
+      this.lastSourceKey = sourceKey;
       this.emit({ type: EVENTS.CAPTION_SOURCE_READY, source, confidence, state: this.state, safeToSpeak: Boolean(cue?.safeToSpeak) });
     }
     return this.publishDiagnostic({

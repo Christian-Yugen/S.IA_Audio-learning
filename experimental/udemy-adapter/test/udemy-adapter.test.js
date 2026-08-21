@@ -181,3 +181,40 @@ test('stop destrói o ciclo de vida e impede novas leituras', () => {
   adapter.scan();
   assert.equal(events.length, count);
 });
+
+
+test('fallback DOM é deduplicado entre scans consecutivos', () => {
+  const events = [];
+  const video = new FakeVideo('lecture-dedupe');
+  const adapter = makeAdapter(makeDocument(video, 'Legenda estável'), events);
+  adapter.scan();
+  adapter.scan();
+  assert.equal(events.filter((event) => event.type === EVENTS.ADAPTER_FALLBACK).length, 1);
+  assert.equal(events.filter((event) => event.type === EVENTS.CAPTION_SOURCE_READY).length, 1);
+});
+
+test('observer pode ignorar mutações do overlay sem iniciar novo scan', () => {
+  const events = [];
+  const video = new FakeVideo('lecture-overlay');
+  let observerCallback = null;
+  class FakeMutationObserver {
+    constructor(callback) { observerCallback = callback; }
+    observe() {}
+    disconnect() {}
+  }
+  const windowRef = {
+    MutationObserver: FakeMutationObserver,
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+  };
+  const adapter = new UdemyAdapter({
+    documentRef: makeDocument(video, 'Legenda estável'),
+    locationRef: { href: lectureUrl },
+    windowRef,
+    emit: (event) => events.push(event),
+  });
+  adapter.start();
+  const eventCount = events.length;
+  observerCallback([{ target: { dataset: { siaDiagnostic: 'true' } } }]);
+  assert.equal(events.length, eventCount);
+});
