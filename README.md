@@ -116,6 +116,7 @@ O estado das licenças e pendências está registrado em [Licenças e distribui�
 | [Arquitetura do sistema](docs/architecture/SYSTEM-ARCHITECTURE.md) | Separação entre adaptadores, núcleo de áudio e camada educacional. |
 | [Estratégia de expansão](docs/roadmap/MULTIPLATFORM-EXPANSION-STRATEGY.md) | Roadmap Coursera → Udemy → futuras plataformas. |
 | [Roadmap de melhorias](docs/roadmap/LEARNING-IMPROVEMENTS-ROADMAP.md) | Evolução para aprendizagem ativa. |
+| [Plano oficial de execução](docs/roadmap/PLAN-EXECUTION-UDEMY-AND-LEARNING.md) | Fases, gates e aprovação da próxima etapa. |
 | [Política de mudanças](docs/governance/CHANGE-CONTROL.md) | Processo normal, exceções e aprovação. |
 | [Status da versão 1.8.5](docs/releases/1.8.5.md) | Escopo, testes e limitações da release. |
 | [Licenças de terceiros](docs/legal/THIRD-PARTY-DISTRIBUTION.md) | Situação do runtime, modelo e distribuição. |
