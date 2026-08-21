@@ -87,6 +87,7 @@ export class UdemyAdapter {
     this.lastDiagnostic = null;
     this.lastSourceKey = '';
     this.lastFallbackKey = '';
+    this.lastProbe = null;
   }
 
   currentUrl() {
@@ -129,6 +130,7 @@ export class UdemyAdapter {
     this.previousCue = null;
     this.lastSourceKey = '';
     this.lastFallbackKey = '';
+    this.lastProbe = null;
     this.started = false;
     this.destroyed = true;
     this.emit({ type: EVENTS.PLATFORM_LEFT, platformId: PLATFORM_ID, adapterVersion: ADAPTER_VERSION });
@@ -161,8 +163,40 @@ export class UdemyAdapter {
     this.pollHandle = this.windowRef.setInterval(() => this.scan(), 1000);
   }
 
+  inspectVideo() {
+    const selectors = ['video[data-purpose]', 'video[id^="lecture-"], video'];
+    const count = (selector) => {
+      try {
+        return typeof this.documentRef?.querySelectorAll === 'function'
+          ? this.documentRef.querySelectorAll(selector).length
+          : 0;
+      } catch {
+        return 0;
+      }
+    };
+    const probe = {
+      documentVideos: count('video'),
+      iframeCount: count('iframe'),
+      shakaContainers: count('[id^="shaka-video-container-"], [data-purpose="shaka-video-player"]'),
+      matchedSelector: null,
+      searchScope: 'document',
+    };
+    for (const selector of selectors) {
+      try {
+        const video = this.documentRef?.querySelector?.(selector) || null;
+        if (video) {
+          probe.matchedSelector = selector;
+          return { video, probe };
+        }
+      } catch {
+        // Continue to the next selector while preserving the diagnostic probe.
+      }
+    }
+    return { video: null, probe };
+  }
+
   findVideo() {
-    return this.documentRef?.querySelector?.('video[data-purpose], video[id^="lecture-"], video') || null;
+    return this.inspectVideo().video;
   }
 
   removeVideoListeners() {
@@ -259,11 +293,19 @@ export class UdemyAdapter {
       return this.publishDiagnostic({ playerFound: false, source: SOURCES.NONE, confidence: CONFIDENCE.UNKNOWN, reason: 'url-not-compatible' });
     }
 
-    const video = this.findVideo();
+    const videoResult = this.inspectVideo();
+    const video = videoResult.video;
+    this.lastProbe = videoResult.probe;
     this.reconcileVideo(video);
     if (!video) {
       this.state = STATES.PLATFORM_DETECTED;
-      return this.publishDiagnostic({ playerFound: false, source: SOURCES.NONE, confidence: CONFIDENCE.UNKNOWN, reason: 'player-not-found' });
+      return this.publishDiagnostic({
+        playerFound: false,
+        source: SOURCES.NONE,
+        confidence: CONFIDENCE.UNKNOWN,
+        reason: 'player-not-found',
+        probe: this.lastProbe,
+      });
     }
 
     const primaryCue = this.readPrimaryCue(video);
@@ -300,11 +342,17 @@ export class UdemyAdapter {
       confidence,
       reason: primaryCue ? 'texttrack-cue-valid' : (fallbackCue ? 'visible-text-without-confirmed-timing' : 'caption-source-unavailable'),
       cue,
+      probe: this.lastProbe,
     });
   }
 
   publishDiagnostic(input) {
-    const diagnostic = buildDiagnostic({ ...input, state: this.state, playerIdentity: this.playerIdentity });
+    const diagnostic = buildDiagnostic({
+      ...input,
+      state: this.state,
+      playerIdentity: this.playerIdentity,
+      probe: input.probe || this.lastProbe,
+    });
     const key = JSON.stringify(diagnostic);
     this.lastDiagnostic = diagnostic;
     if (key !== this.lastDiagnosticKey) this.lastDiagnosticKey = key;
@@ -319,6 +367,7 @@ export class UdemyAdapter {
       confidence: CONFIDENCE.UNKNOWN,
       reason: 'not-scanned',
       playerIdentity: this.playerIdentity,
+      probe: this.lastProbe,
     });
   }
 }

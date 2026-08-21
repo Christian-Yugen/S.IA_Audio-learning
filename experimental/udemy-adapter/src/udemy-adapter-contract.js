@@ -106,7 +106,7 @@ export function deriveState({ playerFound, source, confidence, hasTemporalCue, d
   return STATES.FALLBACK_PROBING;
 }
 
-export function buildDiagnostic({ state, playerFound, source = SOURCES.NONE, confidence = CONFIDENCE.UNKNOWN, reason, playerIdentity = null, cue = null }) {
+export function buildDiagnostic({ state, playerFound, source = SOURCES.NONE, confidence = CONFIDENCE.UNKNOWN, reason, playerIdentity = null, cue = null, probe = null }) {
   const safeState = VALID_STATES.has(state) ? state : STATES.UNSAFE_TO_SPEAK;
   const safeSource = VALID_SOURCES.has(source) ? source : SOURCES.NONE;
   const safeConfidence = VALID_CONFIDENCE.has(confidence) ? confidence : CONFIDENCE.UNKNOWN;
@@ -120,6 +120,7 @@ export function buildDiagnostic({ state, playerFound, source = SOURCES.NONE, con
     state: safeState,
     userAction: 'none',
     playerIdentity: playerIdentity || null,
+    probe: probe || null,
     safeToSpeak: Boolean(cue?.safeToSpeak) && safeState !== STATES.UNSAFE_TO_SPEAK,
   });
 }

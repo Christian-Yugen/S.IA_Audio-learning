@@ -46,6 +46,7 @@ function makeDocument(video, captionText = '') {
       return null;
     },
     querySelectorAll(selector) {
+      if (selector === 'video') return [video];
       if (selector === '[data-purpose="caption"]' && captionText) return [captionNode];
       return [];
     },
@@ -125,6 +126,16 @@ test('adaptador identifica TextTrack e emite somente CAPTION_CHANGED seguro', ()
   assert.equal(diagnostic.safeToSpeak, true);
   assert.equal(events.filter((event) => event.type === EVENTS.CAPTION_CHANGED).length, 1);
   assert.equal(events.some((event) => event.type === EVENTS.ADAPTER_ERROR), false);
+});
+
+test('diagnóstico informa a inspeção do player sem liberar áudio', () => {
+  const video = new FakeVideo('lecture-probe');
+  const diagnostic = makeAdapter(makeDocument(video, 'Legenda visual sem tempo')).scan();
+  assert.equal(diagnostic.probe.documentVideos, 1);
+  assert.equal(diagnostic.probe.iframeCount, 0);
+  assert.equal(diagnostic.probe.shakaContainers, 0);
+  assert.equal(diagnostic.probe.matchedSelector, 'video[data-purpose]');
+  assert.equal(diagnostic.safeToSpeak, false);
 });
 
 test('adaptador mantém fallback DOM em UNSAFE_TO_SPEAK sem emitir cue de fala', () => {
