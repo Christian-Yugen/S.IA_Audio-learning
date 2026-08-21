@@ -1,0 +1,16 @@
+PAGE_TARGET <sanitized> extension popup
+PAGE_STATE {"href": "<sanitized Coursera fixture>", "title": "S·IA real test — Coursera fixture", "body": "fixture-loaded", "video": true, "captions": "A S IA está pronta para transformar suas aulas em áudio."}
+TARGETS_AFTER_NAV
+page S·IA real test — Coursera fixture <sanitized fixture URL>
+background_page S·IA neural host extension offscreen document
+page S·IA | Audio-learning by UXBRAS® extension popup
+page S·IA real test — Coursera fixture <sanitized fixture URL>
+worker  
+CONTROL_TARGET extension_page popup
+STATUS_BEFORE {"tab": {"id": "<sanitized>"}, "response": {"enabled": true, "videoFound": true, "paused": true, "ended": true, "captionActive": true, "speechActive": false, "currentSpeechText": "", "queuedSpeechText": "", "bufferingSentence": false, "timelineSentenceActive": false, "syncMode": "accelerate_voice", "effectiveSpeechRate": 1.2, "plannedSpeechRate": 1.2, "estimatedQueueDelay": 0, "queueStartError": 0, "voiceDurationFactor": 0.98, "videoRate": 1, "videoRateAdjusted": false, "speechError": "", "voiceEngine": "piper-local", "voiceEngineState": "ready", "syncEngineReady": true}}
+SWITCH_PIPER {"ok": true, "voiceEngine": "piper-local", "voiceEngineState": "ready"}
+PRIME {"ok": true, "state": "running", "sampleRate": 22050}
+TEST_NEURAL {"ok": true, "started": true, "engine": "piper-local", "state": "playing"}
+STATUS_AFTER {"tab": {"id": "<sanitized>"}, "response": {"enabled": true, "videoFound": true, "paused": true, "ended": true, "captionActive": true, "speechActive": false, "currentSpeechText": "", "queuedSpeechText": "", "bufferingSentence": false, "timelineSentenceActive": false, "syncMode": "accelerate_voice", "effectiveSpeechRate": 1.2, "plannedSpeechRate": 1.2, "estimatedQueueDelay": 0, "queueStartError": 0, "voiceDurationFactor": 0.98, "videoRate": 1, "videoRateAdjusted": false, "speechError": "", "voiceEngine": "piper-local", "voiceEngineState": "ready", "syncEngineReady": true}}
+SWITCH_BROWSER {"ok": true, "voiceEngine": "browser", "voiceEngineState": "ready"}
+STATUS_BROWSER {"tab": {"id": "<sanitized>"}, "response": {"enabled": true, "videoFound": true, "paused": true, "ended": true, "captionActive": true, "speechActive": false, "currentSpeechText": "", "queuedSpeechText": "", "bufferingSentence": false, "timelineSentenceActive": false, "syncMode": "accelerate_voice", "effectiveSpeechRate": 1.2, "plannedSpeechRate": 1.2, "estimatedQueueDelay": 0, "queueStartError": 0, "voiceDurationFactor": 0.98, "videoRate": 1, "videoRateAdjusted": false, "speechError": "", "voiceEngine": "browser", "voiceEngineState": "ready", "syncEngineReady": true}}

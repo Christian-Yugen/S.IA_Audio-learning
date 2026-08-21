@@ -1,9 +1,59 @@
-.agents/
-
-# Arquivos locais do sistema e dos editores
+# Sistema e editores
 .DS_Store
 Thumbs.db
-*.log
 .vscode/
 .idea/
+*.swp
+
+# Segredos e configurações locais
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Perfis, sessões e dados locais
+profiles/
+user-data/
+chrome-profile/
+real-fixture/
+fixtures/private/
+*.cookie
+
+# Dependências e caches
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.cache/
+
+# Builds e distribuição gerada
 dist/
+build/
+release-artifacts/
+*.zip
+*.crx
+*.xpi
+
+# Logs e resultados locais
+*.log
+coverage/
+reports/local/
+tmp/
+
+# Artefatos grandes de compilação
+artifacts/
+
+# Áudios, vídeos e transcrições de teste não autorizados
+*.mp4
+*.webm
+*.mov
+*.wav
+*.mp3
+*.m4a
+fixtures/audio/
+fixtures/video/
+
+# Estado local do GitHub CLI
+.github-local/
