@@ -1,7 +1,7 @@
 # Baseline do Gate G7 — Integração aditiva Udemy
 
-**Status:** congelado antes da implementação  
-**Branch:** `experiment/udemy-core-integration-g7`  
+**Status:** congelado antes da implementação
+**Branch:** `experiment/udemy-core-integration-g7`
 **Data:** 21 de agosto de 2026
 
 ## Identidade do baseline

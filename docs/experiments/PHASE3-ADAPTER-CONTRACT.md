@@ -1,7 +1,7 @@
 # Contrato experimental do adaptador Udemy
 
-**Branch:** `experiment/udemy-adapter-contract`  
-**Status:** implementação experimental isolada  
+**Branch:** `experiment/udemy-adapter-contract`
+**Status:** implementação experimental isolada
 **Escopo aprovado:** contrato de cue, diagnóstico, `UNSAFE_TO_SPEAK`, fallback DOM controlado e ciclo de vida idempotente.
 
 ## 1. Limites invioláveis

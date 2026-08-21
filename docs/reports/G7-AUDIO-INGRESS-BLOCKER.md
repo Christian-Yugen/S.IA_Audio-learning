@@ -1,7 +1,7 @@
 # Gate G7 — Relatório do ponto de entrada de áudio
 
-**Branch:** `experiment/udemy-core-integration-g7`  
-**Status:** diagnóstico integrado aprovado; áudio Udemy bloqueado até criação de um hook público e aditivo  
+**Branch:** `experiment/udemy-core-integration-g7`
+**Status:** diagnóstico integrado aprovado; áudio Udemy bloqueado até criação de um hook público e aditivo
 **Data:** 21 de agosto de 2026
 
 ## 1. Resultado principal
