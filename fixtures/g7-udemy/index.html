@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Udemy — G7</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; background: #171717; color: #eee; }
+    #result { white-space: pre-wrap; font-family: monospace; border: 1px solid #7d4cc2; padding: 1rem; min-height: 8rem; }
+    #player { margin-top: 1rem; width: 640px; height: 360px; background: #000; }
+    [data-purpose="caption"] { margin-top: 1rem; padding: .75rem; background: #333; }
+  </style>
+</head>
+<body>
+  <h1>Fixture G7 — Udemy adapter</h1>
+  <p id="phase">Aguardando criação tardia do player…</p>
+  <div id="result" data-testid="diagnostic">Sem diagnóstico recebido.</div>
+  <main id="player"></main>
+  <script>
+    window.__diagnosticEvents = [];
+    window.addEventListener('SIA_DIAGNOSTIC_UPDATED', event => {
+      const detail = event.detail || {};
+      window.__diagnosticEvents.push(detail);
+      document.querySelector('#result').textContent = JSON.stringify({
+        platformId: detail.platformId,
+        adapterVersion: detail.adapterVersion,
+        player: detail.player,
+        source: detail.source,
+        confidence: detail.confidence,
+        state: detail.state,
+        safeToSpeak: detail.safeToSpeak,
+        playerIdentity: detail.playerIdentity,
+        lastEventType: detail.lastEventType,
+      }, null, 2);
+    });
+
+    setTimeout(() => {
+      const container = document.createElement('div');
+      container.id = 'shaka-video-container-4242';
+      const video = document.createElement('video');
+      video.id = 'lecture-4242';
+      video.controls = true;
+      container.append(video);
+      const caption = document.createElement('div');
+      caption.dataset.purpose = 'caption';
+      caption.textContent = 'Legenda DOM sem timing confirmado.';
+      container.append(caption);
+      document.querySelector('#player').replaceChildren(container);
+      document.querySelector('#phase').textContent = 'Player criado; aguardando diagnóstico do adaptador.';
+    }, 500);
+  </script>
+</body>
+</html>
