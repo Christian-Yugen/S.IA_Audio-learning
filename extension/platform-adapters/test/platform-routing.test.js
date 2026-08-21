@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const routerSource = fs.readFileSync(new URL('../platform-router.js', import.meta.url), 'utf8');
 const bridgeSource = fs.readFileSync(new URL('../core-event-bridge.js', import.meta.url), 'utf8');
+const diagnosticSource = fs.readFileSync(new URL('../core-diagnostic-state.js', import.meta.url), 'utf8');
 
 class TestCustomEvent extends Event {
   constructor(type, init = {}) {
@@ -170,4 +171,30 @@ test('o roteador não inicia adaptador em URL incompatível', async () => {
   });
   assert.equal(result, null);
   assert.equal(created, false);
+});
+
+test('o estado diagnóstico comum conserva a fonte e bloqueia cue insegura', () => {
+  const windowRef = createWindow();
+  const context = vm.createContext({ window: windowRef, Event, console });
+  context.globalThis = context;
+  vm.runInContext(diagnosticSource, context);
+  context.SiaCoreDiagnostic.updateFromEvent({
+    type: 'SIA_CAPTION_SOURCE_READY',
+    platformId: 'udemy',
+    adapterVersion: 'udemy-v0-experimental',
+    player: 'found',
+    playerIdentity: { videoId: 'lecture-1', containerId: 'shaka-video-container-1' },
+    source: 'dom-caption',
+    confidence: 'low',
+    state: 'UNSAFE_TO_SPEAK',
+    safeToSpeak: false,
+    reason: 'visible-text-without-confirmed-timing',
+  });
+  const diagnostic = context.SiaCoreDiagnostic.get();
+  assert.equal(diagnostic.platformId, 'udemy');
+  assert.equal(diagnostic.player, 'found');
+  assert.equal(diagnostic.source, 'dom-caption');
+  assert.equal(diagnostic.confidence, 'low');
+  assert.equal(diagnostic.state, 'UNSAFE_TO_SPEAK');
+  assert.equal(diagnostic.safeToSpeak, false);
 });
