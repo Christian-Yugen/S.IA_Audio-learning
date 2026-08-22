@@ -14,9 +14,21 @@
   <h1>Fixture G7 — Udemy adapter</h1>
   <p id="phase">Aguardando criação tardia do player…</p>
   <div id="result" data-testid="diagnostic">Sem diagnóstico recebido.</div>
+  <pre id="h5" data-testid="h5-native">Sem evento H5 recebido.</pre>
   <main id="player"></main>
   <script>
     window.__diagnosticEvents = [];
+    window.__h5NativeEvents = [];
+    window.addEventListener('SIA_H5_NATIVE_SPEECH', event => {
+      const detail = event.detail || {};
+      window.__h5NativeEvents.push(detail);
+      const counts = {
+        requested: window.__h5NativeEvents.filter(item => item.phase === 'requested').length,
+        started: window.__h5NativeEvents.filter(item => item.phase === 'started').length,
+        error: window.__h5NativeEvents.filter(item => item.phase === 'error').length,
+      };
+      document.querySelector('#h5').textContent = JSON.stringify({ ...counts, last: detail }, null, 2);
+    });
     window.addEventListener('SIA_DIAGNOSTIC_UPDATED', event => {
       const detail = event.detail || {};
       window.__diagnosticEvents.push(detail);
@@ -39,13 +51,44 @@
       const video = document.createElement('video');
       video.id = 'lecture-4242';
       video.controls = true;
+      video.muted = true;
+      video.src = '/test.webm';
       container.append(video);
-      const caption = document.createElement('div');
-      caption.dataset.purpose = 'caption';
-      caption.textContent = 'Legenda DOM sem timing confirmado.';
-      container.append(caption);
+      const unsafeMode = new URLSearchParams(location.search).has('unsafe');
+      let track = null;
+      if (!unsafeMode) {
+        track = video.addTextTrack('subtitles', 'Português brasileiro', 'pt-BR');
+        track.mode = 'showing';
+        track.addCue(new VTTCue(0.5, 4, 'Esta é uma cue temporal segura.'));
+        track.addCue(new VTTCue(4.1, 7, 'Esta é a próxima cue da fixture.'));
+      }
+      if (unsafeMode) {
+        const caption = document.createElement('div');
+        caption.dataset.purpose = 'caption';
+        caption.textContent = 'Legenda DOM sem timing confirmado.';
+        container.append(caption);
+      }
       document.querySelector('#player').replaceChildren(container);
-      document.querySelector('#phase').textContent = 'Player criado; aguardando diagnóstico do adaptador.';
+      video.currentTime = 1;
+      video.play().catch(error => {
+        document.querySelector('#phase').textContent = `Play rejeitado: ${error.message}`;
+      });
+      const activateTrack = () => {
+        try {
+          for (const item of video.textTracks) item.mode = 'showing';
+          video.currentTime = 1;
+          const active = [...video.textTracks].map(item => ({
+            mode: item.mode,
+            cues: item.cues?.length || 0,
+            activeCues: item.activeCues?.length || 0,
+          }));
+          document.querySelector('#phase').textContent = `Player criado; TextTrack: ${JSON.stringify(active)}`;
+        } catch (error) {
+          document.querySelector('#phase').textContent = `TextTrack indisponível: ${error.message}`;
+        }
+      };
+      setTimeout(activateTrack, 100);
+      document.querySelector('#phase').textContent = 'Player criado; faixa VTT temporal carregando.';
     }, 500);
   </script>
 </body>

@@ -20,6 +20,8 @@
         maximoHistoricoFrases: 60
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
+    const PLATAFORMA_EXTERNA = location.hostname === "www.udemy.com";
+    let removerEntradaDeCaption = () => {};
 
     const SELETORES_LEGENDA = [
         '[data-testid="video-captions"]',
@@ -128,6 +130,28 @@
             .replace(/\u200B/g, "")
             .replace(/\s+/g, " ")
             .trim();
+    }
+
+    function emitirEventoH5(fase, registro, error = "") {
+        const contexto = registro?.contexto || {};
+        if (contexto.gate !== "H5-native-udemy-texttrack") return;
+        if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
+        try {
+            globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
+                detail: {
+                    phase: fase,
+                    engine: contexto.voiceEngine || "browser",
+                    text: normalizarTexto(registro.texto).slice(0, 200),
+                    startTime: Number(contexto.inicioCue),
+                    endTime: Number(contexto.fimCue),
+                    source: contexto.source || "texttrack",
+                    sourceConfidence: contexto.sourceConfidence || "high",
+                    error: String(error || "")
+                }
+            }));
+        } catch {
+            // Diagnóstico nunca pode interromper a fila comum.
+        }
     }
 
     function registrarDiagnostico(evento, texto = "") {
@@ -643,6 +667,7 @@
         utterance.onstart = () => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
             void registrarFraseNoHistorico(registro);
             registro.inicioRealEm = performance.now();
@@ -698,6 +723,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
@@ -842,7 +868,7 @@
     }
 
     function enfileirarFala(texto, contexto = {}) {
-        if (globalThis.SiaPiperVoice?.isActive?.()) {
+        if (contexto?.nativeOnly !== true && globalThis.SiaPiperVoice?.isActive?.()) {
             enfileirarFalaNeural(texto, contexto);
             return;
         }
@@ -865,8 +891,9 @@
         let valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
 
-        const piperAtivo = globalThis.SiaPiperVoice?.isActive?.() === true;
-        if (!piperAtivo && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
+        const usarPiper = contexto?.nativeOnly !== true
+            && globalThis.SiaPiperVoice?.isActive?.() === true;
+        if (!usarPiper && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
             ultimoErroSintese = "synthesis-unavailable";
             sinteseBloqueada = true;
             return;
@@ -911,6 +938,72 @@
         }
 
         enfileirarFala(valor, contexto);
+    }
+
+    function processarCueExterna(cue) {
+        if (
+            !PLATAFORMA_EXTERNA
+            || !cue
+            || cue.platformId !== "udemy"
+            || cue.source !== "texttrack"
+            || cue.sourceConfidence !== "high"
+            || cue.safeToSpeak !== true
+            || !Number.isFinite(Number(cue.startTime))
+            || !Number.isFinite(Number(cue.endTime))
+            || Number(cue.endTime) <= Number(cue.startTime)
+        ) {
+            return false;
+        }
+
+        const video = document.querySelector("video");
+        if (!video || video.paused || video.ended) return false;
+        videoMonitorado = video;
+        ultimaPosicaoVideo = Number(video.currentTime) || 0;
+        if (video.currentTime > Number(cue.endTime) + 0.35) return false;
+        if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
+
+        const texto = normalizarTexto(cue.text);
+        if (!texto || texto === ultimoTextoDetectado) return false;
+
+        ultimoTextoDetectado = texto;
+        textoCandidato = "";
+        coberturaLegendaAte = Number(cue.endTime);
+        emitirEventoH5("requested", {
+            texto,
+            contexto: {
+                inicioCue: Number(cue.startTime),
+                fimCue: Number(cue.endTime),
+                source: cue.source,
+                sourceConfidence: cue.sourceConfidence,
+                voiceEngine: "browser",
+                gate: "H5-native-udemy-texttrack"
+            }
+        });
+        falar(texto, {
+            video,
+            inicioCue: Number(cue.startTime),
+            fimCue: Number(cue.endTime),
+            sentencaAntecipada: false,
+            source: cue.source,
+            sourceConfidence: cue.sourceConfidence,
+            playerIdentity: cue.playerIdentity,
+            nativeOnly: true,
+            voiceEngine: "browser",
+            gate: "H5-native-udemy-texttrack"
+        });
+        return true;
+    }
+
+    function conectarEntradaDeCaption() {
+        if (!PLATAFORMA_EXTERNA) return;
+        const input = globalThis.SiaCaptionInput;
+        if (!input?.subscribe) return;
+
+        removerEntradaDeCaption();
+        removerEntradaDeCaption = input.subscribe(evento => {
+            if (evento?.type !== input.EVENTS?.ACCEPTED) return;
+            processarCueExterna(evento.cue);
+        });
     }
 
     function interromperFala() {
@@ -1251,16 +1344,26 @@
 
     function iniciarSia() {
         conectarConfiguracoes();
+        conectarEntradaDeCaption();
         chrome.storage.local.get(chaveHistorico, resultado => {
             const salvo = resultado[chaveHistorico];
             historicoFrases = Array.isArray(salvo)
                 ? salvo.slice(-CONFIG.maximoHistoricoFrases)
                 : [];
         });
-        setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
-        addEventListener("pagehide", interromperFala, { once: true });
-        console.info("S.ia: leitor de legendas do Coursera ativo.");
+        if (!PLATAFORMA_EXTERNA) {
+            setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
+        }
+        addEventListener("pagehide", () => {
+            removerEntradaDeCaption();
+            interromperFala();
+        }, { once: true });
+        console.info(PLATAFORMA_EXTERNA
+            ? "S.IA: entrada de cues externas ativa."
+            : "S.ia: leitor de legendas do Coursera ativo.");
     }
+
+    if (PLATAFORMA_EXTERNA) conectarEntradaDeCaption();
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", iniciarSia, { once: true });
