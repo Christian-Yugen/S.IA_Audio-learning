@@ -21,9 +21,10 @@ class FakeUtterance {
   }
 }
 
-function createHarness({ paused = false } = {}) {
+function createHarness({ paused = false, piperActive = false } = {}) {
   const listeners = new Map();
   const spoken = [];
+  const piperSpoken = [];
   const video = {
     currentTime: 10.5,
     playbackRate: 1,
@@ -90,6 +91,16 @@ function createHarness({ paused = false } = {}) {
     clearInterval: () => {},
     setTimeout: callback => { callback(); return 1; },
     clearTimeout: () => {},
+    SiaPiperVoice: {
+      isActive: () => piperActive,
+      speak(utterance) {
+        piperSpoken.push(utterance);
+        utterance.onstart?.();
+        return true;
+      },
+      primeText() {},
+      cancel() {}
+    },
     addEventListener(name, listener) {
       if (!globalListeners.has(name)) globalListeners.set(name, new Set());
       globalListeners.get(name).add(listener);
@@ -102,7 +113,7 @@ function createHarness({ paused = false } = {}) {
   vm.runInContext(syncSource, context);
   vm.runInContext(inputSource, context);
   vm.runInContext(contentSource, context);
-  return { context, input: context.SiaCaptionInput, video, spoken };
+  return { context, input: context.SiaCaptionInput, video, spoken, piperSpoken };
 }
 
 function cue(overrides = {}) {
@@ -152,4 +163,23 @@ test('H4 pausa do vídeo impede cue segura de chegar à fala', () => {
   assert.equal(result.accepted, false);
   assert.equal(result.reason, harness.input.REASONS.PAUSED);
   assert.equal(harness.spoken.length, 0);
+});
+
+test('H5 cue TextTrack usa voz nativa mesmo com Piper selecionado globalmente', () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue());
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('H5 fonte que não é TextTrack não alcança a voz nativa', () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ source: 'dom-caption' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken.length, 0);
 });

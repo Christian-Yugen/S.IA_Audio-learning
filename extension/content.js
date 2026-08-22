@@ -132,6 +132,28 @@
             .trim();
     }
 
+    function emitirEventoH5(fase, registro, error = "") {
+        const contexto = registro?.contexto || {};
+        if (contexto.gate !== "H5-native-udemy-texttrack") return;
+        if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
+        try {
+            globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
+                detail: {
+                    phase: fase,
+                    engine: contexto.voiceEngine || "browser",
+                    text: normalizarTexto(registro.texto).slice(0, 200),
+                    startTime: Number(contexto.inicioCue),
+                    endTime: Number(contexto.fimCue),
+                    source: contexto.source || "texttrack",
+                    sourceConfidence: contexto.sourceConfidence || "high",
+                    error: String(error || "")
+                }
+            }));
+        } catch {
+            // Diagnóstico nunca pode interromper a fila comum.
+        }
+    }
+
     function registrarDiagnostico(evento, texto = "") {
         const piperStatus = globalThis.SiaPiperVoiceStatus?.() || {};
         console.info("[S·IA diagnóstico]", {
@@ -645,6 +667,7 @@
         utterance.onstart = () => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
             void registrarFraseNoHistorico(registro);
             registro.inicioRealEm = performance.now();
@@ -700,6 +723,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
@@ -844,7 +868,7 @@
     }
 
     function enfileirarFala(texto, contexto = {}) {
-        if (globalThis.SiaPiperVoice?.isActive?.()) {
+        if (contexto?.nativeOnly !== true && globalThis.SiaPiperVoice?.isActive?.()) {
             enfileirarFalaNeural(texto, contexto);
             return;
         }
@@ -867,8 +891,9 @@
         let valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
 
-        const piperAtivo = globalThis.SiaPiperVoice?.isActive?.() === true;
-        if (!piperAtivo && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
+        const usarPiper = contexto?.nativeOnly !== true
+            && globalThis.SiaPiperVoice?.isActive?.() === true;
+        if (!usarPiper && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
             ultimoErroSintese = "synthesis-unavailable";
             sinteseBloqueada = true;
             return;
@@ -920,6 +945,8 @@
             !PLATAFORMA_EXTERNA
             || !cue
             || cue.platformId !== "udemy"
+            || cue.source !== "texttrack"
+            || cue.sourceConfidence !== "high"
             || cue.safeToSpeak !== true
             || !Number.isFinite(Number(cue.startTime))
             || !Number.isFinite(Number(cue.endTime))
@@ -941,6 +968,17 @@
         ultimoTextoDetectado = texto;
         textoCandidato = "";
         coberturaLegendaAte = Number(cue.endTime);
+        emitirEventoH5("requested", {
+            texto,
+            contexto: {
+                inicioCue: Number(cue.startTime),
+                fimCue: Number(cue.endTime),
+                source: cue.source,
+                sourceConfidence: cue.sourceConfidence,
+                voiceEngine: "browser",
+                gate: "H5-native-udemy-texttrack"
+            }
+        });
         falar(texto, {
             video,
             inicioCue: Number(cue.startTime),
@@ -948,7 +986,10 @@
             sentencaAntecipada: false,
             source: cue.source,
             sourceConfidence: cue.sourceConfidence,
-            playerIdentity: cue.playerIdentity
+            playerIdentity: cue.playerIdentity,
+            nativeOnly: true,
+            voiceEngine: "browser",
+            gate: "H5-native-udemy-texttrack"
         });
         return true;
     }

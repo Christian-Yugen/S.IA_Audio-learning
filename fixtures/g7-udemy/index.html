@@ -14,9 +14,21 @@
   <h1>Fixture G7 — Udemy adapter</h1>
   <p id="phase">Aguardando criação tardia do player…</p>
   <div id="result" data-testid="diagnostic">Sem diagnóstico recebido.</div>
+  <pre id="h5" data-testid="h5-native">Sem evento H5 recebido.</pre>
   <main id="player"></main>
   <script>
     window.__diagnosticEvents = [];
+    window.__h5NativeEvents = [];
+    window.addEventListener('SIA_H5_NATIVE_SPEECH', event => {
+      const detail = event.detail || {};
+      window.__h5NativeEvents.push(detail);
+      const counts = {
+        requested: window.__h5NativeEvents.filter(item => item.phase === 'requested').length,
+        started: window.__h5NativeEvents.filter(item => item.phase === 'started').length,
+        error: window.__h5NativeEvents.filter(item => item.phase === 'error').length,
+      };
+      document.querySelector('#h5').textContent = JSON.stringify({ ...counts, last: detail }, null, 2);
+    });
     window.addEventListener('SIA_DIAGNOSTIC_UPDATED', event => {
       const detail = event.detail || {};
       window.__diagnosticEvents.push(detail);
