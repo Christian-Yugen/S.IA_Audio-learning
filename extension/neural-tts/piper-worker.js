@@ -101,7 +101,10 @@ self.onmessage = event => {
     const sid = Number.isFinite(Number(message.sid))
       ? Math.max(0, Math.trunc(Number(message.sid)))
       : 0;
-    const audio = ttsInstance.generate({ text, sid, speed });
+    const silenceScale = Number.isFinite(Number(message.silenceScale))
+      ? Math.min(1, Math.max(0.05, Number(message.silenceScale)))
+      : 0.2;
+    const audio = ttsInstance.generate({ text, sid, speed, silenceScale });
     const samples = new Float32Array(audio.samples);
     const sampleRate = Number(audio.sampleRate) || Number(ttsInstance.sampleRate) || 22050;
 

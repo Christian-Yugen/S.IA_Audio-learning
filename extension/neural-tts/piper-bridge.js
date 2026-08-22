@@ -353,6 +353,7 @@ const READY_TIMEOUT_MS = 30000;
       return [
         String(utterance.text || ""),
         Number(utterance.rate || 1).toFixed(3),
+        Number(utterance.silenceScale ?? 0.2).toFixed(3),
         Number(utterance.voice?.voiceURI || 0)
       ].join("|");
     }
@@ -394,7 +395,8 @@ const READY_TIMEOUT_MS = 30000;
           requestId,
           text: String(utterance.text || ""),
           sid: 0,
-          speed: Number(utterance.rate) || 1
+          speed: Number(utterance.rate) || 1,
+          silenceScale: Number(utterance.silenceScale ?? 0.2)
         });
       });
 

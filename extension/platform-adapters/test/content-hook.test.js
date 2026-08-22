@@ -240,6 +240,7 @@ test('H7 cue temporal do Shaka usa Piper compartilhado quando ativo', () => {
   assert.equal(harness.piperSpoken.length, 1);
   assert.equal(harness.spoken.length, 0);
   assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+  assert.equal(harness.piperSpoken[0].silenceScale, 0.2);
 });
 
 test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível', () => {
@@ -254,8 +255,8 @@ test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponí
 
 test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache', async () => {
   const cues = [
-    { startTime: 10, endTime: 11, text: 'Primeira frase.' },
-    { startTime: 11.1, endTime: 13, text: 'Segunda frase.' },
+    { startTime: 10, endTime: 11, text: 'A análise começa' },
+    { startTime: 11.1, endTime: 13, text: 'com uma continuação final.' },
   ];
   const track = {
     kind: 'subtitles',
@@ -287,6 +288,8 @@ test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutil
   harness.tick();
   assert.equal(harness.piperSpoken.length, 2);
   assert.equal(harness.piperSpoken[1].rate, harness.primed[1].rate);
+  assert.equal(harness.piperSpoken[0].silenceScale, 0.08);
+  assert.equal(harness.piperSpoken[1].silenceScale, 0.2);
 });
 
 test('H5 fonte que não é TextTrack', () => {
