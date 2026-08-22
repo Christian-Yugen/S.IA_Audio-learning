@@ -12,6 +12,7 @@ const source = fs.readFileSync(
 function createHarness() {
   const listeners = [];
   const workers = [];
+  const posted = [];
 
   class FakeWorker {
     constructor() {
@@ -29,6 +30,7 @@ function createHarness() {
     }
 
     postMessage(message) {
+      posted.push(message);
       if (message.type === "sia-piper-generate") {
         const delay = message.text === "late" ? 25 : 0;
         setTimeout(() => {
@@ -94,7 +96,7 @@ function createHarness() {
     });
   }
 
-  return { dispatch, workers, listeners };
+  return { dispatch, workers, listeners, posted };
 }
 
 test("offscreen correlaciona duas abas mesmo com requestId repetido", async () => {
@@ -132,6 +134,24 @@ test("offscreen correlaciona duas abas mesmo com requestId repetido", async () =
   assert.equal(resultA.sessionId, "tab-a");
   assert.equal(resultB.sessionId, "tab-b");
   assert.equal(harness.workers.length, 1);
+});
+
+test("offscreen encaminha silenceScale para o worker Piper", async () => {
+  const harness = createHarness();
+  await harness.dispatch({ target: "sia-piper-offscreen", command: "init", sessionId: "tab-a" });
+  await harness.dispatch({
+    target: "sia-piper-offscreen",
+    command: "generate",
+    sessionId: "tab-a",
+    requestId: 1,
+    text: "frase de continuação,",
+    speed: 1.2,
+    silenceScale: 0.08
+  });
+  const generate = harness.posted.find(message => message.type === "sia-piper-generate");
+  assert.equal(generate.silenceScale, 0.08);
+  assert.equal(generate.sessionId, "tab-a");
+  assert.equal(generate.speed, 1.2);
 });
 
 test("dispose de uma aba não encerra o worker da outra sessão", async () => {

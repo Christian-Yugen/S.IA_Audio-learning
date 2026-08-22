@@ -186,7 +186,10 @@ async function execute(message) {
         requestId,
         text: String(message.text || ""),
         sid: Number(message.sid) || 0,
-        speed: Number(message.speed) || 1
+        speed: Number(message.speed) || 1,
+        silenceScale: Number.isFinite(Number(message.silenceScale))
+          ? Number(message.silenceScale)
+          : 0.2
       });
     });
     const serializableResult = {
