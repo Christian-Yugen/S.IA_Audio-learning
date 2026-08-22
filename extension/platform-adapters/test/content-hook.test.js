@@ -207,7 +207,27 @@ test('H6 cue TextTrack usa Piper compartilhado quando selecionado', () => {
   assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
 });
 
-test('H5 fonte que não é TextTrack não alcança nenhuma voz', () => {
+test('H7 cue temporal do Shaka usa Piper compartilhado quando ativo', () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ source: 'shaka-caption' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+});
+
+test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível', () => {
+  const harness = createHarness({ piperActive: false });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ source: 'shaka-caption' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('H5 fonte que não é TextTrack', () => {
   const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue({ source: 'dom-caption' }));

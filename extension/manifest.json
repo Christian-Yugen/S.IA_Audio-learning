@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.11",
-  "version_name": "1.8.11 · recuperação de cues Udemy",
+  "version": "1.8.12",
+  "version_name": "1.8.12 · recuperação H7 Shaka temporal",
   "description": "Lê, sincroniza e permite revisar as legendas de aulas do Coursera.",
   "minimum_chrome_version": "114",
   "permissions": ["activeTab", "storage", "sidePanel", "offscreen"],
@@ -41,6 +41,12 @@
     {
       "matches": ["https://*.coursera.org/*"],
       "js": ["sync-engine.js", "dom-fallback.js", "neural-tts/piper-bridge.js", "content.js"]
+    },
+    {
+      "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
+      "js": ["platform-adapters/udemy/shaka-caption-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
     },
     {
       "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],

@@ -128,6 +128,82 @@ function prepareSelectedTextTracks(video, documentRef) {
   }
 }
 
+function validTimedCue(cue) {
+  return cue
+    && String(cue.text || '').trim()
+    && Number.isFinite(Number(cue.startTime))
+    && Number.isFinite(Number(cue.endTime))
+    && Number(cue.endTime) > Number(cue.startTime);
+}
+
+function temporalCueFromValue(value) {
+  if (!value || typeof value !== 'object') return null;
+  const direct = value.activeCue;
+  if (validTimedCue(direct)) return direct;
+  const activeCues = value.activeCues;
+  if (activeCues) {
+    try {
+      const cue = Array.from(activeCues).find(validTimedCue);
+      if (cue) return cue;
+    } catch {
+      // MobX/DOM collections can become invalid while Shaka changes tracks.
+    }
+  }
+  return null;
+}
+
+function findShakaTemporalCue(video, documentRef) {
+  const container = video?.closest?.('[id^="shaka-video-container-"], [data-purpose="shaka-video-player"]');
+  const roots = [
+    container,
+    container?.querySelector?.('[id$="-captions-display-container"]'),
+    documentRef?.querySelector?.('[id$="-captions-display-container"]'),
+  ].filter(Boolean);
+  const visited = new Set();
+  const queue = roots.map(value => ({ value, depth: 0 }));
+  let inspected = 0;
+
+  while (queue.length && inspected < 800) {
+    const { value, depth } = queue.shift();
+    if (!value || (typeof value !== 'object' && typeof value !== 'function') || visited.has(value)) continue;
+    visited.add(value);
+    inspected += 1;
+
+    const cue = temporalCueFromValue(value);
+    if (cue) return cue;
+    if (depth >= 7) continue;
+
+    let keys = [];
+    try {
+      keys = Object.keys(value);
+    } catch {
+      continue;
+    }
+    for (const key of keys) {
+      if (
+        key.startsWith('__reactFiber$')
+        || key.startsWith('__reactInternalInstance$')
+        || key === 'memoizedProps'
+        || key === 'memoizedState'
+        || key === 'child'
+        || key === 'sibling'
+        || key === 'return'
+        || key === 'captionsStore'
+        || key === 'captionDisplayStore'
+        || key === 'activeCaption'
+        || key === 'activeTrack'
+      ) {
+        try {
+          queue.push({ value: value[key], depth: depth + 1 });
+        } catch {
+          // React/MobX internals can throw during teardown; continue safely.
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export class UdemyAdapter {
   constructor({ documentRef, locationRef, windowRef, emit, mutationFilter } = {}) {
     this.documentRef = documentRef || globalThis.document;
@@ -374,6 +450,19 @@ export class UdemyAdapter {
     return null;
   }
 
+  readShakaCue(video) {
+    const cue = findShakaTemporalCue(video, this.documentRef);
+    if (!cue) return null;
+    return normalizeCue({
+      text: cue.text,
+      startTime: cue.startTime,
+      endTime: cue.endTime,
+      source: SOURCES.SHAKA_CAPTION,
+      sourceConfidence: CONFIDENCE.HIGH,
+      playerIdentity: this.playerIdentity,
+    });
+  }
+
   readDomFallback() {
     const caption = queryFirstText(this.documentRef, DOM_CAPTION_SELECTORS);
     if (caption) {
@@ -423,8 +512,10 @@ export class UdemyAdapter {
     }
 
     const primaryCue = this.readPrimaryCue(video);
-    const fallbackCue = primaryCue ? null : this.readDomFallback();
-    const cue = primaryCue || fallbackCue;
+    const shakaCue = primaryCue ? null : this.readShakaCue(video);
+    const fallbackCue = primaryCue || shakaCue ? null : this.readDomFallback();
+    const temporalCue = primaryCue || shakaCue;
+    const cue = temporalCue || fallbackCue;
     const source = cue?.source || SOURCES.NONE;
     const confidence = cue?.sourceConfidence || CONFIDENCE.UNKNOWN;
     const hasTemporalCue = Boolean(cue?.startTime !== null && cue?.endTime !== null);
@@ -436,10 +527,10 @@ export class UdemyAdapter {
     });
 
     const sourceKey = JSON.stringify({ source, confidence, state: this.state, playerIdentity: this.playerIdentity });
-    if (cue && primaryCue && cueIsCurrentAndPlaying(video, cue) && shouldEmitCue(cue, this.previousCue)) {
+    if (cue && temporalCue && cueIsCurrentAndPlaying(video, cue) && shouldEmitCue(cue, this.previousCue)) {
       this.previousCue = cue;
       this.emit({ type: EVENTS.CAPTION_CHANGED, cue, state: this.state });
-    } else if (cue && !primaryCue) {
+    } else if (cue && !temporalCue) {
       const fallbackKey = JSON.stringify({ source, confidence, text: cue.text, playerIdentity: this.playerIdentity });
       if (fallbackKey !== this.lastFallbackKey) {
         this.lastFallbackKey = fallbackKey;
@@ -454,7 +545,11 @@ export class UdemyAdapter {
       playerFound: true,
       source,
       confidence,
-      reason: primaryCue ? 'texttrack-cue-valid' : (fallbackCue ? 'visible-text-without-confirmed-timing' : 'caption-source-unavailable'),
+      reason: primaryCue
+        ? 'texttrack-cue-valid'
+        : (shakaCue
+          ? 'shaka-caption-cue-valid'
+          : (fallbackCue ? 'visible-text-without-confirmed-timing' : 'caption-source-unavailable')),
       cue,
       probe: this.lastProbe,
     });

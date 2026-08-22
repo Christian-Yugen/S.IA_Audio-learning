@@ -134,7 +134,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack"].includes(contexto.gate)) return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -945,7 +945,7 @@
             !PLATAFORMA_EXTERNA
             || !cue
             || cue.platformId !== "udemy"
-            || cue.source !== "texttrack"
+            || !["texttrack", "shaka-caption"].includes(cue.source)
             || cue.sourceConfidence !== "high"
             || cue.safeToSpeak !== true
             || !Number.isFinite(Number(cue.startTime))
@@ -970,7 +970,9 @@
         coberturaLegendaAte = Number(cue.endTime);
         const usarPiper = globalThis.SiaPiperVoice?.isActive?.() === true;
         const voiceEngine = usarPiper ? "piper-local" : "browser";
-        const gate = "H6-shared-udemy-texttrack";
+        const gate = cue.source === "shaka-caption"
+            ? "H7-shaka-temporal-caption"
+            : "H6-shared-udemy-texttrack";
         emitirEventoH5("requested", {
             texto,
             contexto: {

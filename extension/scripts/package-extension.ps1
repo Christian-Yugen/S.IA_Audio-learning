@@ -29,6 +29,7 @@ $files = @(
         "platform-adapters/platform-router.js",
         "platform-adapters/core-event-bridge.js",
         "platform-adapters/core-diagnostic-state.js",
+        "platform-adapters/udemy/shaka-caption-bridge.js",
         "platform-adapters/udemy/udemy-host.js",
         "platform-adapters/udemy/udemy-adapter.js",
         "platform-adapters/udemy/udemy-adapter-contract.js"

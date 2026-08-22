@@ -45,3 +45,26 @@ Também foi aberta a aula `six-sigma-green-belt-with-minitab/learn/lecture/13014
 ## Evidência do HTML da segunda aula
 
 A captura HTML da aula `lecture/13014304` mostra a estrutura `shaka-video-container` e o menu `captions-dropdown-menu`. Nesse HTML, `Português` aparece com `aria-checked="true"`, embora a captura visual do player continue mostrando `0:00 / 0:00` e `Carregado: NaN%`. A página, portanto, tem uma seleção de legenda no menu, mas a sessão de inspeção não forneceu um relógio de mídia válido nem evidência suficiente de `activeCues` nativas.
+
+## Captura visual mais recente
+
+Na sessão conectada do navegador, o player da aula `lecture/13014304` aparece em `0:00 / 0:00`, com o menu de legendas aberto e a opção `Desligado` visível como estado atual. A lista oferece `Português`, mas não há evidência visual de que essa faixa esteja selecionada ou de que a mídia tenha duração válida. Nessa condição, o adaptador deve permanecer sem emitir fala automática, pois não existe cue temporal confirmada em reprodução.
+
+## Confirmação estrutural da aula real
+
+A captura HTML da aula `lecture/13014304` contém `1` elemento `<video>`, `0` tags `<track>`, `1` overlay `data-purpose="caption"` e o container `shaka-video-container`. Portanto, nessa aula específica a Udemy renderiza a legenda em um overlay Shaka/DOM, sem expor uma `TextTrack` nativa no HTML capturado. A ausência de fala automática nas versões fail-closed é coerente com o contrato H0–H6: o overlay tem texto visível, mas não fornece `startTime/endTime` confirmados.
+
+## Auditoria do bundle Shaka
+
+A implementação pública do player contém um módulo `captions.mobx-store` no qual cada legenda mantém `cues`, `playerTime` e um getter `activeCues`; o `playerTime` é atualizado pelo evento `timeupdate` do elemento de mídia. A legenda é renderizada pelo componente `captions-display`. O mesmo modelo só chama `player.addTextTrackAsync(...)` quando `isUsingNativeControls` é verdadeiro. No player web observado, `isUsingNativeControls` não está ativo e o HTML contém zero tags `<track>`.
+
+A ponte H7 deve, portanto, procurar o store temporal associado ao componente Shaka/overlay, não somente `video.textTracks`. Texto DOM sem store temporal continua inseguro.
+
+
+## Conclusão do Gate H7 — recuperação temporal do overlay Shaka
+
+A evidência estrutural do player real justificou a implementação aditiva do Gate H7. A Udemy pode renderizar legendas pelo componente DOM do Shaka sem criar tags `<track>`, mas o bundle mantém um `captionsStore.activeCaption.activeCues` com `startTime` e `endTime`. O bridge H7 procura esse store a partir do container de captions, enquanto mantém o overlay visual apenas como ponto de associação; o texto visual sozinho nunca é usado como autorização de fala.
+
+Durante a validação da fixture Chromium, a primeira versão do bridge falhava porque seu payload não trazia `adapterVersion`, sendo rejeitado pelo contrato H0–H4 como `invalid-cue`. Também havia uma janela de corrida entre a emissão inicial e a instalação do host isolado. A versão 1.8.12 corrige os dois pontos: inclui a versão do adaptador, usa a fronteira `postMessage`, realiza handshake de prontidão e retransmite a última cue temporal válida. O host só libera a cue depois de associar o player e o vídeo em reprodução.
+
+A fixture segura terminou em `source: shaka-caption`, `confidence: high`, `state: PRIMARY_READY` e `safeToSpeak: true`, com requisições de fala observadas no painel comum. A fixture insegura, que fornece apenas texto DOM sem timing, terminou em `source: dom-caption`, `state: UNSAFE_TO_SPEAK`, `safeToSpeak: false` e sem evento H5. Portanto, a conclusão não altera o diagnóstico da sessão física descrita acima: se o player real não expuser relógio válido nem store temporal acessível, a S·IA continuará silenciosa por fail-closed; quando o store temporal do Shaka estiver disponível, H7 poderá recuperar a cue sem depender de `<track>`.

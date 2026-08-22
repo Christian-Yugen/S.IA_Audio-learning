@@ -63,14 +63,21 @@ class FakeVideo {
   }
 }
 
-function makeDocument(video, captionText = '', selectedCaption = '') {
+function makeDocument(video, captionText = '', selectedCaption = '', shakaStore = null) {
   const captionNode = { textContent: captionText };
   const selectedCaptionNode = { textContent: selectedCaption };
+  const captionRoot = {};
+  if (shakaStore) {
+    captionRoot.__reactFiber$fixture = {
+      memoizedProps: { captionsStore: shakaStore },
+    };
+  }
   return {
     documentElement: {},
     querySelector(selector) {
       if (selector.startsWith('video')) return video;
       if (selector.includes('captions-dropdown-menu') && selectedCaption) return selectedCaptionNode;
+      if (selector.includes('captions-display-container') && shakaStore) return captionRoot;
       return null;
     },
     querySelectorAll(selector) {
@@ -207,6 +214,25 @@ test('cues temporais são localizadas pelo relógio quando activeCues está vazi
   const captionEvents = events.filter((event) => event.type === EVENTS.CAPTION_CHANGED);
   assert.equal(captionEvents.length, 1);
   assert.equal(captionEvents[0].cue.text, 'Cue temporal disponível');
+  assert.equal(captionEvents[0].cue.safeToSpeak, true);
+});
+
+test('store temporal do overlay Shaka produz cue segura H7', () => {
+  const events = [];
+  const shakaStore = {
+    activeCaption: {
+      activeCues: [{ text: 'Cue renderizada pelo Shaka', startTime: 0.5, endTime: 2 }]
+    }
+  };
+  const video = new FakeVideo('lecture-shaka-store', { currentTime: 1 });
+  const adapter = makeAdapter(makeDocument(video, 'Cue visível no DOM', '', shakaStore), events);
+
+  adapter.start();
+
+  const captionEvents = events.filter((event) => event.type === EVENTS.CAPTION_CHANGED);
+  assert.equal(captionEvents.length, 1);
+  assert.equal(captionEvents[0].cue.source, 'shaka-caption');
+  assert.equal(captionEvents[0].cue.sourceConfidence, 'high');
   assert.equal(captionEvents[0].cue.safeToSpeak, true);
 });
 
