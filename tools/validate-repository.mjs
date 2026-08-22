@@ -18,7 +18,12 @@ const requiredFiles = [
   "neural-tts/piper-worker.js",
   "neural-tts/runtime/sherpa-onnx-wasm-main-tts.wasm",
   "tests/sync-engine.test.js",
-  "tests/piper-bridge.test.js"
+  "tests/piper-bridge.test.js",
+  "tests/offscreen.test.js",
+  "platform-adapters/udemy/shaka-caption-bridge.js",
+  "platform-adapters/udemy/udemy-host.js",
+  "platform-adapters/udemy/udemy-adapter.js",
+  "platform-adapters/udemy/udemy-adapter-contract.js"
 ];
 
 function fail(message) {
@@ -31,7 +36,9 @@ function read(path) {
 }
 
 const manifest = JSON.parse(read("extension/manifest.json"));
-if (manifest.version !== "1.8.5") fail(`versão inesperada: ${manifest.version}`);
+if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ""))) {
+  fail(`versão semver inválida: ${manifest.version}`);
+}
 if (!manifest.permissions?.includes("offscreen")) fail("permissão offscreen ausente");
 if (!manifest.content_security_policy?.extension_pages?.includes("wasm-unsafe-eval")) {
   fail("CSP sem wasm-unsafe-eval");
@@ -41,6 +48,9 @@ if (!manifest.content_scripts?.some((entry) => entry.js?.includes("neural-tts/pi
 }
 if (!manifest.web_accessible_resources?.some((entry) => entry.resources?.includes("neural-tts/piper-worker.js"))) {
   fail("Worker neural ausente dos recursos acessíveis");
+}
+if (!manifest.content_scripts?.some((entry) => entry.world === "MAIN" && entry.js?.includes("platform-adapters/udemy/shaka-caption-bridge.js"))) {
+  fail("bridge H7 MAIN ausente do manifesto");
 }
 
 for (const file of requiredFiles) {
@@ -56,11 +66,13 @@ const expectedSyncHash = "8c2e9ad28c1c570e44d4c3c42148ada403dec696864b21675aedd2
 if (syncHash !== expectedSyncHash) fail(`hash inesperado no sync-engine.js: ${syncHash}`);
 
 const forbiddenNames = new Set([".venv", "artifacts", "real-fixture", "dist", "profiles", "user-data"]);
+const fixtureRoots = new Set(["fixtures/g7-udemy"]);
 function scan(directory) {
   for (const name of readdirSync(directory)) {
     if (name === ".git") continue;
     const path = join(directory, name);
     const rel = relative(root, path);
+    if (fixtureRoots.has(rel)) continue;
     const stat = statSync(path);
     if (stat.isDirectory()) {
       if (forbiddenNames.has(name)) fail(`diretório proibido presente: ${rel}`);

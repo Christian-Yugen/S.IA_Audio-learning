@@ -21,16 +21,26 @@ class FakeUtterance {
   }
 }
 
-function createHarness({ paused = false, piperActive = false } = {}) {
+function createHarness({
+  paused = false,
+  piperActive = false,
+  hostname = 'www.udemy.com',
+  pathname = '/course/test/learn/lecture/1',
+  textTrack = null,
+} = {}) {
   const listeners = new Map();
+  const globalListeners = new Map();
+  const intervalCallbacks = [];
   const spoken = [];
   const piperSpoken = [];
+  const primed = [];
+  let now = 1000;
   const video = {
     currentTime: 10.5,
     playbackRate: 1,
     paused,
     ended: false,
-    textTracks: [],
+    textTracks: textTrack ? [textTrack] : [],
     addEventListener(name, listener) {
       if (!listeners.has(name)) listeners.set(name, new Set());
       listeners.get(name).add(listener);
@@ -83,18 +93,20 @@ function createHarness({ paused = false, piperActive = false } = {}) {
     cancel() {},
     addEventListener() {},
   };
-  const globalListeners = new Map();
   const context = vm.createContext({
     console,
     chrome,
     document: documentRef,
-    location: { hostname: 'www.udemy.com', pathname: '/course/test/learn/lecture/1', href: 'https://www.udemy.com/course/test/learn/lecture/1' },
-    performance: { now: () => 1000 },
+    location: { hostname, pathname, href: `https://${hostname}${pathname}` },
+    performance: { now: () => now },
     HTMLElement: class {},
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
     SpeechSynthesisUtterance: FakeUtterance,
     speechSynthesis,
-    setInterval: () => 1,
+    setInterval(callback) {
+      intervalCallbacks.push(callback);
+      return intervalCallbacks.length;
+    },
     clearInterval: () => {},
     setTimeout: callback => { callback(); return 1; },
     clearTimeout: () => {},
@@ -105,7 +117,10 @@ function createHarness({ paused = false, piperActive = false } = {}) {
         utterance.onstart?.();
         return true;
       },
-      primeText() {},
+      primeText(utterance) {
+        primed.push(utterance);
+        return true;
+      },
       cancel() {}
     },
     addEventListener(name, listener) {
@@ -125,7 +140,17 @@ function createHarness({ paused = false, piperActive = false } = {}) {
     input: context.SiaCaptionInput,
     video,
     spoken,
-    piperSpoken,
+      piperSpoken,
+      primed,
+      setNow(value) {
+        now = Number(value);
+      },
+      tick() {
+        for (const callback of intervalCallbacks) callback();
+      },
+      finishPiper(index = 0) {
+        piperSpoken[index]?.onend?.();
+      },
     sendMessage(message) {
       return new Promise(resolve => {
         if (!messageListener) {
@@ -207,7 +232,67 @@ test('H6 cue TextTrack usa Piper compartilhado quando selecionado', () => {
   assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
 });
 
-test('H5 fonte que não é TextTrack não alcança nenhuma voz', () => {
+test('H7 cue temporal do Shaka usa Piper compartilhado quando ativo', () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ source: 'shaka-caption' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+  assert.equal(harness.piperSpoken[0].silenceScale, 0.2);
+});
+
+test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível', () => {
+  const harness = createHarness({ piperActive: false });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ source: 'shaka-caption' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache', async () => {
+  const cues = [
+    { startTime: 10, endTime: 11, text: 'A análise começa' },
+    { startTime: 11.1, endTime: 13, text: 'com uma continuação final.' },
+  ];
+  const track = {
+    kind: 'subtitles',
+    mode: 'showing',
+    activeCues: [cues[0]],
+    cues: [cues[0]],
+  };
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    textTrack: track,
+  });
+
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.primed.length, 1);
+
+  track.cues.push(cues[1]);
+  harness.tick();
+  assert.equal(harness.primed.length, 2);
+
+  harness.finishPiper(0);
+  const afterEarlyEnd = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
+  assert.equal(afterEarlyEnd.estimatedQueueDelay, 0);
+
+  harness.video.currentTime = 11.1;
+  track.activeCues = [cues[1]];
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 2);
+  assert.equal(harness.piperSpoken[1].rate, harness.primed[1].rate);
+  assert.equal(harness.piperSpoken[0].silenceScale, 0.08);
+  assert.equal(harness.piperSpoken[1].silenceScale, 0.2);
+});
+
+test('H5 fonte que não é TextTrack', () => {
   const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue({ source: 'dom-caption' }));

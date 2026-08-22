@@ -52,12 +52,156 @@ function activeCueFromTrack(track) {
   }
 }
 
+function cueFromTrackAtCurrentTime(track, video, tolerance = 0.35) {
+  const currentTime = Number(video?.currentTime);
+  if (!Number.isFinite(currentTime)) return null;
+  try {
+    const cues = track?.cues ? Array.from(track.cues) : [];
+    return cues.find((cue) => {
+      const startTime = Number(cue?.startTime);
+      const endTime = Number(cue?.endTime);
+      return Number.isFinite(startTime)
+        && Number.isFinite(endTime)
+        && currentTime + tolerance >= startTime
+        && currentTime - tolerance <= endTime;
+    }) || null;
+  } catch {
+    return null;
+  }
+}
+
 function tracksFromVideo(video) {
   try {
     return video?.textTracks ? Array.from(video.textTracks) : [];
   } catch {
     return [];
   }
+}
+
+function cueIsCurrentAndPlaying(video, cue, tolerance = 0.35) {
+  const currentTime = Number(video?.currentTime);
+  const startTime = Number(cue?.startTime);
+  const endTime = Number(cue?.endTime);
+  if (!Number.isFinite(currentTime) || !Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+    return false;
+  }
+  if (video?.paused || video?.ended) return false;
+  return currentTime + tolerance >= startTime && currentTime - tolerance <= endTime;
+}
+
+function selectedCaptionLabel(documentRef) {
+  const selected = documentRef?.querySelector?.(
+    '[data-purpose="captions-dropdown-menu"] [role="menuitemradio"][aria-checked="true"]'
+  );
+  return textFromNode(selected);
+}
+
+function trackLabel(track) {
+  return [track?.label, track?.language, track?.id]
+    .map(value => String(value || '').trim().toLocaleLowerCase())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function selectedTextTracks(video, documentRef) {
+  const tracks = tracksFromVideo(video);
+  const selected = selectedCaptionLabel(documentRef);
+  if (!selected || /^(desligado|off|none)$/iu.test(selected)) return [];
+
+  const selectedValue = selected.toLocaleLowerCase();
+  const matches = tracks.filter(track => {
+    const value = trackLabel(track);
+    if (!value) return false;
+    if (/portugu.s/iu.test(selectedValue) && /(^|\s)(pt|pt-br|por|portugu.s)(\s|$)/iu.test(value)) return true;
+    return value.includes(selectedValue);
+  });
+  return matches.length || tracks.length !== 1 ? matches : tracks;
+}
+
+function prepareSelectedTextTracks(video, documentRef) {
+  for (const track of selectedTextTracks(video, documentRef)) {
+    try {
+      if (track.mode === 'disabled') track.mode = 'hidden';
+    } catch {
+      // A faixa pode ser controlada pelo player; o polling continua seguro.
+    }
+  }
+}
+
+function validTimedCue(cue) {
+  return cue
+    && String(cue.text || '').trim()
+    && Number.isFinite(Number(cue.startTime))
+    && Number.isFinite(Number(cue.endTime))
+    && Number(cue.endTime) > Number(cue.startTime);
+}
+
+function temporalCueFromValue(value) {
+  if (!value || typeof value !== 'object') return null;
+  const direct = value.activeCue;
+  if (validTimedCue(direct)) return direct;
+  const activeCues = value.activeCues;
+  if (activeCues) {
+    try {
+      const cue = Array.from(activeCues).find(validTimedCue);
+      if (cue) return cue;
+    } catch {
+      // MobX/DOM collections can become invalid while Shaka changes tracks.
+    }
+  }
+  return null;
+}
+
+function findShakaTemporalCue(video, documentRef) {
+  const container = video?.closest?.('[id^="shaka-video-container-"], [data-purpose="shaka-video-player"]');
+  const roots = [
+    container,
+    container?.querySelector?.('[id$="-captions-display-container"]'),
+    documentRef?.querySelector?.('[id$="-captions-display-container"]'),
+  ].filter(Boolean);
+  const visited = new Set();
+  const queue = roots.map(value => ({ value, depth: 0 }));
+  let inspected = 0;
+
+  while (queue.length && inspected < 800) {
+    const { value, depth } = queue.shift();
+    if (!value || (typeof value !== 'object' && typeof value !== 'function') || visited.has(value)) continue;
+    visited.add(value);
+    inspected += 1;
+
+    const cue = temporalCueFromValue(value);
+    if (cue) return cue;
+    if (depth >= 7) continue;
+
+    let keys = [];
+    try {
+      keys = Object.keys(value);
+    } catch {
+      continue;
+    }
+    for (const key of keys) {
+      if (
+        key.startsWith('__reactFiber$')
+        || key.startsWith('__reactInternalInstance$')
+        || key === 'memoizedProps'
+        || key === 'memoizedState'
+        || key === 'child'
+        || key === 'sibling'
+        || key === 'return'
+        || key === 'captionsStore'
+        || key === 'captionDisplayStore'
+        || key === 'activeCaption'
+        || key === 'activeTrack'
+      ) {
+        try {
+          queue.push({ value: value[key], depth: depth + 1 });
+        } catch {
+          // React/MobX internals can throw during teardown; continue safely.
+        }
+      }
+    }
+  }
+  return null;
 }
 
 export class UdemyAdapter {
@@ -81,6 +225,7 @@ export class UdemyAdapter {
     this.previousCue = null;
     this.videoListeners = [];
     this.trackListeners = [];
+    this.trackListListeners = [];
     this.pageObserver = null;
     this.pollHandle = null;
     this.scanScheduled = false;
@@ -209,23 +354,36 @@ export class UdemyAdapter {
   }
 
   removeTrackListeners() {
-    for (const { target, listener } of this.trackListeners) {
-      target.removeEventListener?.('cuechange', listener);
+    for (const { target, name = 'cuechange', listener } of this.trackListeners) {
+      target.removeEventListener?.(name, listener);
+    }
+    for (const { target, name, listener } of this.trackListListeners) {
+      target.removeEventListener?.(name, listener);
     }
     this.trackListeners = [];
+    this.trackListListeners = [];
   }
 
   installTrackListeners(video) {
     const tracks = tracksFromVideo(video).filter((track) => track?.addEventListener);
+    const textTrackList = video?.textTracks;
+    const currentList = this.trackListListeners[0]?.target || null;
     const sameTracks = tracks.length === this.trackListeners.length
       && tracks.every((track) => this.trackListeners.some((entry) => entry.target === track));
-    if (sameTracks) return;
+    if (sameTracks && currentList === textTrackList) return;
 
     this.removeTrackListeners();
     for (const track of tracks) {
       const listener = () => this.scheduleScan();
       track.addEventListener('cuechange', listener, { passive: true });
-      this.trackListeners.push({ target: track, listener });
+      this.trackListeners.push({ target: track, name: 'cuechange', listener });
+    }
+    if (textTrackList?.addEventListener) {
+      for (const name of ['addtrack', 'removetrack', 'change']) {
+        const listener = () => this.scheduleScan();
+        textTrackList.addEventListener(name, listener, { passive: true });
+        this.trackListListeners.push({ target: textTrackList, name, listener });
+      }
     }
   }
 
@@ -252,7 +410,7 @@ export class UdemyAdapter {
 
   reconcileVideo(video) {
     const nextIdentity = normalizePlayerIdentity(video);
-    if (isSamePlayer(this.playerIdentity, nextIdentity)) {
+    if (isSamePlayer(this.playerIdentity, nextIdentity) && this.video === video) {
       this.installTrackListeners(video);
       return;
     }
@@ -260,7 +418,9 @@ export class UdemyAdapter {
       this.previousCue = null;
       this.lastSourceKey = '';
       this.lastFallbackKey = '';
-      this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
+      if (!isSamePlayer(this.playerIdentity, nextIdentity)) {
+        this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
+      }
     }
     this.removeVideoListeners();
     this.removeTrackListeners();
@@ -272,9 +432,11 @@ export class UdemyAdapter {
   }
 
   readPrimaryCue(video) {
-    const tracks = tracksFromVideo(video);
+    prepareSelectedTextTracks(video, this.documentRef);
+    const selectedTracks = selectedTextTracks(video, this.documentRef);
+    const tracks = selectedTracks.length ? selectedTracks : tracksFromVideo(video);
     for (const track of tracks) {
-      const cue = activeCueFromTrack(track);
+      const cue = activeCueFromTrack(track) || cueFromTrackAtCurrentTime(track, video);
       if (!cue) continue;
       return normalizeCue({
         text: cue.text,
@@ -286,6 +448,19 @@ export class UdemyAdapter {
       });
     }
     return null;
+  }
+
+  readShakaCue(video) {
+    const cue = findShakaTemporalCue(video, this.documentRef);
+    if (!cue) return null;
+    return normalizeCue({
+      text: cue.text,
+      startTime: cue.startTime,
+      endTime: cue.endTime,
+      source: SOURCES.SHAKA_CAPTION,
+      sourceConfidence: CONFIDENCE.HIGH,
+      playerIdentity: this.playerIdentity,
+    });
   }
 
   readDomFallback() {
@@ -337,8 +512,10 @@ export class UdemyAdapter {
     }
 
     const primaryCue = this.readPrimaryCue(video);
-    const fallbackCue = primaryCue ? null : this.readDomFallback();
-    const cue = primaryCue || fallbackCue;
+    const shakaCue = primaryCue ? null : this.readShakaCue(video);
+    const fallbackCue = primaryCue || shakaCue ? null : this.readDomFallback();
+    const temporalCue = primaryCue || shakaCue;
+    const cue = temporalCue || fallbackCue;
     const source = cue?.source || SOURCES.NONE;
     const confidence = cue?.sourceConfidence || CONFIDENCE.UNKNOWN;
     const hasTemporalCue = Boolean(cue?.startTime !== null && cue?.endTime !== null);
@@ -350,10 +527,10 @@ export class UdemyAdapter {
     });
 
     const sourceKey = JSON.stringify({ source, confidence, state: this.state, playerIdentity: this.playerIdentity });
-    if (cue && primaryCue && shouldEmitCue(cue, this.previousCue)) {
+    if (cue && temporalCue && cueIsCurrentAndPlaying(video, cue) && shouldEmitCue(cue, this.previousCue)) {
       this.previousCue = cue;
       this.emit({ type: EVENTS.CAPTION_CHANGED, cue, state: this.state });
-    } else if (cue && !primaryCue) {
+    } else if (cue && !temporalCue) {
       const fallbackKey = JSON.stringify({ source, confidence, text: cue.text, playerIdentity: this.playerIdentity });
       if (fallbackKey !== this.lastFallbackKey) {
         this.lastFallbackKey = fallbackKey;
@@ -368,7 +545,11 @@ export class UdemyAdapter {
       playerFound: true,
       source,
       confidence,
-      reason: primaryCue ? 'texttrack-cue-valid' : (fallbackCue ? 'visible-text-without-confirmed-timing' : 'caption-source-unavailable'),
+      reason: primaryCue
+        ? 'texttrack-cue-valid'
+        : (shakaCue
+          ? 'shaka-caption-cue-valid'
+          : (fallbackCue ? 'visible-text-without-confirmed-timing' : 'caption-source-unavailable')),
       cue,
       probe: this.lastProbe,
     });

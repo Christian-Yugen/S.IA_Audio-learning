@@ -13,6 +13,7 @@
         maximoCaracteresSemPonto: 280,
         maximoSegundosSemPonto: 12,
         maximoCuesAntecipadas: 6,
+        folgaMinimaContinuidadeSegundos: 0.6,
         passoMaximoTaxaAdaptativa: 0.3,
         toleranciaTaxaAdaptativa: 0.15,
         pesoCalibracaoVoz: 0.2,
@@ -80,6 +81,7 @@
     let erroInicioFila = 0;
     let ultimoTextoConcluido = "";
     let ultimoTextoConcluidoEm = 0;
+    let legendaNeuralPrecarregada = null;
     let testeNeuralEmAndamento = false;
     let historicoFrases = [];
     const chaveHistorico = `sia_history_${location.pathname
@@ -134,7 +136,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack"].includes(contexto.gate)) return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -320,6 +322,7 @@
 
             if (!texto) continue;
 
+            const textoAtivo = texto;
             const fimCueAtiva = fimCue;
             let cuesAntecipadas = 0;
             const todasAsCues = [...(track.cues || [])];
@@ -347,10 +350,13 @@
 
             return {
                 texto,
+                textoAtivo,
                 inicioCue,
                 fimCue,
+                fimCueAtiva,
                 video,
-                sentencaAntecipada: cuesAntecipadas > 0
+                sentencaAntecipada: cuesAntecipadas > 0,
+                continuaSemPontuacao: cuesAntecipadas === 0 && !terminaComPontuacaoFinal(texto)
             };
         }
 
@@ -432,6 +438,8 @@
                 inicioCue,
                 fimCue: Number(proxima.endTime) || 0,
                 sentencaAntecipada: false,
+                continuaSemPontuacao: !terminaComPontuacaoFinal(texto),
+                tempoReferenciaVideo: Number(proxima.startTime) || video.currentTime,
                 inicioPrevistoEm: Math.max(performance.now(), previsaoFimFilaEm)
             };
             const utterance = {
@@ -442,9 +450,37 @@
                 volume: volumeFala,
                 voice: null
             };
-            void provider.primeText?.(utterance);
+            const precacheAtual = legendaNeuralPrecarregada;
+            if (
+                precacheAtual
+                && precacheAtual.texto === texto
+                && Math.abs(precacheAtual.inicioCue - inicioCue) < 0.08
+                && Math.abs(precacheAtual.fimCue - (Number(proxima.endTime) || 0)) < 0.08
+                && Math.abs(precacheAtual.rate - utterance.rate) < 0.01
+            ) {
+                return;
+            }
+            const precache = {
+                texto,
+                inicioCue,
+                fimCue: Number(proxima.endTime) || 0,
+                rate: utterance.rate
+            };
+            legendaNeuralPrecarregada = precache;
+            void Promise.resolve(provider.primeText?.(utterance)).then(ok => {
+                if (ok === false && legendaNeuralPrecarregada === precache) {
+                    legendaNeuralPrecarregada = null;
+                }
+            });
             return;
         }
+    }
+
+    function reconciliarPrevisaoFilaAposFimReal() {
+        if (falaEnfileirada) return;
+        previsaoFimFilaEm = performance.now();
+        atrasoFilaEstimado = 0;
+        ultimaTaxaPlanejada = velocidadeFala;
     }
 
     function criarEntradaHistorico(registro) {
@@ -567,6 +603,32 @@
         const video = contexto?.video;
         const fimCue = Number(contexto?.fimCue);
         if (!video || !fimCue || fimCue <= video.currentTime) return velocidadeFala;
+
+        if (contexto?.continuaSemPontuacao && !contexto?.sentencaAntecipada) {
+            const referencia = Number(contexto?.tempoReferenciaVideo);
+            const tempoReferencia = Number.isFinite(referencia)
+                ? referencia
+                : Number(video.currentTime) || 0;
+            const segundosDisponiveis = Math.max(
+                0,
+                (fimCue - tempoReferencia) / (video.playbackRate || 1)
+            );
+            const duracaoTaxaUm = MOTOR_SINCRONIA?.estimarDuracaoFala
+                ? MOTOR_SINCRONIA.estimarDuracaoFala(texto, {
+                    palavrasPorSegundo: CONFIG.palavrasPorSegundo
+                })
+                : Math.max(0.6, texto.split(/\s+/).length / CONFIG.palavrasPorSegundo);
+            const duracaoNaTaxaBase = duracaoTaxaUm * fatorDuracaoVoz
+                / Math.max(0.01, velocidadeFala);
+            if (segundosDisponiveis >= duracaoNaTaxaBase + CONFIG.folgaMinimaContinuidadeSegundos) {
+                const taxaContinua = duracaoTaxaUm * fatorDuracaoVoz
+                    / Math.max(0.01, segundosDisponiveis);
+                return Math.min(
+                    velocidadeFala,
+                    Math.max(CONFIG.velocidadeMinima, taxaContinua)
+                );
+            }
+        }
 
         if (typeof MOTOR_SINCRONIA.calcularTaxaSincronizacaoContinua === "function") {
             const agora = performance.now();
@@ -712,6 +774,7 @@
                     fatorObservado - fatorDuracaoVoz
                 ) * CONFIG.pesoCalibracaoVoz;
             }
+            reconciliarPrevisaoFilaAposFimReal();
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
@@ -731,6 +794,7 @@
             textoEmFala = "";
             sentencaAntecipadaAtiva = false;
             restaurarVelocidadeVideo();
+            reconciliarPrevisaoFilaAposFimReal();
 
             if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
                 sinteseBloqueada = true;
@@ -753,13 +817,31 @@
         const agora = performance.now();
         const inicioPrevistoEm = Math.max(agora, previsaoFimFilaEm);
         const contextoPlanejado = { ...contexto, inicioPrevistoEm };
+        const precache = legendaNeuralPrecarregada;
+        const inicioCue = Number(contexto?.inicioCue);
+        const fimCue = Number(contexto?.fimCue);
+        const mesmaCuePrecarregada = Boolean(
+            precache
+            && precache.texto === normalizarTexto(texto)
+            && Number.isFinite(inicioCue)
+            && Number.isFinite(fimCue)
+            && Math.abs(precache.inicioCue - inicioCue) < 0.08
+            && Math.abs(precache.fimCue - fimCue) < 0.08
+        );
+        if (precache && !mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
+        const taxaAntecipada = mesmaCuePrecarregada
+            ? precache.rate
+            : calcularTaxaAntecipada(texto, contextoPlanejado);
+        if (mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
         const utterance = {
             text: prepararTextoParaSintese(texto),
             lang: idiomaFala,
-            rate: calcularTaxaAntecipada(texto, contextoPlanejado),
+            rate: taxaAntecipada,
             pitch: tomFala,
             volume: volumeFala,
             voice: null,
+            continuaSemPontuacao: Boolean(contexto?.continuaSemPontuacao),
+            silenceScale: contexto?.continuaSemPontuacao ? 0.08 : 0.2,
             onstart: null,
             onend: null,
             onerror: null
@@ -823,6 +905,7 @@
                     fatorObservado - fatorDuracaoVoz
                 ) * CONFIG.pesoCalibracaoVoz;
             }
+            reconciliarPrevisaoFilaAposFimReal();
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
@@ -841,6 +924,7 @@
             textoEmFala = "";
             sentencaAntecipadaAtiva = false;
             restaurarVelocidadeVideo();
+            reconciliarPrevisaoFilaAposFimReal();
 
             if (!provider.isActive?.()) {
                 // O provedor já se desativou. Tenta a mesma frase pela rota
@@ -945,7 +1029,7 @@
             !PLATAFORMA_EXTERNA
             || !cue
             || cue.platformId !== "udemy"
-            || cue.source !== "texttrack"
+            || !["texttrack", "shaka-caption"].includes(cue.source)
             || cue.sourceConfidence !== "high"
             || cue.safeToSpeak !== true
             || !Number.isFinite(Number(cue.startTime))
@@ -970,7 +1054,9 @@
         coberturaLegendaAte = Number(cue.endTime);
         const usarPiper = globalThis.SiaPiperVoice?.isActive?.() === true;
         const voiceEngine = usarPiper ? "piper-local" : "browser";
-        const gate = "H6-shared-udemy-texttrack";
+        const gate = cue.source === "shaka-caption"
+            ? "H7-shaka-temporal-caption"
+            : "H6-shared-udemy-texttrack";
         emitirEventoH5("requested", {
             texto,
             contexto: {
@@ -984,10 +1070,12 @@
         });
         falar(texto, {
             video,
-            inicioCue: Number(cue.startTime),
-            fimCue: Number(cue.endTime),
-            sentencaAntecipada: false,
-            source: cue.source,
+                inicioCue: Number(cue.startTime),
+                fimCue: Number(cue.endTime),
+                sentencaAntecipada: false,
+                continuaSemPontuacao: !terminaComPontuacaoFinal(texto),
+                tempoReferenciaVideo: Number(video.currentTime) || 0,
+                source: cue.source,
             sourceConfidence: cue.sourceConfidence,
             playerIdentity: cue.playerIdentity,
             nativeOnly: !usarPiper,
@@ -1020,6 +1108,7 @@
         sentencaAntecipadaAtiva = false;
         previsaoFimFilaEm = 0;
         ultimaTaxaPlanejada = velocidadeFala;
+        legendaNeuralPrecarregada = null;
         atrasoFilaEstimado = 0;
         erroInicioFila = 0;
         ultimoTextoConcluido = "";
@@ -1072,8 +1161,6 @@
             liberarBufferSentenca({ video, fimCue: 0 });
         }
 
-        if (video.currentTime < coberturaLegendaAte - 0.04) return;
-
         const legenda = obterTextoAtual(video);
         const textoAtual = legenda.texto;
 
@@ -1084,7 +1171,27 @@
             return;
         }
 
-        if (textoAtual === ultimoTextoDetectado) return;
+        if (textoAtual === ultimoTextoDetectado) {
+            // A lista de cues pode ser preenchida progressivamente pelo Coursera.
+            // Reexamina a próxima cue sem repetir a fala atual nem gerar a mesma
+            // síntese enquanto o precache ainda estiver em andamento.
+            if (legenda.origem === "track") {
+                precacheProximaLegendaNeural(video, legenda);
+            }
+            return;
+        }
+
+        if (video.currentTime < coberturaLegendaAte - 0.04) {
+            if (legenda.origem === "track" && legenda.fimCueAtiva) {
+                precacheProximaLegendaNeural(video, {
+                    ...legenda,
+                    texto: legenda.textoAtivo || textoAtual,
+                    fimCue: legenda.fimCueAtiva,
+                    sentencaAntecipada: false
+                });
+            }
+            return;
+        }
 
         // TextTrack.activeCues já é uma fonte estável e pode ser falada no mesmo
         // ciclo. O DOM recebe apenas uma proteção mínima contra mutações parciais.
@@ -1092,7 +1199,7 @@
             ultimoTextoDetectado = textoAtual;
             textoCandidato = "";
             limparBufferSentenca();
-                        coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
+            coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
             falar(textoAtual, legenda);
             // A previsão da fila já inclui a fala atual; só então calculamos
             // a taxa/cache da próxima cue.

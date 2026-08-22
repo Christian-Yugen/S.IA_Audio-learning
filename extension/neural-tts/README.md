@@ -30,3 +30,17 @@ A geração foi validada no navegador em harness local com os eventos `ready`, `
 ## Correção 1.8.2
 
 A versão 1.8.2 prepara o `AudioContext` no clique do usuário, prepara também a instância do content script por meio de `SIA_PRIME_NEURAL_AUDIO`, aceita a taxa padrão do dispositivo quando 22.050 Hz não é suportado, valida samples/taxa antes de montar o buffer e identifica a etapa da falha no erro. Gestos na página (`pointerdown`, `keydown` e `touchstart`) também tentam liberar o áudio da leitura contínua.
+
+
+## Correção de latência 1.8.14
+
+O fluxo comum agora reconcilia `previsaoFimFilaEm` com o fim real de uma fala quando não há outro registro efetivamente enfileirado. Isso evita que uma frase curta deixe uma espera futura fictícia para a próxima cue. Quando a próxima cue já foi conhecida, o `primeText()` continua preparando o áudio em segundo plano e o registro conserva a mesma taxa calculada, permitindo reutilização do cache sem uma segunda geração.
+
+A pré-síntese não reproduz áudio antecipadamente: `source.start()` continua condicionado à chegada da cue, ao estado válido do vídeo e ao processamento normal do leitor. A correção é comum a Coursera e Udemy e não altera o `sync-engine.js` protegido.
+
+
+## Continuidade prosódica 1.8.15
+
+Quando uma cue temporal termina sem pontuação final e não pôde ser agrupada com a próxima cue, o fluxo comum marca a utterance como continuação prosódica. O Piper recebe uma escala de silêncio menor (`silenceScale: 0.08`), enquanto cues encerradas por ponto, interrogação, exclamação ou reticências mantêm o perfil normal (`0.2`). A vírgula adicionada ao texto continua sinalizando continuidade ao modelo.
+
+O ajuste não junta conteúdo que ainda não apareceu, não antecipa reprodução e não se aplica à voz nativa. Quando as cues futuras já estão disponíveis, o agrupamento temporal existente continua sendo priorizado. Texto DOM sem timing confirmado permanece bloqueado pelas regras fail-closed.

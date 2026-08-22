@@ -23,6 +23,7 @@ export const STATES = Object.freeze({
 
 export const SOURCES = Object.freeze({
   TEXT_TRACK: 'texttrack',
+  SHAKA_CAPTION: 'shaka-caption',
   CAPTION_EVENT: 'caption-event',
   TRANSCRIPT: 'transcript',
   DOM_CAPTION: 'dom-caption',
@@ -100,7 +101,7 @@ export function deriveState({ playerFound, source, confidence, hasTemporalCue, d
   if (destroying) return STATES.DESTROYING;
   if (!playerFound) return STATES.PLATFORM_DETECTED;
   if (!source || source === SOURCES.NONE) return STATES.WAITING_FOR_CAPTIONS;
-  if (source === SOURCES.TEXT_TRACK && confidence === CONFIDENCE.HIGH && hasTemporalCue) return STATES.PRIMARY_READY;
+  if ((source === SOURCES.TEXT_TRACK || source === SOURCES.SHAKA_CAPTION) && confidence === CONFIDENCE.HIGH && hasTemporalCue) return STATES.PRIMARY_READY;
   if (confidence === CONFIDENCE.HIGH && hasTemporalCue) return STATES.FALLBACK_READY;
   if (source === SOURCES.DOM_CAPTION || source === SOURCES.TRANSCRIPT) return STATES.UNSAFE_TO_SPEAK;
   return STATES.FALLBACK_PROBING;

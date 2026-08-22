@@ -54,13 +54,39 @@
       video.muted = true;
       video.src = '/test.webm';
       container.append(video);
-      const unsafeMode = new URLSearchParams(location.search).has('unsafe');
+      const query = new URLSearchParams(location.search);
+      const unsafeMode = query.has('unsafe');
+      const shakaMode = query.has('shaka');
       let track = null;
-      if (!unsafeMode) {
+      if (!unsafeMode && !shakaMode) {
         track = video.addTextTrack('subtitles', 'Português brasileiro', 'pt-BR');
         track.mode = 'showing';
         track.addCue(new VTTCue(0.5, 4, 'Esta é uma cue temporal segura.'));
         track.addCue(new VTTCue(4.1, 7, 'Esta é a próxima cue da fixture.'));
+      }
+      if (shakaMode) {
+        const captionsRoot = document.createElement('div');
+        captionsRoot.id = 'lecture-4242-captions-display-container';
+        const shakaStore = {
+          activeCaption: { activeCues: [] },
+        };
+        captionsRoot.__reactFiber$fixture = {
+          memoizedProps: { captionsStore: shakaStore },
+        };
+        container.append(captionsRoot);
+        const shakaCues = [
+          { text: 'Esta é uma cue temporal do overlay Shaka.', startTime: 0.5, endTime: 4 },
+          { text: 'Esta é a próxima cue Shaka da fixture.', startTime: 4.1, endTime: 7 },
+        ];
+        const updateShakaCue = () => {
+          const currentTime = Number(video.currentTime);
+          const activeCue = shakaCues.find(cue => currentTime >= cue.startTime && currentTime < cue.endTime) || null;
+          shakaStore.activeCaption.activeCues = activeCue ? [activeCue] : [];
+          captionsRoot.textContent = activeCue?.text || '';
+        };
+        video.addEventListener('timeupdate', updateShakaCue, { passive: true });
+        setInterval(updateShakaCue, 100);
+        updateShakaCue();
       }
       if (unsafeMode) {
         const caption = document.createElement('div');
@@ -88,7 +114,9 @@
         }
       };
       setTimeout(activateTrack, 100);
-      document.querySelector('#phase').textContent = 'Player criado; faixa VTT temporal carregando.';
+      document.querySelector('#phase').textContent = shakaMode
+        ? 'Player criado; store temporal Shaka carregando.'
+        : (unsafeMode ? 'Player criado; overlay DOM sem timing confirmado.' : 'Player criado; faixa VTT temporal carregando.');
     }, 500);
   </script>
 </body>

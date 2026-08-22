@@ -13,7 +13,9 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
   const storageChanges = [];
   const messages = [];
   const played = [];
+  const generationMessages = [];
   let workerCount = 0;
+  let generationCount = 0;
 
   const chrome = {
     runtime: {
@@ -67,6 +69,8 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
 
     postMessage(message) {
       if (message.type !== "sia-piper-generate") return;
+      generationCount += 1;
+      generationMessages.push(message);
       setTimeout(() => {
         if (failGeneration) {
           this.onmessage?.({
@@ -149,9 +153,13 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
     status: context.SiaPiperVoiceStatus,
     messages,
     played,
+    generationMessages,
     storageChanges,
     get workerCount() {
       return workerCount;
+    },
+    get generationCount() {
+      return generationCount;
     }
   };
 }
@@ -160,6 +168,11 @@ test("mantém o motor do navegador como padrão", () => {
   const harness = createHarness();
   assert.equal(harness.provider.isActive(), false);
   assert.equal(harness.status().engine, "browser");
+});
+
+test("não assina mudanças globais de motor entre abas", () => {
+  const harness = createHarness();
+  assert.equal(harness.storageChanges.some(change => typeof change === "function"), false);
 });
 
 test("ativa o Piper somente quando selecionado e reproduz o resultado do Worker", async () => {
@@ -182,6 +195,51 @@ test("ativa o Piper somente quando selecionado e reproduz o resultado do Worker"
   assert.equal(harness.status().state, "ready");
   assert.equal(harness.played.length, 1);
   assert.equal(harness.workerCount, 1);
+});
+
+test("reutiliza a frase pré-sintetizada sem gerar áudio duas vezes", async () => {
+  const harness = createHarness();
+  const utterance = {
+    text: "Frase pré-sintetizada.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => {},
+    onend: () => {},
+    onerror: () => {}
+  };
+
+  harness.provider.setActive("piper-local");
+  assert.equal(await harness.provider.primeText(utterance), true);
+  harness.provider.speak(utterance);
+  await new Promise(resolve => setTimeout(resolve, 40));
+
+  assert.equal(harness.generationCount, 1);
+  assert.equal(harness.played.length, 1);
+});
+
+test("transporta perfil de continuação e não o confunde com o áudio normal", async () => {
+  const harness = createHarness();
+  harness.provider.setActive("piper-local");
+  await harness.provider.primeText({
+    text: "A frase continua,",
+    rate: 1.2,
+    silenceScale: 0.08,
+  });
+  await new Promise(resolve => setTimeout(resolve, 10));
+
+  harness.provider.speak({
+    text: "A frase continua,",
+    rate: 1.2,
+    silenceScale: 0.08,
+    onstart: () => {},
+    onend: () => {},
+    onerror: () => {}
+  });
+  await new Promise(resolve => setTimeout(resolve, 40));
+
+  assert.equal(harness.generationMessages.length, 1);
+  assert.equal(harness.generationMessages[0].silenceScale, 0.08);
 });
 
 test("desativa e cancela a fila sem gerar exceção", async () => {

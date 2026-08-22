@@ -353,6 +353,7 @@ const READY_TIMEOUT_MS = 30000;
       return [
         String(utterance.text || ""),
         Number(utterance.rate || 1).toFixed(3),
+        Number(utterance.silenceScale ?? 0.2).toFixed(3),
         Number(utterance.voice?.voiceURI || 0)
       ].join("|");
     }
@@ -394,7 +395,8 @@ const READY_TIMEOUT_MS = 30000;
           requestId,
           text: String(utterance.text || ""),
           sid: 0,
-          speed: Number(utterance.rate) || 1
+          speed: Number(utterance.rate) || 1,
+          silenceScale: Number(utterance.silenceScale ?? 0.2)
         });
       });
 
@@ -578,11 +580,6 @@ const READY_TIMEOUT_MS = 30000;
     provider.setActive(result[ENGINE_KEY]);
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes[ENGINE_KEY]) return;
-    provider.setActive(changes[ENGINE_KEY].newValue);
-  });
-
   chrome.runtime.onMessage.addListener(message => {
     if (message?.type === "SIA_CONFIG_UPDATE" && message.key === ENGINE_KEY) {
       provider.setActive(message.value);
@@ -593,6 +590,13 @@ const READY_TIMEOUT_MS = 30000;
     ...provider.status(),
     storageReady
   });
+
+  if (typeof globalThis.addEventListener === "function") {
+    globalThis.addEventListener("pagehide", () => {
+      provider.cancel();
+      provider.disposeWorker();
+    }, { once: true });
+  }
 
   const primeFromPageGesture = () => {
     if (!provider.isActive()) return;
