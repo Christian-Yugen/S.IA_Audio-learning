@@ -71,9 +71,11 @@ const READY_TIMEOUT_MS = 30000;
       if (!active) {
         this.cancel();
       } else {
-        // Inicializa o host neural assim que o usuário escolhe o Piper,
-        // deixando apenas a geração da frase para o momento da legenda.
+        // Inicializa o host neural e prepara o AudioContext em paralelo assim
+        // que o usuário escolhe o Piper. A primeira cue não precisa esperar
+        // essas duas etapas, sem alterar fila, geração ou fallback.
         void this.warmUp();
+        void this.primeAudio();
       }
     }
 

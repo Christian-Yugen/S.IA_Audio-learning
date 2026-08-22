@@ -13,7 +13,6 @@
         maximoCaracteresSemPonto: 280,
         maximoSegundosSemPonto: 12,
         maximoCuesAntecipadas: 6,
-        folgaMinimaContinuidadeSegundos: 0.6,
         passoMaximoTaxaAdaptativa: 0.3,
         toleranciaTaxaAdaptativa: 0.15,
         pesoCalibracaoVoz: 0.2,
@@ -22,6 +21,11 @@
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
     const PLATAFORMA_EXTERNA = location.hostname === "www.udemy.com";
+
+    function continuaSemPontuacaoFinal(texto) {
+        const valor = String(texto || "").trim();
+        return Boolean(valor) && !/[.!?,;:…]["'”’)\]]*\s*$/u.test(valor);
+    }
     let removerEntradaDeCaption = () => {};
 
     const SELETORES_LEGENDA = [
@@ -322,7 +326,6 @@
 
             if (!texto) continue;
 
-            const textoAtivo = texto;
             const fimCueAtiva = fimCue;
             let cuesAntecipadas = 0;
             const todasAsCues = [...(track.cues || [])];
@@ -350,13 +353,10 @@
 
             return {
                 texto,
-                textoAtivo,
                 inicioCue,
                 fimCue,
-                fimCueAtiva,
                 video,
-                sentencaAntecipada: cuesAntecipadas > 0,
-                continuaSemPontuacao: cuesAntecipadas === 0 && !terminaComPontuacaoFinal(texto)
+                sentencaAntecipada: cuesAntecipadas > 0
             };
         }
 
@@ -409,14 +409,34 @@
         };
     }
 
-        function precacheProximaLegendaNeural(video, legendaAtual) {
+    function obterLegendaAtivaParaPrecache(video) {
+        if (!video?.textTracks) return null;
+
+        for (const track of video.textTracks) {
+            if (track.kind !== "subtitles" && track.kind !== "captions") continue;
+            const ativas = [...(track.activeCues || [])];
+            const fimCue = Math.max(
+                0,
+                ...ativas.map(cue => Number(cue.endTime) || 0)
+            );
+            if (fimCue > 0) return { origem: "track", fimCue, video };
+        }
+        return null;
+    }
+
+    function precacheProximaLegendaNeural(video, legendaAtual) {
         const provider = globalThis.SiaPiperVoice;
         if (!provider?.isActive?.() || legendaAtual?.origem !== "track") return;
 
-        const fimAtual = Number(legendaAtual.fimCue) || 0;
-        if (!fimAtual || !video?.textTracks) return;
+        const fimAtualInformado = Number(legendaAtual.fimCue) || 0;
+        if (!fimAtualInformado || !video?.textTracks) return;
 
         for (const track of video.textTracks) {
+            const fimCueAtiva = Math.max(
+                0,
+                ...[...(track.activeCues || [])].map(cue => Number(cue.endTime) || 0)
+            );
+            const fimAtual = fimCueAtiva || fimAtualInformado;
             const proximas = [...(track.cues || [])]
                 .filter(cue => Number(cue.startTime) >= fimAtual - 0.04)
                 .sort((a, b) => Number(a.startTime) - Number(b.startTime));
@@ -438,8 +458,6 @@
                 inicioCue,
                 fimCue: Number(proxima.endTime) || 0,
                 sentencaAntecipada: false,
-                continuaSemPontuacao: !terminaComPontuacaoFinal(texto),
-                tempoReferenciaVideo: Number(proxima.startTime) || video.currentTime,
                 inicioPrevistoEm: Math.max(performance.now(), previsaoFimFilaEm)
             };
             const utterance = {
@@ -450,16 +468,6 @@
                 volume: volumeFala,
                 voice: null
             };
-            const precacheAtual = legendaNeuralPrecarregada;
-            if (
-                precacheAtual
-                && precacheAtual.texto === texto
-                && Math.abs(precacheAtual.inicioCue - inicioCue) < 0.08
-                && Math.abs(precacheAtual.fimCue - (Number(proxima.endTime) || 0)) < 0.08
-                && Math.abs(precacheAtual.rate - utterance.rate) < 0.01
-            ) {
-                return;
-            }
             const precache = {
                 texto,
                 inicioCue,
@@ -603,32 +611,6 @@
         const video = contexto?.video;
         const fimCue = Number(contexto?.fimCue);
         if (!video || !fimCue || fimCue <= video.currentTime) return velocidadeFala;
-
-        if (contexto?.continuaSemPontuacao && !contexto?.sentencaAntecipada) {
-            const referencia = Number(contexto?.tempoReferenciaVideo);
-            const tempoReferencia = Number.isFinite(referencia)
-                ? referencia
-                : Number(video.currentTime) || 0;
-            const segundosDisponiveis = Math.max(
-                0,
-                (fimCue - tempoReferencia) / (video.playbackRate || 1)
-            );
-            const duracaoTaxaUm = MOTOR_SINCRONIA?.estimarDuracaoFala
-                ? MOTOR_SINCRONIA.estimarDuracaoFala(texto, {
-                    palavrasPorSegundo: CONFIG.palavrasPorSegundo
-                })
-                : Math.max(0.6, texto.split(/\s+/).length / CONFIG.palavrasPorSegundo);
-            const duracaoNaTaxaBase = duracaoTaxaUm * fatorDuracaoVoz
-                / Math.max(0.01, velocidadeFala);
-            if (segundosDisponiveis >= duracaoNaTaxaBase + CONFIG.folgaMinimaContinuidadeSegundos) {
-                const taxaContinua = duracaoTaxaUm * fatorDuracaoVoz
-                    / Math.max(0.01, segundosDisponiveis);
-                return Math.min(
-                    velocidadeFala,
-                    Math.max(CONFIG.velocidadeMinima, taxaContinua)
-                );
-            }
-        }
 
         if (typeof MOTOR_SINCRONIA.calcularTaxaSincronizacaoContinua === "function") {
             const agora = performance.now();
@@ -840,8 +822,10 @@
             pitch: tomFala,
             volume: volumeFala,
             voice: null,
-            continuaSemPontuacao: Boolean(contexto?.continuaSemPontuacao),
-            silenceScale: contexto?.continuaSemPontuacao ? 0.08 : 0.2,
+            // A vírgula já é acrescentada pelo sync-engine ao texto sintetizado.
+            // Este parâmetro apenas encurta a pausa do Piper; não altera fila,
+            // velocidade, fallback nem o comportamento da voz nativa.
+            silenceScale: continuaSemPontuacaoFinal(texto) ? 0.08 : 0.2,
             onstart: null,
             onend: null,
             onerror: null
@@ -1070,12 +1054,10 @@
         });
         falar(texto, {
             video,
-                inicioCue: Number(cue.startTime),
-                fimCue: Number(cue.endTime),
-                sentencaAntecipada: false,
-                continuaSemPontuacao: !terminaComPontuacaoFinal(texto),
-                tempoReferenciaVideo: Number(video.currentTime) || 0,
-                source: cue.source,
+            inicioCue: Number(cue.startTime),
+            fimCue: Number(cue.endTime),
+            sentencaAntecipada: false,
+            source: cue.source,
             sourceConfidence: cue.sourceConfidence,
             playerIdentity: cue.playerIdentity,
             nativeOnly: !usarPiper,
@@ -1161,37 +1143,38 @@
             liberarBufferSentenca({ video, fimCue: 0 });
         }
 
+        if (video.currentTime < coberturaLegendaAte - 0.04) {
+            // O Coursera pode preencher o TextTrack progressivamente. Enquanto
+            // a fala atual ainda cobre o vídeo, apenas prepara a próxima cue;
+            // a reprodução continua dependente do relógio e da fila normal.
+            if (!legendaNeuralPrecarregada) {
+                const legendaAtiva = obterLegendaAtivaParaPrecache(video);
+                if (legendaAtiva) precacheProximaLegendaNeural(video, legendaAtiva);
+            }
+            return;
+        }
+
         const legenda = obterTextoAtual(video);
         const textoAtual = legenda.texto;
 
         if (!textoAtual) {
+            // Em pequenos intervalos antes da próxima cue, prepara o áudio
+            // futuro sem falar e sem alterar a fila. Assim a primeira fala de
+            // uma nova frase não precisa esperar toda a geração neural.
+            if (!legendaNeuralPrecarregada) {
+                precacheProximaLegendaNeural(video, {
+                    origem: "track",
+                    fimCue: Number(video.currentTime) || 0,
+                    video
+                });
+            }
             // O desaparecimento da cue não interrompe uma frase já iniciada.
             ultimoTextoDetectado = "";
             textoCandidato = "";
             return;
         }
 
-        if (textoAtual === ultimoTextoDetectado) {
-            // A lista de cues pode ser preenchida progressivamente pelo Coursera.
-            // Reexamina a próxima cue sem repetir a fala atual nem gerar a mesma
-            // síntese enquanto o precache ainda estiver em andamento.
-            if (legenda.origem === "track") {
-                precacheProximaLegendaNeural(video, legenda);
-            }
-            return;
-        }
-
-        if (video.currentTime < coberturaLegendaAte - 0.04) {
-            if (legenda.origem === "track" && legenda.fimCueAtiva) {
-                precacheProximaLegendaNeural(video, {
-                    ...legenda,
-                    texto: legenda.textoAtivo || textoAtual,
-                    fimCue: legenda.fimCueAtiva,
-                    sentencaAntecipada: false
-                });
-            }
-            return;
-        }
+        if (textoAtual === ultimoTextoDetectado) return;
 
         // TextTrack.activeCues já é uma fonte estável e pode ser falada no mesmo
         // ciclo. O DOM recebe apenas uma proteção mínima contra mutações parciais.
@@ -1199,7 +1182,7 @@
             ultimoTextoDetectado = textoAtual;
             textoCandidato = "";
             limparBufferSentenca();
-            coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
+                        coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
             falar(textoAtual, legenda);
             // A previsão da fila já inclui a fala atual; só então calculamos
             // a taxa/cache da próxima cue.

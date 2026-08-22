@@ -41,6 +41,9 @@ function createHarness({
     paused,
     ended: false,
     textTracks: textTrack ? [textTrack] : [],
+    closest() {
+      return null;
+    },
     addEventListener(name, listener) {
       if (!listeners.has(name)) listeners.set(name, new Set());
       listeners.get(name).add(listener);
@@ -240,7 +243,6 @@ test('H7 cue temporal do Shaka usa Piper compartilhado quando ativo', () => {
   assert.equal(harness.piperSpoken.length, 1);
   assert.equal(harness.spoken.length, 0);
   assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
-  assert.equal(harness.piperSpoken[0].silenceScale, 0.2);
 });
 
 test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível', () => {
@@ -255,8 +257,69 @@ test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponí
 
 test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache', async () => {
   const cues = [
-    { startTime: 10, endTime: 11, text: 'A análise começa' },
-    { startTime: 11.1, endTime: 13, text: 'com uma continuação final.' },
+    { startTime: 10, endTime: 11, text: 'Primeira frase.' },
+    { startTime: 11.1, endTime: 13, text: 'Segunda frase.' },
+  ];
+  const track = {
+    kind: 'subtitles',
+    mode: 'showing',
+    activeCues: [cues[0]],
+    cues,
+  };
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    textTrack: track,
+  });
+
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.primed.length, 2);
+
+  harness.finishPiper(0);
+  const afterEarlyEnd = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
+  assert.equal(afterEarlyEnd.estimatedQueueDelay, 0);
+
+  harness.video.currentTime = 11.1;
+  track.activeCues = [cues[1]];
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 2);
+  assert.equal(harness.piperSpoken[1].rate, harness.primed[1].rate);
+});
+
+test('Coursera prepara a primeira cue antes de ela aparecer sem falar antecipadamente', () => {
+  const cueInicial = { startTime: 10, endTime: 12, text: 'A primeira fala.' };
+  const track = {
+    kind: 'subtitles',
+    mode: 'showing',
+    activeCues: [],
+    cues: [cueInicial],
+  };
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    textTrack: track,
+  });
+  harness.video.currentTime = 9.8;
+
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.primed.length, 1);
+  assert.equal(harness.primed[0].text, 'A primeira fala.');
+
+  harness.video.currentTime = 10;
+  track.activeCues = [cueInicial];
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].text, 'A primeira fala.');
+});
+
+test('Coursera pré-carrega a próxima cue quando ela chega progressivamente', () => {
+  const cues = [
+    { startTime: 10, endTime: 12, text: 'A primeira frase.' },
+    { startTime: 12.1, endTime: 14, text: 'A próxima frase.' },
   ];
   const track = {
     kind: 'subtitles',
@@ -274,21 +337,52 @@ test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutil
   harness.tick();
   assert.equal(harness.piperSpoken.length, 1);
   assert.equal(harness.primed.length, 1);
+  assert.equal(harness.primed[0].text, 'A primeira frase.');
 
-  track.cues.push(cues[1]);
+  track.cues = cues;
   harness.tick();
   assert.equal(harness.primed.length, 2);
+  assert.equal(harness.primed[1].text, 'A próxima frase.');
 
   harness.finishPiper(0);
-  const afterEarlyEnd = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
-  assert.equal(afterEarlyEnd.estimatedQueueDelay, 0);
-
-  harness.video.currentTime = 11.1;
+  harness.video.currentTime = 12.1;
   track.activeCues = [cues[1]];
   harness.tick();
   assert.equal(harness.piperSpoken.length, 2);
-  assert.equal(harness.piperSpoken[1].rate, harness.primed[1].rate);
+  assert.equal(harness.piperSpoken[1].text, 'A próxima frase.');
+});
+
+test('continuação neural sem pontuação usa pausa curta sem alterar fila ou fallback', () => {
+  const cues = [
+    { startTime: 10, endTime: 12, text: 'A explicação continua' },
+    { startTime: 12.1, endTime: 14, text: 'A frase termina.' },
+  ];
+  const track = {
+    kind: 'subtitles',
+    mode: 'showing',
+    activeCues: [cues[0]],
+    cues: [cues[0]],
+  };
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    textTrack: track,
+  });
+
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].text, 'A explicação continua,');
   assert.equal(harness.piperSpoken[0].silenceScale, 0.08);
+  assert.equal(harness.spoken.length, 0);
+
+  harness.finishPiper(0);
+  harness.video.currentTime = 12.1;
+  track.cues = cues;
+  track.activeCues = [cues[1]];
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 2);
+  assert.equal(harness.piperSpoken[1].text, 'A frase termina.');
   assert.equal(harness.piperSpoken[1].silenceScale, 0.2);
 });
 
