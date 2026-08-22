@@ -14,6 +14,7 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
   const messages = [];
   const played = [];
   let workerCount = 0;
+  let generationCount = 0;
 
   const chrome = {
     runtime: {
@@ -67,6 +68,7 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
 
     postMessage(message) {
       if (message.type !== "sia-piper-generate") return;
+      generationCount += 1;
       setTimeout(() => {
         if (failGeneration) {
           this.onmessage?.({
@@ -152,6 +154,9 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
     storageChanges,
     get workerCount() {
       return workerCount;
+    },
+    get generationCount() {
+      return generationCount;
     }
   };
 }
@@ -187,6 +192,27 @@ test("ativa o Piper somente quando selecionado e reproduz o resultado do Worker"
   assert.equal(harness.status().state, "ready");
   assert.equal(harness.played.length, 1);
   assert.equal(harness.workerCount, 1);
+});
+
+test("reutiliza a frase pré-sintetizada sem gerar áudio duas vezes", async () => {
+  const harness = createHarness();
+  const utterance = {
+    text: "Frase pré-sintetizada.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => {},
+    onend: () => {},
+    onerror: () => {}
+  };
+
+  harness.provider.setActive("piper-local");
+  assert.equal(await harness.provider.primeText(utterance), true);
+  harness.provider.speak(utterance);
+  await new Promise(resolve => setTimeout(resolve, 40));
+
+  assert.equal(harness.generationCount, 1);
+  assert.equal(harness.played.length, 1);
 });
 
 test("desativa e cancela a fila sem gerar exceção", async () => {

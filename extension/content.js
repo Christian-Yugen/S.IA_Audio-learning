@@ -80,6 +80,7 @@
     let erroInicioFila = 0;
     let ultimoTextoConcluido = "";
     let ultimoTextoConcluidoEm = 0;
+    let legendaNeuralPrecarregada = null;
     let testeNeuralEmAndamento = false;
     let historicoFrases = [];
     const chaveHistorico = `sia_history_${location.pathname
@@ -442,9 +443,27 @@
                 volume: volumeFala,
                 voice: null
             };
-            void provider.primeText?.(utterance);
+            const precache = {
+                texto,
+                inicioCue,
+                fimCue: Number(proxima.endTime) || 0,
+                rate: utterance.rate
+            };
+            legendaNeuralPrecarregada = precache;
+            void Promise.resolve(provider.primeText?.(utterance)).then(ok => {
+                if (ok === false && legendaNeuralPrecarregada === precache) {
+                    legendaNeuralPrecarregada = null;
+                }
+            });
             return;
         }
+    }
+
+    function reconciliarPrevisaoFilaAposFimReal() {
+        if (falaEnfileirada) return;
+        previsaoFimFilaEm = performance.now();
+        atrasoFilaEstimado = 0;
+        ultimaTaxaPlanejada = velocidadeFala;
     }
 
     function criarEntradaHistorico(registro) {
@@ -712,6 +731,7 @@
                     fatorObservado - fatorDuracaoVoz
                 ) * CONFIG.pesoCalibracaoVoz;
             }
+            reconciliarPrevisaoFilaAposFimReal();
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
@@ -731,6 +751,7 @@
             textoEmFala = "";
             sentencaAntecipadaAtiva = false;
             restaurarVelocidadeVideo();
+            reconciliarPrevisaoFilaAposFimReal();
 
             if (["not-allowed", "synthesis-unavailable", "voice-unavailable"].includes(evento.error)) {
                 sinteseBloqueada = true;
@@ -753,10 +774,26 @@
         const agora = performance.now();
         const inicioPrevistoEm = Math.max(agora, previsaoFimFilaEm);
         const contextoPlanejado = { ...contexto, inicioPrevistoEm };
+        const precache = legendaNeuralPrecarregada;
+        const inicioCue = Number(contexto?.inicioCue);
+        const fimCue = Number(contexto?.fimCue);
+        const mesmaCuePrecarregada = Boolean(
+            precache
+            && precache.texto === normalizarTexto(texto)
+            && Number.isFinite(inicioCue)
+            && Number.isFinite(fimCue)
+            && Math.abs(precache.inicioCue - inicioCue) < 0.08
+            && Math.abs(precache.fimCue - fimCue) < 0.08
+        );
+        if (precache && !mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
+        const taxaAntecipada = mesmaCuePrecarregada
+            ? precache.rate
+            : calcularTaxaAntecipada(texto, contextoPlanejado);
+        if (mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
         const utterance = {
             text: prepararTextoParaSintese(texto),
             lang: idiomaFala,
-            rate: calcularTaxaAntecipada(texto, contextoPlanejado),
+            rate: taxaAntecipada,
             pitch: tomFala,
             volume: volumeFala,
             voice: null,
@@ -823,6 +860,7 @@
                     fatorObservado - fatorDuracaoVoz
                 ) * CONFIG.pesoCalibracaoVoz;
             }
+            reconciliarPrevisaoFilaAposFimReal();
             if (falaAtual === registro) {
                 falaAtual = null;
                 textoEmFala = "";
@@ -841,6 +879,7 @@
             textoEmFala = "";
             sentencaAntecipadaAtiva = false;
             restaurarVelocidadeVideo();
+            reconciliarPrevisaoFilaAposFimReal();
 
             if (!provider.isActive?.()) {
                 // O provedor já se desativou. Tenta a mesma frase pela rota
@@ -1022,6 +1061,7 @@
         sentencaAntecipadaAtiva = false;
         previsaoFimFilaEm = 0;
         ultimaTaxaPlanejada = velocidadeFala;
+        legendaNeuralPrecarregada = null;
         atrasoFilaEstimado = 0;
         erroInicioFila = 0;
         ultimoTextoConcluido = "";
