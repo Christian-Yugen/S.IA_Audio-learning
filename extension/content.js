@@ -443,6 +443,16 @@
                 volume: volumeFala,
                 voice: null
             };
+            const precacheAtual = legendaNeuralPrecarregada;
+            if (
+                precacheAtual
+                && precacheAtual.texto === texto
+                && Math.abs(precacheAtual.inicioCue - inicioCue) < 0.08
+                && Math.abs(precacheAtual.fimCue - (Number(proxima.endTime) || 0)) < 0.08
+                && Math.abs(precacheAtual.rate - utterance.rate) < 0.01
+            ) {
+                return;
+            }
             const precache = {
                 texto,
                 inicioCue,
@@ -1114,8 +1124,6 @@
             liberarBufferSentenca({ video, fimCue: 0 });
         }
 
-        if (video.currentTime < coberturaLegendaAte - 0.04) return;
-
         const legenda = obterTextoAtual(video);
         const textoAtual = legenda.texto;
 
@@ -1126,7 +1134,17 @@
             return;
         }
 
-        if (textoAtual === ultimoTextoDetectado) return;
+        if (textoAtual === ultimoTextoDetectado) {
+            // A lista de cues pode ser preenchida progressivamente pelo Coursera.
+            // Reexamina a próxima cue sem repetir a fala atual nem gerar a mesma
+            // síntese enquanto o precache ainda estiver em andamento.
+            if (legenda.origem === "track") {
+                precacheProximaLegendaNeural(video, legenda);
+            }
+            return;
+        }
+
+        if (video.currentTime < coberturaLegendaAte - 0.04) return;
 
         // TextTrack.activeCues já é uma fonte estável e pode ser falada no mesmo
         // ciclo. O DOM recebe apenas uma proteção mínima contra mutações parciais.

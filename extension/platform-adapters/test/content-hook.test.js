@@ -261,7 +261,7 @@ test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutil
     kind: 'subtitles',
     mode: 'showing',
     activeCues: [cues[0]],
-    cues,
+    cues: [cues[0]],
   };
   const harness = createHarness({
     hostname: 'www.coursera.org',
@@ -272,6 +272,10 @@ test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutil
 
   harness.tick();
   assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.primed.length, 1);
+
+  track.cues.push(cues[1]);
+  harness.tick();
   assert.equal(harness.primed.length, 2);
 
   harness.finishPiper(0);
