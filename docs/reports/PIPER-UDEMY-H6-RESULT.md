@@ -32,3 +32,9 @@ Na aula Udemy aberta durante o diagnóstico, o player exibiu `0:00 / 0:00` e `Ca
 ## Limitação do teste headless
 
 A fixture Chromium confirmou os estados de segurança e a seleção do caminho, mas a saída física de áudio não é mensurável no Chromium headless. O teste físico no Chrome normal é necessário para confirmar o som neural no dispositivo do usuário, após o carregamento da versão 1.8.8.
+
+## Correção posterior da leitura automática
+
+A reprodução física confirmou que os testes isolados de voz estavam funcionando, mas o player real não acionava a leitura automática de forma confiável. A causa encontrada foi a dependência excessiva do polling e dos eventos gerais do vídeo para perceber a troca de cue. O adaptador agora registra listeners `cuechange` nas faixas TextTrack e agenda uma nova leitura imediatamente quando a faixa muda. O polling de um segundo permanece como fallback para players que não emitem `cuechange` de modo consistente.
+
+As cópias-fonte experimental e empacotada foram sincronizadas, e o teste determinístico `cuechange de TextTrack dispara nova leitura imediata` foi adicionado. O estado DOM/transcrição sem timing continua sem qualquer evento de fala.

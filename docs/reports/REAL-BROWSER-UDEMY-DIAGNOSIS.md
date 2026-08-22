@@ -33,3 +33,7 @@ A consequência para o H5 é objetiva: sem legenda TextTrack temporal ativa, `ud
 ## Descoberta adicional do código
 
 O manifesto 1.8.7 carrega `neural-tts/piper-bridge.js` apenas no bloco Coursera. O bloco Udemy carrega o hook, content script e adaptador, mas não o bridge Piper. Portanto, o botão neural no popup pode ser selecionado globalmente, porém no contexto Udemy o handler retorna `bridge neural não carregado` ou `piper-inactive`. O H5 aprovado é deliberadamente nativo e `nativeOnly`; Piper Udemy ainda exige uma etapa H6 explicitamente autorizada.
+
+## Verificação adicional do controle de legendas
+
+Na sessão conectada, o botão correto de `Legendas` abriu a lista de faixas e mostrou `Desligado` como estado atual, com duas opções `Português [Automático]` disponíveis. O painel `Transcrição` é um controle separado. O player ainda mostrava `0:00 / 0:00` e `Carregado: NaN%`.
