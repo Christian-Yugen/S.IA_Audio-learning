@@ -134,7 +134,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (contexto.gate !== "H5-native-udemy-texttrack") return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -968,6 +968,9 @@
         ultimoTextoDetectado = texto;
         textoCandidato = "";
         coberturaLegendaAte = Number(cue.endTime);
+        const usarPiper = globalThis.SiaPiperVoice?.isActive?.() === true;
+        const voiceEngine = usarPiper ? "piper-local" : "browser";
+        const gate = "H6-shared-udemy-texttrack";
         emitirEventoH5("requested", {
             texto,
             contexto: {
@@ -975,8 +978,8 @@
                 fimCue: Number(cue.endTime),
                 source: cue.source,
                 sourceConfidence: cue.sourceConfidence,
-                voiceEngine: "browser",
-                gate: "H5-native-udemy-texttrack"
+                voiceEngine,
+                gate
             }
         });
         falar(texto, {
@@ -987,9 +990,9 @@
             source: cue.source,
             sourceConfidence: cue.sourceConfidence,
             playerIdentity: cue.playerIdentity,
-            nativeOnly: true,
-            voiceEngine: "browser",
-            gate: "H5-native-udemy-texttrack"
+            nativeOnly: !usarPiper,
+            voiceEngine,
+            gate
         });
         return true;
     }

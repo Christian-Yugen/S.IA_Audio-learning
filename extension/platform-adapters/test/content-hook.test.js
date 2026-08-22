@@ -187,8 +187,8 @@ test('H4 pausa do vídeo impede cue segura de chegar à fala', () => {
   assert.equal(harness.spoken.length, 0);
 });
 
-test('H5 cue TextTrack usa voz nativa mesmo com Piper selecionado globalmente', () => {
-  const harness = createHarness({ piperActive: true });
+test('H5 cue TextTrack usa voz nativa quando Piper está indisponível', () => {
+  const harness = createHarness({ piperActive: false });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue());
   assert.equal(result.accepted, true);
@@ -197,8 +197,18 @@ test('H5 cue TextTrack usa voz nativa mesmo com Piper selecionado globalmente', 
   assert.equal(harness.spoken[0].lang, 'pt-BR');
 });
 
-test('H5 fonte que não é TextTrack não alcança a voz nativa', () => {
-  const harness = createHarness();
+test('H6 cue TextTrack usa Piper compartilhado quando selecionado', () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue());
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+});
+
+test('H5 fonte que não é TextTrack não alcança nenhuma voz', () => {
+  const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue({ source: 'dom-caption' }));
   assert.equal(result.accepted, true);
@@ -222,4 +232,17 @@ test('H5 teste do popup fala na aba ativa e retorna início nativo', async () =>
   assert.equal(harness.spoken.length, 1);
   assert.equal(harness.spoken[0].lang, 'pt-BR');
   assert.equal(harness.piperSpoken.length, 0);
+});
+
+test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async () => {
+  const harness = createHarness({ piperActive: true });
+  const result = await harness.sendMessage({
+    type: 'SIA_TEST_NEURAL_VOICE',
+    text: 'Teste de voz neural Piper na aba Udemy.'
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.started, true);
+  assert.equal(result.engine, 'piper-local');
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.spoken.length, 0);
 });
