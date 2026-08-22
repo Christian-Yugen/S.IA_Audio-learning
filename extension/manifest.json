@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.6",
-  "version_name": "1.8.6 · Gate H5 voz nativa Udemy",
+  "version": "1.8.7",
+  "version_name": "1.8.7 · H5 popup e voz nativa corrigidos",
   "description": "Lê, sincroniza e permite revisar as legendas de aulas do Coursera.",
   "minimum_chrome_version": "114",
   "permissions": ["activeTab", "storage", "sidePanel", "offscreen"],
