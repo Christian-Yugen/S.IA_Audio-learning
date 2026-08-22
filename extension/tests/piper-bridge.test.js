@@ -162,6 +162,11 @@ test("mantém o motor do navegador como padrão", () => {
   assert.equal(harness.status().engine, "browser");
 });
 
+test("não assina mudanças globais de motor entre abas", () => {
+  const harness = createHarness();
+  assert.equal(harness.storageChanges.some(change => typeof change === "function"), false);
+});
+
 test("ativa o Piper somente quando selecionado e reproduz o resultado do Worker", async () => {
   const harness = createHarness();
   const events = [];

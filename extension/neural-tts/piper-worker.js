@@ -9,10 +9,11 @@ function errorMessage(error) {
   return String(error);
 }
 
-function postError(message, requestId = null) {
+function postError(message, requestId = null, sessionId = null) {
   self.postMessage({
     type: "sia-piper-error",
     requestId,
+    sessionId,
     message: String(message || "Falha desconhecida no motor neural")
   });
 }
@@ -58,6 +59,7 @@ self.Module = {
 self.onmessage = event => {
   const message = event.data || {};
   const requestId = message.requestId ?? null;
+  const sessionId = message.sessionId ?? null;
 
   if (message.type === "sia-piper-dispose") {
     disposed = true;
@@ -65,30 +67,30 @@ self.onmessage = event => {
       try {
         ttsInstance.free();
       } catch (error) {
-        postError(`Liberação do Piper falhou: ${errorMessage(error)}`);
+        postError(`Liberação do Piper falhou: ${errorMessage(error)}`, requestId, sessionId);
       }
     }
     ttsInstance = null;
     runtimeState = "disposed";
-    self.postMessage({ type: "sia-piper-disposed", requestId });
+    self.postMessage({ type: "sia-piper-disposed", requestId, sessionId });
     return;
   }
 
   if (message.type === "sia-piper-cancel") {
-    self.postMessage({ type: "sia-piper-cancelled", requestId });
+    self.postMessage({ type: "sia-piper-cancelled", requestId, sessionId });
     return;
   }
 
   if (message.type !== "sia-piper-generate") return;
 
   if (runtimeState !== "ready" || !ttsInstance) {
-    postError("O motor neural ainda não está pronto", requestId);
+    postError("O motor neural ainda não está pronto", requestId, sessionId);
     return;
   }
 
   const text = String(message.text || "").trim();
   if (!text) {
-    postError("Texto vazio não pode ser sintetizado", requestId);
+    postError("Texto vazio não pode ser sintetizado", requestId, sessionId);
     return;
   }
 
@@ -107,6 +109,7 @@ self.onmessage = event => {
       {
         type: "sia-piper-result",
         requestId,
+        sessionId,
         samples,
         sampleRate,
         durationSeconds: samples.length / sampleRate
@@ -114,7 +117,7 @@ self.onmessage = event => {
       [samples.buffer]
     );
   } catch (error) {
-    postError(`Geração neural falhou: ${errorMessage(error)}`, requestId);
+    postError(`Geração neural falhou: ${errorMessage(error)}`, requestId, sessionId);
   }
 };
 

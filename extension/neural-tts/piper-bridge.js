@@ -578,11 +578,6 @@ const READY_TIMEOUT_MS = 30000;
     provider.setActive(result[ENGINE_KEY]);
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes[ENGINE_KEY]) return;
-    provider.setActive(changes[ENGINE_KEY].newValue);
-  });
-
   chrome.runtime.onMessage.addListener(message => {
     if (message?.type === "SIA_CONFIG_UPDATE" && message.key === ENGINE_KEY) {
       provider.setActive(message.value);

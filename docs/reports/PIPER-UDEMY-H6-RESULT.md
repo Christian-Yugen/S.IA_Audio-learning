@@ -56,3 +56,14 @@ A validação segura mostrou `source: "shaka-caption"`, `confidence: "high"`, `s
 A regressão final aprovou 30 testes do caminho plataforma/H0–H7, 18 testes do adaptador Udemy e 3 testes específicos do bridge H7. A sintaxe dos arquivos alterados, `git diff --check` e o hash protegido de `extension/sync-engine.js` também foram aprovados; o hash permaneceu `8c2e9ad28c1c570e44d4c3c42148ada403dec696864b21675aedd2d6d9bef00a`. O release físico correspondente é o pacote `sia-extension-1.8.12-h7-shaka-temporal.zip`.
 
 > Regra preservada: texto DOM sem `startTime`/`endTime` confirmados nunca alcança a fala; somente cues temporais válidas, de alta confiança, associadas ao player ativo e com vídeo em reprodução podem entrar no núcleo de áudio compartilhado.
+
+
+## Adendo 1.8.13 — coexistência de abas Coursera e Udemy
+
+A análise do problema relatado ao abrir simultaneamente cursos Coursera e Udemy encontrou uma colisão no host offscreen compartilhado. Cada documento iniciava seu contador de requisições Piper em `1`, enquanto o offscreen mantinha um `Map` global indexado somente por `requestId`. A requisição `1` de uma aba podia substituir a requisição `1` de outra, fazendo uma resposta neural chegar ao contexto errado ou expirar.
+
+A correção mantém um único Worker Piper e acrescenta isolamento lógico por `sessionId`: as chaves pendentes agora são compostas por `sessionId + requestId`, e o Worker devolve o mesmo identificador em resultados e erros. O comando `dispose` também passou a ser limitado à sessão que o solicitou; o Worker compartilhado só é encerrado quando a última aba neural é descartada. Uma falha ou fechamento de uma aba não cancela nem destrói a sessão de outra.
+
+A propagação automática de `sia_voice_engine` por `chrome.storage.onChanged` foi removida do bridge. O valor salvo continua servindo como padrão na inicialização, enquanto a alteração em tempo real é encaminhada pelo popup diretamente à aba ativa e ao perfil do curso. Isso impede que escolher voz nativa ou neural em uma aba reconfigure silenciosamente as demais abas já abertas. O roteamento Coursera/Udemy continua automático pelos padrões de URL do Manifest V3; não é necessário selecionar manualmente a plataforma.
+
+Foram adicionados testes de concorrência com duas sessões reutilizando o mesmo `requestId`, teste de descarte isolado e regressão que impede a volta da propagação global do motor. O `sync-engine.js` permaneceu intocado, Coursera e Udemy continuam usando o mesmo núcleo de voz e nenhuma fila paralela foi criada.
