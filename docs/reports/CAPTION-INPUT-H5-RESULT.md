@@ -1,8 +1,8 @@
 # Gate H5 — Voz nativa Udemy
 
-**Branch:** `experiment/sia-caption-input-h0-h4`  
-**PR:** [#20 — Hook público SiaCaptionInput — H0–H4 aprovados](https://github.com/Christian-Yugen/S.IA_Audio-learning/pull/20)  
-**Status:** implementação H5 concluída; aguardando revisão e teste físico antes do merge  
+**Branch:** `experiment/sia-caption-input-h0-h4`
+**PR:** [#20 — Hook público SiaCaptionInput — H0–H4 aprovados](https://github.com/Christian-Yugen/S.IA_Audio-learning/pull/20)
+**Status:** implementação H5 concluída; aguardando revisão e teste físico antes do merge
 **Data:** 22 de agosto de 2026
 
 ## Escopo aprovado

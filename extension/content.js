@@ -134,7 +134,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (contexto.gate !== "H5-native-udemy-texttrack") return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -968,6 +968,9 @@
         ultimoTextoDetectado = texto;
         textoCandidato = "";
         coberturaLegendaAte = Number(cue.endTime);
+        const usarPiper = globalThis.SiaPiperVoice?.isActive?.() === true;
+        const voiceEngine = usarPiper ? "piper-local" : "browser";
+        const gate = "H6-shared-udemy-texttrack";
         emitirEventoH5("requested", {
             texto,
             contexto: {
@@ -975,8 +978,8 @@
                 fimCue: Number(cue.endTime),
                 source: cue.source,
                 sourceConfidence: cue.sourceConfidence,
-                voiceEngine: "browser",
-                gate: "H5-native-udemy-texttrack"
+                voiceEngine,
+                gate
             }
         });
         falar(texto, {
@@ -987,9 +990,9 @@
             source: cue.source,
             sourceConfidence: cue.sourceConfidence,
             playerIdentity: cue.playerIdentity,
-            nativeOnly: true,
-            voiceEngine: "browser",
-            gate: "H5-native-udemy-texttrack"
+            nativeOnly: !usarPiper,
+            voiceEngine,
+            gate
         });
         return true;
     }
@@ -1191,6 +1194,73 @@
                     voiceEngineState: piperStatus.state || "unavailable"
                 });
                 return;
+            }
+
+            if (mensagem?.type === "SIA_TEST_BROWSER_VOICE") {
+                if (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis)) {
+                    responder({ ok: false, reason: "synthesis-unavailable", message: "Síntese de voz indisponível nesta página" });
+                    return;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(
+                    normalizarTexto(mensagem.text) || "A S IA está pronta para transformar suas aulas em áudio."
+                );
+                utterance.lang = String(mensagem.lang || idiomaFala || CONFIG.idioma);
+                utterance.rate = Math.min(
+                    CONFIG.velocidadeMaxima,
+                    Math.max(CONFIG.velocidadeMinima, Number(mensagem.rate) || velocidadeFala)
+                );
+                utterance.pitch = Math.min(1.5, Math.max(0.5, Number(mensagem.pitch) || tomFala));
+                utterance.volume = Math.min(1, Math.max(0, Number(mensagem.volume) || volumeFala));
+                const voz = speechSynthesis.getVoices().find(item =>
+                    item.voiceURI === mensagem.voiceURI
+                    || item.name === mensagem.voiceName
+                    || item.voiceURI === mensagem.voiceName
+                );
+                if (voz) utterance.voice = voz;
+
+                let respondeu = false;
+                let timeoutResposta = 0;
+                const responderUmaVez = resultado => {
+                    if (respondeu) return;
+                    respondeu = true;
+                    clearTimeout(timeoutResposta);
+                    responder(resultado);
+                };
+                utterance.onstart = () => responderUmaVez({
+                    ok: true,
+                    started: true,
+                    engine: "browser",
+                    state: "playing"
+                });
+                utterance.onend = () => responderUmaVez({
+                    ok: true,
+                    started: true,
+                    engine: "browser",
+                    state: "finished"
+                });
+                utterance.onerror = evento => responderUmaVez({
+                    ok: false,
+                    reason: evento?.error || "synthesis-failed",
+                    message: "A voz do navegador não iniciou nesta página"
+                });
+
+                try {
+                    speechSynthesis.cancel();
+                    speechSynthesis.speak(utterance);
+                    timeoutResposta = setTimeout(() => responderUmaVez({
+                        ok: false,
+                        reason: "speech-start-timeout",
+                        message: "A voz do navegador não iniciou no tempo esperado"
+                    }), 8000);
+                } catch (error) {
+                    responderUmaVez({
+                        ok: false,
+                        reason: "synthesis-failed",
+                        message: error?.message || "Falha ao iniciar a voz do navegador"
+                    });
+                }
+                return true;
             }
 
             if (mensagem?.type === "SIA_PRIME_NEURAL_AUDIO") {

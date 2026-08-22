@@ -80,6 +80,7 @@ export class UdemyAdapter {
     this.playerIdentity = null;
     this.previousCue = null;
     this.videoListeners = [];
+    this.trackListeners = [];
     this.pageObserver = null;
     this.pollHandle = null;
     this.scanScheduled = false;
@@ -119,6 +120,7 @@ export class UdemyAdapter {
     if (!this.started && this.state === STATES.IDLE) return;
     this.state = STATES.DESTROYING;
     this.removeVideoListeners();
+    this.removeTrackListeners();
     this.pageObserver?.disconnect?.();
     this.pageObserver = null;
     if (this.pollHandle !== null) {
@@ -206,6 +208,27 @@ export class UdemyAdapter {
     this.videoListeners = [];
   }
 
+  removeTrackListeners() {
+    for (const { target, listener } of this.trackListeners) {
+      target.removeEventListener?.('cuechange', listener);
+    }
+    this.trackListeners = [];
+  }
+
+  installTrackListeners(video) {
+    const tracks = tracksFromVideo(video).filter((track) => track?.addEventListener);
+    const sameTracks = tracks.length === this.trackListeners.length
+      && tracks.every((track) => this.trackListeners.some((entry) => entry.target === track));
+    if (sameTracks) return;
+
+    this.removeTrackListeners();
+    for (const track of tracks) {
+      const listener = () => this.scheduleScan();
+      track.addEventListener('cuechange', listener, { passive: true });
+      this.trackListeners.push({ target: track, listener });
+    }
+  }
+
   scheduleScan() {
     if (this.scanScheduled || this.destroyed) return;
     this.scanScheduled = true;
@@ -229,7 +252,10 @@ export class UdemyAdapter {
 
   reconcileVideo(video) {
     const nextIdentity = normalizePlayerIdentity(video);
-    if (isSamePlayer(this.playerIdentity, nextIdentity)) return;
+    if (isSamePlayer(this.playerIdentity, nextIdentity)) {
+      this.installTrackListeners(video);
+      return;
+    }
     if (this.video && video !== this.video) {
       this.previousCue = null;
       this.lastSourceKey = '';
@@ -237,9 +263,11 @@ export class UdemyAdapter {
       this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
     }
     this.removeVideoListeners();
+    this.removeTrackListeners();
     this.video = video;
     this.playerIdentity = nextIdentity;
     this.installVideoListeners(video);
+    this.installTrackListeners(video);
     if (video) this.emit({ type: EVENTS.PLAYER_FOUND, platformId: PLATFORM_ID, playerIdentity: nextIdentity });
   }
 

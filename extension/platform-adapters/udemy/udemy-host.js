@@ -23,6 +23,7 @@
     cleanupVideoInput();
     const input = globalThis.SiaCaptionInput;
     if (!input || !video?.addEventListener) return;
+    input.setPaused(Boolean(video.paused || video.ended));
     const onPause = () => input.setPaused(true);
     const onPlay = () => input.setPaused(false);
     video.addEventListener("pause", onPause, { passive: true });

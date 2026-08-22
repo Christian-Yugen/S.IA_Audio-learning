@@ -89,7 +89,7 @@
   async function refresh() {
     const context = await send({ type: "SIA_GET_LEARNING_CONTEXT" });
     if (!context?.ok) {
-      ui.current.textContent = "Abra uma aula do Coursera para usar o Companion.";
+      ui.current.textContent = "Abra uma aula do Coursera ou da Udemy para usar o Companion.";
       return;
     }
     entries = Array.isArray(context.history) ? context.history : [];

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.5",
-  "version_name": "1.8.5 · Piper PT-BR neural sync fix",
+  "version": "1.8.9",
+  "version_name": "1.8.9 · correção de leitura automática Udemy",
   "description": "Lê, sincroniza e permite revisar as legendas de aulas do Coursera.",
   "minimum_chrome_version": "114",
   "permissions": ["activeTab", "storage", "sidePanel", "offscreen"],
@@ -46,6 +46,7 @@
       "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
       "js": [
         "sync-engine.js",
+        "neural-tts/piper-bridge.js",
         "platform-adapters/caption-input.js",
         "content.js",
         "platform-adapters/platform-router.js",
@@ -62,7 +63,7 @@
         "neural-tts/piper-worker.js",
         "neural-tts/runtime/*"
       ],
-      "matches": ["https://*.coursera.org/*"]
+      "matches": ["https://*.coursera.org/*", "https://www.udemy.com/*"]
     },
     {
       "resources": [

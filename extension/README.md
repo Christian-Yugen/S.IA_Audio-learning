@@ -3,7 +3,7 @@
 > Transforme as legendas das aulas do Coursera em uma experiência de áudio
 > sincronizada, contínua e revisável.
 
-![Versão](https://img.shields.io/badge/versão-1.8.5-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.8.9-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
@@ -26,7 +26,9 @@ analytics, anúncios ou API externa de inteligência artificial.
 ## Destaques
 
 - Leitura automática das legendas do Coursera.
-- Vozes disponíveis no navegador e no sistema operacional.
+- Suporte experimental à Udemy para cues TextTrack temporais seguras.
+
+- Vozes disponíveis no navegador, incluindo Piper PT-BR local experimental.
 - Velocidade de 0.6x a 3.5x.
 - Controle de tom e volume.
 - Sincronização adaptativa contínua.
@@ -51,7 +53,7 @@ analytics, anúncios ou API externa de inteligência artificial.
 ![Pop-up da S·IA](assets/store/screenshot-popup-1280x800.png)
 
 > As imagens da Chrome Web Store serão atualizadas para incluir o S·IA Companion
-> e os recursos da versão 1.8.5. A voz neural Piper PT-BR é experimental e opcional; o motor nativo do navegador permanece como padrão.
+> e os recursos da versão 1.8.9. A voz neural Piper PT-BR é experimental e opcional; o motor nativo do navegador permanece como padrão.
 
 ## Como funciona
 
@@ -436,7 +438,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.5 é a release de referência atual; o histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.9 é a release de referência atual; o histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

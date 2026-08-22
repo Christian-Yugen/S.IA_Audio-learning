@@ -38,8 +38,14 @@
       testVoice: document.getElementById("test-voice"),
       reset: document.getElementById("reset-settings"),
       status: document.getElementById("connection-status"),
-      saveFeedback: document.getElementById("save-feedback")
+      saveFeedback: document.getElementById("save-feedback"),
+      version: document.getElementById("version-label")
     };
+
+    const manifest = chrome.runtime.getManifest?.() || {};
+    if (ui.version) {
+      ui.version.textContent = `v${manifest.version || "?"} · ${manifest.version_name || "S·IA"}`;
+    }
 
     const saved = await chrome.storage.local.get([
       ...Object.keys(DEFAULTS),
@@ -186,8 +192,8 @@
           ok: false,
           reason: staleContext ? "content-context-invalidated" : "content-message-failed",
           message: staleContext
-            ? "reabra a aba do Coursera para aplicar a versão atual da extensão"
-            : "não foi possível comunicar com a aba do Coursera"
+            ? "reabra a aba da aula para aplicar a versão atual da extensão"
+            : "não foi possível comunicar com a aba da aula"
         };
       }
     }
@@ -212,7 +218,7 @@
           && delivery?.voiceEngine === value;
         showSavedFeedback(
           contextInvalidated
-            ? "Salvo · reabra a aba do Coursera"
+            ? "Salvo · reabra a aba da aula"
             : engineApplied
               ? `Motor aplicado: ${value === "piper-local" ? "neural local" : "navegador"}`
               : "Configurações salvas"
@@ -223,23 +229,25 @@
 
     async function updateConnectionStatus() {
       const tab = await activeTab();
-      if (!tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i)) {
-        setStatus("Abra uma aula do Coursera", "unavailable");
+      const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
+      const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
+      if (!isCourseraLecture && !isUdemyLecture) {
+        setStatus("Abra uma aula do Coursera ou da Udemy", "unavailable");
         return;
       }
 
       const status = await sendToContent({ type: "SIA_GET_STATUS" });
       if (status?.reason === "content-context-invalidated") {
-        setStatus("Reabra a aba do Coursera para atualizar a extensão", "paused");
+        setStatus("Reabra a aba da aula para atualizar a extensão", "paused");
       } else if (status?.ok === false) {
-        setStatus(status.message || "A aba do Coursera não respondeu", "paused");
+        setStatus(status.message || "A aba da aula não respondeu", "paused");
       } else if (!status?.videoFound) {
 
-        setStatus("Nenhum vídeo encontrado nesta página", "unavailable");
+        setStatus("Nenhum vídeo encontrado nesta aula", "unavailable");
       } else if (!settings.sia_enabled) {
         setStatus("S·IA desativada", "unavailable");
       } else if (!status.syncEngineReady) {
-        setStatus("Motor de sincronia indisponível", "paused");
+        setStatus("Motor de sincronia indisponível nesta aula", "paused");
       } else if (status.speechError) {
         const errors = {
           "not-allowed": "Voz bloqueada pelo navegador",
@@ -328,23 +336,36 @@
       return false;
     }
 
+    async function testBrowserVoice() {
+      setStatus("Preparando voz do navegador…", "checking");
+      const voice = selectedVoice();
+      const result = await sendToContent({
+        type: "SIA_TEST_BROWSER_VOICE",
+        text: "A S IA está pronta para transformar suas aulas em áudio.",
+        lang: settings.sia_lang,
+        rate: Number(settings.sia_speed),
+        pitch: Number(settings.sia_pitch),
+        volume: Number(settings.sia_volume) / 100,
+        voiceURI: voice?.voiceURI || settings.sia_voice,
+        voiceName: voice?.name || settings.sia_voice
+      });
+      if (result?.ok && result.started) {
+        setStatus("Voz do navegador iniciada na página", "connected");
+        return true;
+      }
+      setStatus(
+        `Voz do navegador indisponível: ${result?.message || result?.reason || "a aba não respondeu"}`,
+        "paused"
+      );
+      return false;
+    }
+
     async function testVoice() {
       if (settings.sia_voice_engine === "piper-local") {
         await testNeuralVoice();
         return;
       }
-
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(
-        "S IA está pronta para transformar suas aulas em áudio."
-      );
-      utterance.lang = settings.sia_lang;
-      utterance.rate = Number(settings.sia_speed);
-      utterance.pitch = Number(settings.sia_pitch);
-      utterance.volume = Number(settings.sia_volume) / 100;
-      const voice = selectedVoice();
-      if (voice) utterance.voice = voice;
-      speechSynthesis.speak(utterance);
+      await testBrowserVoice();
     }
 
     async function resetSettings() {

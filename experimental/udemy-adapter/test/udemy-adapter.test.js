@@ -15,6 +15,25 @@ import { UdemyAdapter } from '../src/udemy-adapter.js';
 
 const lectureUrl = 'https://www.udemy.com/course/example/learn/lecture/12345?start=0';
 
+class FakeTextTrack {
+  constructor(activeCues = []) {
+    this.activeCues = activeCues;
+    this.listeners = new Map();
+  }
+
+  addEventListener(name, listener) {
+    this.listeners.set(name, listener);
+  }
+
+  removeEventListener(name, listener) {
+    if (this.listeners.get(name) === listener) this.listeners.delete(name);
+  }
+
+  dispatch(name) {
+    this.listeners.get(name)?.();
+  }
+}
+
 class FakeVideo {
   constructor(id, { textTracks = [], containerId = `shaka-video-container-${id}` } = {}) {
     this.id = id;
@@ -148,6 +167,24 @@ test('adaptador mantém fallback DOM em UNSAFE_TO_SPEAK sem emitir cue de fala',
   assert.equal(diagnostic.safeToSpeak, false);
   assert.equal(events.some((event) => event.type === EVENTS.CAPTION_CHANGED), false);
   assert.equal(events.some((event) => event.type === EVENTS.ADAPTER_FALLBACK), true);
+});
+
+test('cuechange de TextTrack dispara nova leitura imediata', () => {
+  const events = [];
+  const track = new FakeTextTrack([]);
+  const video = new FakeVideo('lecture-cuechange', { textTracks: [track] });
+  const adapter = makeAdapter(makeDocument(video), events);
+
+  adapter.start();
+  assert.equal(events.filter((event) => event.type === EVENTS.CAPTION_CHANGED).length, 0);
+  assert.equal(track.listeners.size, 1);
+
+  track.activeCues = [{ text: 'Cue liberada após cuechange', startTime: 3, endTime: 5 }];
+  track.dispatch('cuechange');
+
+  const captionEvents = events.filter((event) => event.type === EVENTS.CAPTION_CHANGED);
+  assert.equal(captionEvents.length, 1);
+  assert.equal(captionEvents[0].cue.safeToSpeak, true);
 });
 
 test('troca de player remove listeners antigos e não duplica observers', () => {

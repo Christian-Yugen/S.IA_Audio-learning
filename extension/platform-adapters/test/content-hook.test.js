@@ -60,9 +60,16 @@ function createHarness({ paused = false, piperActive = false } = {}) {
       callback?.();
     },
   };
+  let messageListener = null;
   const chrome = {
     storage: { local: storage },
-    runtime: { onMessage: { addListener() {} } },
+    runtime: {
+      onMessage: {
+        addListener(listener) {
+          messageListener = listener;
+        }
+      }
+    },
   };
   const speechSynthesis = {
     speaking: false,
@@ -113,7 +120,22 @@ function createHarness({ paused = false, piperActive = false } = {}) {
   vm.runInContext(syncSource, context);
   vm.runInContext(inputSource, context);
   vm.runInContext(contentSource, context);
-  return { context, input: context.SiaCaptionInput, video, spoken, piperSpoken };
+  return {
+    context,
+    input: context.SiaCaptionInput,
+    video,
+    spoken,
+    piperSpoken,
+    sendMessage(message) {
+      return new Promise(resolve => {
+        if (!messageListener) {
+          resolve({ ok: false, reason: 'message-listener-missing' });
+          return;
+        }
+        messageListener(message, {}, resolve);
+      });
+    }
+  };
 }
 
 function cue(overrides = {}) {
@@ -165,8 +187,8 @@ test('H4 pausa do vídeo impede cue segura de chegar à fala', () => {
   assert.equal(harness.spoken.length, 0);
 });
 
-test('H5 cue TextTrack usa voz nativa mesmo com Piper selecionado globalmente', () => {
-  const harness = createHarness({ piperActive: true });
+test('H5 cue TextTrack usa voz nativa quando Piper está indisponível', () => {
+  const harness = createHarness({ piperActive: false });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue());
   assert.equal(result.accepted, true);
@@ -175,11 +197,52 @@ test('H5 cue TextTrack usa voz nativa mesmo com Piper selecionado globalmente', 
   assert.equal(harness.spoken[0].lang, 'pt-BR');
 });
 
-test('H5 fonte que não é TextTrack não alcança a voz nativa', () => {
-  const harness = createHarness();
+test('H6 cue TextTrack usa Piper compartilhado quando selecionado', () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue());
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+});
+
+test('H5 fonte que não é TextTrack não alcança nenhuma voz', () => {
+  const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   const result = harness.input.push(cue({ source: 'dom-caption' }));
   assert.equal(result.accepted, true);
   assert.equal(harness.spoken.length, 0);
   assert.equal(harness.piperSpoken.length, 0);
+});
+
+test('H5 teste do popup fala na aba ativa e retorna início nativo', async () => {
+  const harness = createHarness({ piperActive: true });
+  const result = await harness.sendMessage({
+    type: 'SIA_TEST_BROWSER_VOICE',
+    text: 'Teste de voz nativa na aba Udemy.',
+    lang: 'pt-BR',
+    rate: 1.2,
+    pitch: 1,
+    volume: 1
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.started, true);
+  assert.equal(result.engine, 'browser');
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+  assert.equal(harness.piperSpoken.length, 0);
+});
+
+test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async () => {
+  const harness = createHarness({ piperActive: true });
+  const result = await harness.sendMessage({
+    type: 'SIA_TEST_NEURAL_VOICE',
+    text: 'Teste de voz neural Piper na aba Udemy.'
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.started, true);
+  assert.equal(result.engine, 'piper-local');
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.spoken.length, 0);
 });
