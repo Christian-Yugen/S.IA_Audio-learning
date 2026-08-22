@@ -1322,6 +1322,8 @@
             : "S.ia: leitor de legendas do Coursera ativo.");
     }
 
+    if (PLATAFORMA_EXTERNA) conectarEntradaDeCaption();
+
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", iniciarSia, { once: true });
     } else {
