@@ -1,7 +1,7 @@
 # SiaCaptionInput — Resultado H0–H4
 
-**Branch:** `experiment/sia-caption-input-h0-h4`  
-**Status:** implementação concluída; aguardando revisão independente  
+**Branch:** `experiment/sia-caption-input-h0-h4`
+**Status:** implementação concluída; aguardando revisão independente
 **Data:** 22 de agosto de 2026
 
 ## Resultado
