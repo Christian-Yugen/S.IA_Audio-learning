@@ -23,9 +23,15 @@ $files = @(
     "sidepanel.css",
     "sidepanel.js",
     "service-worker.js",
-    "offscreen.html",
-    "offscreen.js"
-
+        "offscreen.html",
+        "offscreen.js",
+        "platform-adapters/caption-input.js",
+        "platform-adapters/platform-router.js",
+        "platform-adapters/core-event-bridge.js",
+        "platform-adapters/core-diagnostic-state.js",
+        "platform-adapters/udemy/udemy-host.js",
+        "platform-adapters/udemy/udemy-adapter.js",
+        "platform-adapters/udemy/udemy-adapter-contract.js"
 )
 
 try {
