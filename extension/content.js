@@ -20,6 +20,8 @@
         maximoHistoricoFrases: 60
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
+    const PLATAFORMA_EXTERNA = location.hostname === "www.udemy.com";
+    let removerEntradaDeCaption = () => {};
 
     const SELETORES_LEGENDA = [
         '[data-testid="video-captions"]',
@@ -913,6 +915,56 @@
         enfileirarFala(valor, contexto);
     }
 
+    function processarCueExterna(cue) {
+        if (
+            !PLATAFORMA_EXTERNA
+            || !cue
+            || cue.platformId !== "udemy"
+            || cue.safeToSpeak !== true
+            || !Number.isFinite(Number(cue.startTime))
+            || !Number.isFinite(Number(cue.endTime))
+            || Number(cue.endTime) <= Number(cue.startTime)
+        ) {
+            return false;
+        }
+
+        const video = document.querySelector("video");
+        if (!video || video.paused || video.ended) return false;
+        videoMonitorado = video;
+        ultimaPosicaoVideo = Number(video.currentTime) || 0;
+        if (video.currentTime > Number(cue.endTime) + 0.35) return false;
+        if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
+
+        const texto = normalizarTexto(cue.text);
+        if (!texto || texto === ultimoTextoDetectado) return false;
+
+        ultimoTextoDetectado = texto;
+        textoCandidato = "";
+        coberturaLegendaAte = Number(cue.endTime);
+        falar(texto, {
+            video,
+            inicioCue: Number(cue.startTime),
+            fimCue: Number(cue.endTime),
+            sentencaAntecipada: false,
+            source: cue.source,
+            sourceConfidence: cue.sourceConfidence,
+            playerIdentity: cue.playerIdentity
+        });
+        return true;
+    }
+
+    function conectarEntradaDeCaption() {
+        if (!PLATAFORMA_EXTERNA) return;
+        const input = globalThis.SiaCaptionInput;
+        if (!input?.subscribe) return;
+
+        removerEntradaDeCaption();
+        removerEntradaDeCaption = input.subscribe(evento => {
+            if (evento?.type !== input.EVENTS?.ACCEPTED) return;
+            processarCueExterna(evento.cue);
+        });
+    }
+
     function interromperFala() {
         geracaoDaFala++;
         falaAtual = null;
@@ -1251,15 +1303,23 @@
 
     function iniciarSia() {
         conectarConfiguracoes();
+        conectarEntradaDeCaption();
         chrome.storage.local.get(chaveHistorico, resultado => {
             const salvo = resultado[chaveHistorico];
             historicoFrases = Array.isArray(salvo)
                 ? salvo.slice(-CONFIG.maximoHistoricoFrases)
                 : [];
         });
-        setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
-        addEventListener("pagehide", interromperFala, { once: true });
-        console.info("S.ia: leitor de legendas do Coursera ativo.");
+        if (!PLATAFORMA_EXTERNA) {
+            setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
+        }
+        addEventListener("pagehide", () => {
+            removerEntradaDeCaption();
+            interromperFala();
+        }, { once: true });
+        console.info(PLATAFORMA_EXTERNA
+            ? "S.IA: entrada de cues externas ativa."
+            : "S.ia: leitor de legendas do Coursera ativo.");
     }
 
     if (document.readyState === "loading") {

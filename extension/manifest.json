@@ -45,6 +45,9 @@
     {
       "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
       "js": [
+        "sync-engine.js",
+        "platform-adapters/caption-input.js",
+        "content.js",
         "platform-adapters/platform-router.js",
         "platform-adapters/core-event-bridge.js",
         "platform-adapters/core-diagnostic-state.js",
