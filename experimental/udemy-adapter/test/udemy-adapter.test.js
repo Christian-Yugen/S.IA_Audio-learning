@@ -16,8 +16,12 @@ import { UdemyAdapter } from '../src/udemy-adapter.js';
 const lectureUrl = 'https://www.udemy.com/course/example/learn/lecture/12345?start=0';
 
 class FakeTextTrack {
-  constructor(activeCues = []) {
+  constructor(activeCues = [], { cues = activeCues, label = 'Português', language = 'pt-BR', mode = 'showing' } = {}) {
     this.activeCues = activeCues;
+    this.cues = cues;
+    this.label = label;
+    this.language = language;
+    this.mode = mode;
     this.listeners = new Map();
   }
 
@@ -35,9 +39,12 @@ class FakeTextTrack {
 }
 
 class FakeVideo {
-  constructor(id, { textTracks = [], containerId = `shaka-video-container-${id}` } = {}) {
+  constructor(id, { textTracks = [], containerId = `shaka-video-container-${id}`, currentTime = 1, paused = false, ended = false } = {}) {
     this.id = id;
     this.textTracks = textTracks;
+    this.currentTime = currentTime;
+    this.paused = paused;
+    this.ended = ended;
     this.containerId = containerId;
     this.listeners = new Map();
     this.removedListeners = 0;
@@ -56,12 +63,14 @@ class FakeVideo {
   }
 }
 
-function makeDocument(video, captionText = '') {
+function makeDocument(video, captionText = '', selectedCaption = '') {
   const captionNode = { textContent: captionText };
+  const selectedCaptionNode = { textContent: selectedCaption };
   return {
     documentElement: {},
     querySelector(selector) {
       if (selector.startsWith('video')) return video;
+      if (selector.includes('captions-dropdown-menu') && selectedCaption) return selectedCaptionNode;
       return null;
     },
     querySelectorAll(selector) {
@@ -169,10 +178,42 @@ test('adaptador mantém fallback DOM em UNSAFE_TO_SPEAK sem emitir cue de fala',
   assert.equal(events.some((event) => event.type === EVENTS.ADAPTER_FALLBACK), true);
 });
 
+test('faixa TextTrack selecionada em disabled é preparada sem liberar DOM', () => {
+  const events = [];
+  const track = new FakeTextTrack([
+    { text: 'Cue selecionada', startTime: 0.5, endTime: 2 }
+  ], { mode: 'disabled' });
+  const video = new FakeVideo('lecture-selected-track', { textTracks: [track], currentTime: 1 });
+  const adapter = makeAdapter(makeDocument(video, '', 'Português'), events);
+
+  adapter.start();
+
+  assert.equal(track.mode, 'hidden');
+  const captionEvents = events.filter((event) => event.type === EVENTS.CAPTION_CHANGED);
+  assert.equal(captionEvents.length, 1);
+  assert.equal(captionEvents[0].cue.safeToSpeak, true);
+});
+
+test('cues temporais são localizadas pelo relógio quando activeCues está vazio', () => {
+  const events = [];
+  const track = new FakeTextTrack([], {
+    cues: [{ text: 'Cue temporal disponível', startTime: 0.5, endTime: 2 }]
+  });
+  const video = new FakeVideo('lecture-track-cues', { textTracks: [track], currentTime: 1 });
+  const adapter = makeAdapter(makeDocument(video, '', 'Português'), events);
+
+  adapter.start();
+
+  const captionEvents = events.filter((event) => event.type === EVENTS.CAPTION_CHANGED);
+  assert.equal(captionEvents.length, 1);
+  assert.equal(captionEvents[0].cue.text, 'Cue temporal disponível');
+  assert.equal(captionEvents[0].cue.safeToSpeak, true);
+});
+
 test('cuechange de TextTrack dispara nova leitura imediata', () => {
   const events = [];
   const track = new FakeTextTrack([]);
-  const video = new FakeVideo('lecture-cuechange', { textTracks: [track] });
+  const video = new FakeVideo('lecture-cuechange', { textTracks: [track], currentTime: 3.5 });
   const adapter = makeAdapter(makeDocument(video), events);
 
   adapter.start();
@@ -199,6 +240,22 @@ test('troca de player remove listeners antigos e não duplica observers', () => 
   adapter.scan();
   assert.equal(firstVideo.listeners.size, 0);
   assert.equal(firstVideo.removedListeners, 7);
+  assert.equal(secondVideo.listeners.size, 7);
+  assert.equal(events.filter((event) => event.type === EVENTS.PLAYER_FOUND).length, 2);
+});
+
+test('player substituído com mesma identidade reanexa listeners', () => {
+  const events = [];
+  const firstVideo = new FakeVideo('lecture-same');
+  const documentRef = makeDocument(firstVideo);
+  const adapter = makeAdapter(documentRef, events);
+  adapter.start();
+
+  const secondVideo = new FakeVideo('lecture-same');
+  documentRef.querySelector = (selector) => selector.startsWith('video') ? secondVideo : null;
+  adapter.scan();
+
+  assert.equal(firstVideo.listeners.size, 0);
   assert.equal(secondVideo.listeners.size, 7);
   assert.equal(events.filter((event) => event.type === EVENTS.PLAYER_FOUND).length, 2);
 });

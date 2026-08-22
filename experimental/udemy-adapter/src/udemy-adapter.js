@@ -52,11 +52,79 @@ function activeCueFromTrack(track) {
   }
 }
 
+function cueFromTrackAtCurrentTime(track, video, tolerance = 0.35) {
+  const currentTime = Number(video?.currentTime);
+  if (!Number.isFinite(currentTime)) return null;
+  try {
+    const cues = track?.cues ? Array.from(track.cues) : [];
+    return cues.find((cue) => {
+      const startTime = Number(cue?.startTime);
+      const endTime = Number(cue?.endTime);
+      return Number.isFinite(startTime)
+        && Number.isFinite(endTime)
+        && currentTime + tolerance >= startTime
+        && currentTime - tolerance <= endTime;
+    }) || null;
+  } catch {
+    return null;
+  }
+}
+
 function tracksFromVideo(video) {
   try {
     return video?.textTracks ? Array.from(video.textTracks) : [];
   } catch {
     return [];
+  }
+}
+
+function cueIsCurrentAndPlaying(video, cue, tolerance = 0.35) {
+  const currentTime = Number(video?.currentTime);
+  const startTime = Number(cue?.startTime);
+  const endTime = Number(cue?.endTime);
+  if (!Number.isFinite(currentTime) || !Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+    return false;
+  }
+  if (video?.paused || video?.ended) return false;
+  return currentTime + tolerance >= startTime && currentTime - tolerance <= endTime;
+}
+
+function selectedCaptionLabel(documentRef) {
+  const selected = documentRef?.querySelector?.(
+    '[data-purpose="captions-dropdown-menu"] [role="menuitemradio"][aria-checked="true"]'
+  );
+  return textFromNode(selected);
+}
+
+function trackLabel(track) {
+  return [track?.label, track?.language, track?.id]
+    .map(value => String(value || '').trim().toLocaleLowerCase())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function selectedTextTracks(video, documentRef) {
+  const tracks = tracksFromVideo(video);
+  const selected = selectedCaptionLabel(documentRef);
+  if (!selected || /^(desligado|off|none)$/iu.test(selected)) return [];
+
+  const selectedValue = selected.toLocaleLowerCase();
+  const matches = tracks.filter(track => {
+    const value = trackLabel(track);
+    if (!value) return false;
+    if (/portugu.s/iu.test(selectedValue) && /(^|\s)(pt|pt-br|por|portugu.s)(\s|$)/iu.test(value)) return true;
+    return value.includes(selectedValue);
+  });
+  return matches.length || tracks.length !== 1 ? matches : tracks;
+}
+
+function prepareSelectedTextTracks(video, documentRef) {
+  for (const track of selectedTextTracks(video, documentRef)) {
+    try {
+      if (track.mode === 'disabled') track.mode = 'hidden';
+    } catch {
+      // A faixa pode ser controlada pelo player; o polling continua seguro.
+    }
   }
 }
 
@@ -81,6 +149,7 @@ export class UdemyAdapter {
     this.previousCue = null;
     this.videoListeners = [];
     this.trackListeners = [];
+    this.trackListListeners = [];
     this.pageObserver = null;
     this.pollHandle = null;
     this.scanScheduled = false;
@@ -209,23 +278,36 @@ export class UdemyAdapter {
   }
 
   removeTrackListeners() {
-    for (const { target, listener } of this.trackListeners) {
-      target.removeEventListener?.('cuechange', listener);
+    for (const { target, name = 'cuechange', listener } of this.trackListeners) {
+      target.removeEventListener?.(name, listener);
+    }
+    for (const { target, name, listener } of this.trackListListeners) {
+      target.removeEventListener?.(name, listener);
     }
     this.trackListeners = [];
+    this.trackListListeners = [];
   }
 
   installTrackListeners(video) {
     const tracks = tracksFromVideo(video).filter((track) => track?.addEventListener);
+    const textTrackList = video?.textTracks;
+    const currentList = this.trackListListeners[0]?.target || null;
     const sameTracks = tracks.length === this.trackListeners.length
       && tracks.every((track) => this.trackListeners.some((entry) => entry.target === track));
-    if (sameTracks) return;
+    if (sameTracks && currentList === textTrackList) return;
 
     this.removeTrackListeners();
     for (const track of tracks) {
       const listener = () => this.scheduleScan();
       track.addEventListener('cuechange', listener, { passive: true });
-      this.trackListeners.push({ target: track, listener });
+      this.trackListeners.push({ target: track, name: 'cuechange', listener });
+    }
+    if (textTrackList?.addEventListener) {
+      for (const name of ['addtrack', 'removetrack', 'change']) {
+        const listener = () => this.scheduleScan();
+        textTrackList.addEventListener(name, listener, { passive: true });
+        this.trackListListeners.push({ target: textTrackList, name, listener });
+      }
     }
   }
 
@@ -252,7 +334,7 @@ export class UdemyAdapter {
 
   reconcileVideo(video) {
     const nextIdentity = normalizePlayerIdentity(video);
-    if (isSamePlayer(this.playerIdentity, nextIdentity)) {
+    if (isSamePlayer(this.playerIdentity, nextIdentity) && this.video === video) {
       this.installTrackListeners(video);
       return;
     }
@@ -260,7 +342,9 @@ export class UdemyAdapter {
       this.previousCue = null;
       this.lastSourceKey = '';
       this.lastFallbackKey = '';
-      this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
+      if (!isSamePlayer(this.playerIdentity, nextIdentity)) {
+        this.emit({ type: EVENTS.ADAPTER_FALLBACK, platformId: PLATFORM_ID, reason: 'player-identity-changed' });
+      }
     }
     this.removeVideoListeners();
     this.removeTrackListeners();
@@ -272,9 +356,11 @@ export class UdemyAdapter {
   }
 
   readPrimaryCue(video) {
-    const tracks = tracksFromVideo(video);
+    prepareSelectedTextTracks(video, this.documentRef);
+    const selectedTracks = selectedTextTracks(video, this.documentRef);
+    const tracks = selectedTracks.length ? selectedTracks : tracksFromVideo(video);
     for (const track of tracks) {
-      const cue = activeCueFromTrack(track);
+      const cue = activeCueFromTrack(track) || cueFromTrackAtCurrentTime(track, video);
       if (!cue) continue;
       return normalizeCue({
         text: cue.text,
@@ -350,7 +436,7 @@ export class UdemyAdapter {
     });
 
     const sourceKey = JSON.stringify({ source, confidence, state: this.state, playerIdentity: this.playerIdentity });
-    if (cue && primaryCue && shouldEmitCue(cue, this.previousCue)) {
+    if (cue && primaryCue && cueIsCurrentAndPlaying(video, cue) && shouldEmitCue(cue, this.previousCue)) {
       this.previousCue = cue;
       this.emit({ type: EVENTS.CAPTION_CHANGED, cue, state: this.state });
     } else if (cue && !primaryCue) {

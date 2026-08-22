@@ -38,3 +38,9 @@ A fixture Chromium confirmou os estados de segurança e a seleção do caminho, 
 A reprodução física confirmou que os testes isolados de voz estavam funcionando, mas o player real não acionava a leitura automática de forma confiável. A causa encontrada foi a dependência excessiva do polling e dos eventos gerais do vídeo para perceber a troca de cue. O adaptador agora registra listeners `cuechange` nas faixas TextTrack e agenda uma nova leitura imediatamente quando a faixa muda. O polling de um segundo permanece como fallback para players que não emitem `cuechange` de modo consistente.
 
 As cópias-fonte experimental e empacotada foram sincronizadas, e o teste determinístico `cuechange de TextTrack dispara nova leitura imediata` foi adicionado. O estado DOM/transcrição sem timing continua sem qualquer evento de fala.
+
+## Correção complementar do fluxo automático
+
+A análise do player real mostrou que a Udemy/Shaka pode manter a faixa escolhida como `Português` no menu, mas com `TextTrack.mode = "disabled"`, e também pode substituir o elemento `<video>` mantendo o mesmo `id` e o mesmo container. O adaptador agora prepara somente a faixa de legenda selecionada em modo `hidden`, respeita o idioma selecionado e reanexa listeners quando o objeto `<video>` muda mesmo que sua identidade textual permaneça igual.
+
+Uma cue só é emitida ao hook quando o vídeo está em reprodução e o relógio atual está dentro da janela temporal da cue. Assim, a cue não é deduplicada prematuramente enquanto o player ainda está pausado ou carregando. O fallback DOM/transcrição permanece `UNSAFE_TO_SPEAK` e não alcança qualquer motor de voz.

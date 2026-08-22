@@ -37,3 +37,11 @@ O manifesto 1.8.7 carrega `neural-tts/piper-bridge.js` apenas no bloco Coursera.
 ## Verificação adicional do controle de legendas
 
 Na sessão conectada, o botão correto de `Legendas` abriu a lista de faixas e mostrou `Desligado` como estado atual, com duas opções `Português [Automático]` disponíveis. O painel `Transcrição` é um controle separado. O player ainda mostrava `0:00 / 0:00` e `Carregado: NaN%`.
+
+## Segunda aula Udemy verificada
+
+Também foi aberta a aula `six-sigma-green-belt-with-minitab/learn/lecture/13014304`. O player Shaka foi encontrado e o controle `Legendas` ofereceu `Português`, porém o estado observado permaneceu `Desligado`. Em ambas as aulas da sessão, o player exibiu `0:00 / 0:00` e `Carregado: NaN%`, portanto esta sessão não forneceu duração/relógio de mídia válido para uma reprodução automática verificável.
+
+## Evidência do HTML da segunda aula
+
+A captura HTML da aula `lecture/13014304` mostra a estrutura `shaka-video-container` e o menu `captions-dropdown-menu`. Nesse HTML, `Português` aparece com `aria-checked="true"`, embora a captura visual do player continue mostrando `0:00 / 0:00` e `Carregado: NaN%`. A página, portanto, tem uma seleção de legenda no menu, mas a sessão de inspeção não forneceu um relógio de mídia válido nem evidência suficiente de `activeCues` nativas.
