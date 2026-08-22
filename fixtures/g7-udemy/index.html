@@ -39,13 +39,44 @@
       const video = document.createElement('video');
       video.id = 'lecture-4242';
       video.controls = true;
+      video.muted = true;
+      video.src = '/test.webm';
       container.append(video);
-      const caption = document.createElement('div');
-      caption.dataset.purpose = 'caption';
-      caption.textContent = 'Legenda DOM sem timing confirmado.';
-      container.append(caption);
+      const unsafeMode = new URLSearchParams(location.search).has('unsafe');
+      let track = null;
+      if (!unsafeMode) {
+        track = video.addTextTrack('subtitles', 'Português brasileiro', 'pt-BR');
+        track.mode = 'showing';
+        track.addCue(new VTTCue(0.5, 4, 'Esta é uma cue temporal segura.'));
+        track.addCue(new VTTCue(4.1, 7, 'Esta é a próxima cue da fixture.'));
+      }
+      if (unsafeMode) {
+        const caption = document.createElement('div');
+        caption.dataset.purpose = 'caption';
+        caption.textContent = 'Legenda DOM sem timing confirmado.';
+        container.append(caption);
+      }
       document.querySelector('#player').replaceChildren(container);
-      document.querySelector('#phase').textContent = 'Player criado; aguardando diagnóstico do adaptador.';
+      video.currentTime = 1;
+      video.play().catch(error => {
+        document.querySelector('#phase').textContent = `Play rejeitado: ${error.message}`;
+      });
+      const activateTrack = () => {
+        try {
+          for (const item of video.textTracks) item.mode = 'showing';
+          video.currentTime = 1;
+          const active = [...video.textTracks].map(item => ({
+            mode: item.mode,
+            cues: item.cues?.length || 0,
+            activeCues: item.activeCues?.length || 0,
+          }));
+          document.querySelector('#phase').textContent = `Player criado; TextTrack: ${JSON.stringify(active)}`;
+        } catch (error) {
+          document.querySelector('#phase').textContent = `TextTrack indisponível: ${error.message}`;
+        }
+      };
+      setTimeout(activateTrack, 100);
+      document.querySelector('#phase').textContent = 'Player criado; faixa VTT temporal carregando.';
     }, 500);
   </script>
 </body>

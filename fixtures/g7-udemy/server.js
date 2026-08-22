@@ -9,7 +9,20 @@ const options = {
 };
 
 https.createServer(options, (request, response) => {
-  if (request.url !== '/course/test/learn/lecture/4242') {
+  if (request.url === '/test.webm') {
+    const body = fs.readFileSync(path.join(root, 'test.webm'));
+    response.writeHead(200, { 'content-type': 'video/webm' });
+    response.end(body);
+    return;
+  }
+  if (request.url === '/captions.vtt') {
+    const body = fs.readFileSync(path.join(root, 'captions.vtt'));
+    response.writeHead(200, { 'content-type': 'text/vtt; charset=utf-8' });
+    response.end(body);
+    return;
+  }
+  const requestPath = new URL(request.url, 'https://www.udemy.com').pathname;
+  if (requestPath !== '/course/test/learn/lecture/4242') {
     response.writeHead(302, { Location: '/course/test/learn/lecture/4242' });
     response.end();
     return;
