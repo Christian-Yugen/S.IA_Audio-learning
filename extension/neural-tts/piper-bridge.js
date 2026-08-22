@@ -589,6 +589,13 @@ const READY_TIMEOUT_MS = 30000;
     storageReady
   });
 
+  if (typeof globalThis.addEventListener === "function") {
+    globalThis.addEventListener("pagehide", () => {
+      provider.cancel();
+      provider.disposeWorker();
+    }, { once: true });
+  }
+
   const primeFromPageGesture = () => {
     if (!provider.isActive()) return;
     void provider.primeAudio().then(result => {
