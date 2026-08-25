@@ -40,6 +40,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.24](releases/1.8.24.md) | Preserva a legenda visual do YouTube e mantém a agregação de frases. |
 | [S·IA 1.8.25](releases/1.8.25.md) | Evita repetir frases quando o YouTube muda a qualidade do stream. |
 | [S·IA 1.8.26](releases/1.8.26.md) | Seleciona uma cue por instante e não mantém bloqueio inseguro entre cues temporais. |
+| [S·IA 1.8.27](releases/1.8.27.md) | Recarrega a aba quando YouTube já estava injetado, removendo sessões antigas. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

@@ -186,7 +186,7 @@
         source: ui.platformScope.checked ? "domain" : "tab"
       };
       showSavedFeedback(selected === "off" ? "YouTube desativado nesta aba" : "YouTube ativado nesta aba");
-      if (selected === "off" || result.active) {
+      if (selected === "off" || result.active || result.alreadyActive) {
         await chrome.tabs.reload(tab.id);
         window.close();
       }
