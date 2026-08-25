@@ -33,6 +33,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.17](releases/1.8.17.md) | Seletor seguro, YouTube opt-in, testes, limitações e rollback. |
 | [S·IA 1.8.18](releases/1.8.18.md) | Atualização limpa, flush temporal YouTube e diagnóstico de contexto invalidado. |
 | [S·IA 1.8.19](releases/1.8.19.md) | Compatibilidade TrustedHTML, fallback XML temporal e validação YouTube/Piper. |
+| [S·IA 1.8.20](releases/1.8.20.md) | Remove DOMParser do caminho YouTube e elimina a violação TrustedHTML. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

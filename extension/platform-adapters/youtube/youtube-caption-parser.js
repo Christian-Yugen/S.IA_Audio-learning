@@ -105,28 +105,9 @@
   }
 
   function parseXml(value) {
-    try {
-      if (typeof DOMParser === 'function') {
-        const xml = new DOMParser().parseFromString(String(value || ''), 'text/xml');
-        const nodes = Array.from(xml.querySelectorAll('text, p'));
-        const cues = nodes.slice(0, MAX_CUES).map((node, index) => {
-          const startRaw = node.getAttribute('start') || node.getAttribute('t');
-          const durationRaw = node.getAttribute('dur') || node.getAttribute('d');
-          const start = Number(startRaw);
-          const duration = Number(durationRaw);
-          const startTime = start > 100 ? start / 1000 : start;
-          const durationSeconds = duration > 100 ? duration / 1000 : duration;
-          return normalizeCue({
-            text: node.textContent || '',
-            startTime,
-            endTime: startTime + durationSeconds,
-          }, index);
-        }).filter(Boolean);
-        if (cues.length) return cues;
-      }
-    } catch {
-      // YouTube pode bloquear parseFromString com Trusted Types; use o fallback abaixo.
-    }
+    // O documento YouTube pode impor Trusted Types ao contexto MAIN. Não
+    // chamamos DOMParser aqui: o fallback não cria HTML/XML no DOM e mantém
+    // somente cues com início e fim temporais confirmados.
     return parseXmlFallback(value);
   }
 

@@ -97,15 +97,18 @@ test("parser lê WebVTT e rejeita cue inválida", () => {
   assert.equal(cues[0].endTime, 1.5);
 });
 
-test("parser usa fallback XML quando TrustedHTML bloqueia DOMParser", () => {
+test("parser usa fallback XML sem chamar DOMParser sob Trusted Types", () => {
+  let domParserCalled = false;
   class TrustedTypesBlockedParser {
     parseFromString() {
+      domParserCalled = true;
       throw new TypeError("This document requires 'TrustedHTML' assignment. The action has been blocked.");
     }
   }
   const parser = loadParser(TrustedTypesBlockedParser);
   const body = "<transcript><text start=\"1.5\" dur=\"2\">Olá &amp; mundo</text><p t=\"4000\" d=\"1000\"><s>Outra</s> cue</p></transcript>";
   const cues = parser.parseXml(body);
+  assert.equal(domParserCalled, false);
   assert.equal(cues.length, 2);
   assert.equal(cues[0].text, "Olá & mundo");
   assert.equal(cues[0].startTime, 1.5);
