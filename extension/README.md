@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.24 é a correção atual para frases contínuas e preservação da legenda visual do YouTube, sobre a base funcional 1.8.22 documentada em `docs/releases/1.8.22.md`; a 1.8.22 permanece disponível para rollback. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.25 é a correção atual para evitar repetição de frases durante mudanças do stream no YouTube, sobre a base funcional 1.8.22 documentada em `docs/releases/1.8.22.md`; a 1.8.24 permanece disponível para rollback. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

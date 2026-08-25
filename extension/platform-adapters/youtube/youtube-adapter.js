@@ -99,10 +99,13 @@ function advertisementShowing(documentRef) {
   });
 }
 
-function videoSourceKey(video) {
-  const source = video?.currentSrc || video?.src || video?.getAttribute?.('src') || '';
-  const duration = Number(video?.duration);
-  return `${String(source)}|${Number.isFinite(duration) ? duration.toFixed(3) : 'unknown'}`;
+function videoSourceKey(video, videoId = '') {
+  // currentSrc pode mudar por adaptação de qualidade/streaming sem trocar o
+  // vídeo. Usá-lo como identidade resetava a deduplicação e repetia frases.
+  const stableVideoId = String(videoId || '').trim();
+  if (stableVideoId) return stableVideoId;
+  const elementId = String(video?.id || '').trim();
+  return elementId || 'youtube-video';
 }
 
 function overlayText(documentRef) {
@@ -422,7 +425,7 @@ export class YoutubeAdapter {
   reconcileVideo(video) {
     const nextVideoId = extractVideoId(this.currentUrl());
     const nextIdentity = normalizePlayerIdentity(video, nextVideoId);
-    const nextSourceKey = videoSourceKey(video);
+    const nextSourceKey = videoSourceKey(video, nextVideoId);
     if (this.video === video && isSamePlayer(this.playerIdentity, nextIdentity) && this.videoSourceKey === nextSourceKey) {
       this.installTrackListeners(video);
       return;

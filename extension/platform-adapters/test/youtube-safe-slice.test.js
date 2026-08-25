@@ -508,6 +508,51 @@ test("adapter limpa estado em troca de vídeo YouTube e aceita apenas a cue nova
   adapter.stop();
 });
 
+test("adapter não repete cue quando a qualidade muda o currentSrc do mesmo vídeo", () => {
+  const locationRef = { href: "https://www.youtube.com/watch?v=same-video" };
+  const video = {
+    id: "video-quality-switch",
+    currentTime: 0.5,
+    currentSrc: "stream-quality-360p",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({ documentRef, locationRef, windowRef, emit: event => events.push(event) });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "same-video",
+    trackKey: "ios-pt-BR-same",
+    cues: [{ text: "Uma única frase.", startTime: 0.2, endTime: 1.2 }],
+  });
+  adapter.scan();
+  video.currentSrc = "stream-quality-720p";
+  adapter.scan();
+  video.currentSrc = "stream-quality-1080p";
+  adapter.scan();
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "Uma única frase.");
+  adapter.stop();
+});
+
 test("adapter bloqueia cue durante anúncio e retoma após o anúncio", () => {
   let adShowing = true;
   const video = {
