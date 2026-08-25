@@ -81,15 +81,18 @@
         return;
       }
       if (data.type === STATUS_EVENT && data.state === 'ERROR') {
+        const source = String(data.source || '').trim() || (data.client ? `youtube-${String(data.client).toLowerCase()}` : 'youtube-overlay');
+        const reason = String(data.reason || 'timedtext-unavailable');
+        const client = String(data.client || '').trim().toLowerCase();
         emit({
           type: 'SIA_ADAPTER_FALLBACK',
           platformId: ADAPTER_ID,
           adapterVersion: ADAPTER_VERSION,
-          source: 'youtube-overlay',
+          source,
           confidence: 'low',
           state: 'UNSAFE_TO_SPEAK',
           safeToSpeak: false,
-          reason: data.reason || 'timedtext-unavailable',
+          reason: client ? `${client}-${reason}` : reason,
         });
       }
     };

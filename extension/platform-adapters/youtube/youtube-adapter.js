@@ -320,7 +320,10 @@ export class YoutubeAdapter {
     if (!video?.addEventListener) return;
     for (const name of ['play', 'pause', 'timeupdate', 'loadedmetadata', 'durationchange', 'emptied', 'ended', 'ratechange']) {
       const listener = () => {
-        if (name === 'pause' || name === 'emptied' || name === 'ended') this.aggregator.reset();
+        if (name === 'pause' || name === 'emptied' || name === 'ended') {
+          this.aggregator.reset();
+          this.lastTemporalKey = '';
+        }
         this.scheduleScan();
       };
       video.addEventListener(name, listener, { passive: true });
@@ -450,7 +453,17 @@ export class YoutubeAdapter {
       playerIdentity: this.playerIdentity,
     });
     if (!normalized.safeToSpeak) return;
-    this.emit({ type: EVENTS.CAPTION_CHANGED, platformId: PLATFORM_ID, adapterVersion: ADAPTER_VERSION, cue: normalized, state: STATES.PRIMARY_READY });
+    const key = temporalCueKey(normalized);
+    if (key === this.lastTemporalKey) return;
+    this.lastTemporalKey = key;
+    this.emit({
+      type: EVENTS.CAPTION_CHANGED,
+      platformId: PLATFORM_ID,
+      adapterVersion: ADAPTER_VERSION,
+      cue: normalized,
+      state: STATES.PRIMARY_READY,
+      reason: 'youtube-temporal-cue-active',
+    });
   }
 
   scan() {
@@ -488,8 +501,18 @@ export class YoutubeAdapter {
     const temporalSource = nativeTemporalCues.length ? SOURCES.TEXT_TRACK : (externalTemporalCues.length ? SOURCES.AGGREGATED : SOURCES.NONE);
     this.activeTemporalCount = temporalCues.length;
     let emitted = [];
-    for (const cue of temporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
-    emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
+    if (nativeTemporalCues.length) {
+      for (const cue of nativeTemporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
+      emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
+    } else if (externalTemporalCues.length) {
+      // O fallback Innertube entrega um transcript completo com cues temporais
+      // já fechadas. Segurá-lo como microcue acrescenta 420 ms e pode fazer uma
+      // cue curta desaparecer antes de alcançar o núcleo compartilhado.
+      this.aggregator.reset();
+      emitted = externalTemporalCues;
+    } else {
+      this.aggregator.reset();
+    }
     for (const cue of emitted) this.emitAggregatedCue(cue, video);
 
     const fallbackCue = temporalCues.length ? null : this.readOverlayFallback();

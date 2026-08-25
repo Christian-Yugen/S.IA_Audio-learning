@@ -128,6 +128,74 @@ test("agregador une microcues progressivas e elimina repetição", () => {
   assert.equal(emitted[0].safeToSpeak, true);
 });
 
+test("bridge usa fallback IOS local quando Web timedtext retorna vazio", async () => {
+  const messages = [];
+  const listeners = new Map();
+  const fetchCalls = [];
+  const windowRef = {
+    ytInitialPlayerResponse: {
+      captions: {
+        playerCaptionsTracklistRenderer: {
+          captionTracks: [
+            { languageCode: "pt-BR", name: { simpleText: "Português (Brasil)" }, baseUrl: "https://www.youtube.com/api/timedtext?lang=pt-BR" },
+          ],
+        },
+      },
+    },
+    ytcfg: {
+      get(key) {
+        if (key === "INNERTUBE_API_KEY") return "test-api-key";
+        if (key === "INNERTUBE_CONTEXT") return { client: { hl: "pt", gl: "BR", visitorData: "visitor" } };
+        return null;
+      },
+    },
+    addEventListener(name, listener) { listeners.set(name, listener); },
+    postMessage(message) { messages.push(message); },
+    setInterval() { return 1; },
+    clearInterval() {},
+  };
+  const context = vm.createContext({
+    console,
+    URL,
+    location: { href: "https://www.youtube.com/watch?v=abc123", origin: "https://www.youtube.com" },
+    window: windowRef,
+    fetch: async (url, options = {}) => {
+      fetchCalls.push({ url: String(url), options });
+      if (String(url).includes("/youtubei/v1/player")) {
+        return {
+          ok: true,
+          async text() {
+            return JSON.stringify({ captions: { playerCaptionsTracklistRenderer: { captionTracks: [
+              { languageCode: "pt-BR", name: { runs: [{ text: "Português (Brasil)" }] }, baseUrl: "https://www.youtube.com/api/timedtext?lang=pt-BR&client=ios" }
+            ] } } });
+          },
+        };
+      }
+      return { ok: true, async text() { return fetchCalls.length === 1 ? "web-empty" : "ios-cues"; } };
+    },
+    setTimeout,
+    clearTimeout,
+  });
+  context.globalThis = context;
+  context.SiaYoutubeCaptionParser = {
+    parse(body) {
+      return body === "ios-cues" ? [{ text: "Olá do IOS", startTime: 1, endTime: 2 }] : [];
+    },
+  };
+  vm.runInContext(bridgeSource, context);
+  await new Promise(resolve => setTimeout(resolve, 20));
+
+  assert.equal(fetchCalls.some(call => call.url.includes("/youtubei/v1/player")), true);
+  assert.equal(fetchCalls.some(call => call.options.method === "POST"), true);
+  assert.equal(messages.some(message => message.type === "SIA_YOUTUBE_TIMED_CUES_STATUS" && message.state === "FALLBACK_FETCHING"), true);
+  assert.equal(messages.some(message => message.type === "SIA_YOUTUBE_TIMED_CUES_STATUS" && message.state === "FALLBACK_READY" && message.client === "IOS"), true);
+  const snapshot = messages.find(message => message.type === "SIA_YOUTUBE_TIMED_CUES");
+  assert.equal(snapshot.source, "youtube-timedtext");
+  assert.equal(snapshot.sourceConfidence, "high");
+  assert.equal(snapshot.languageCode, "pt-BR");
+  assert.equal(snapshot.cues[0].startTime, 1);
+});
+
 test("bridge prioriza pt-BR antes de pt genérico", () => {
   const messages = loadBridgeMessages({
     captions: {
@@ -193,6 +261,55 @@ test("adapter libera cue temporal estável sem pontuação depois do tempo máxi
   adapter.scan();
   const emitted = events.find(event => event.type === "SIA_CAPTION_CHANGED");
   assert.equal(Boolean(emitted), true);
+  assert.equal(emitted.cue.source, SOURCES.AGGREGATED);
+  assert.equal(emitted.cue.sourceConfidence, CONFIDENCE.HIGH);
+  assert.equal(emitted.cue.safeToSpeak, true);
+  adapter.stop();
+});
+
+test("adapter emite imediatamente cue temporal externa já fechada", () => {
+  const video = {
+    id: "video-external-cue",
+    currentTime: 5,
+    currentSrc: "youtube-video-external",
+    duration: 10,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=externalcue" },
+    windowRef,
+    now: () => 1000,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "externalcue",
+    trackKey: "ios-pt-BR",
+    cues: [{ text: "Cue do IOS.", startTime: 4.3, endTime: 5.5 }],
+  });
+  adapter.scan();
+  const emitted = events.find(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(Boolean(emitted), true);
+  assert.equal(emitted.cue.text, "Cue do IOS.");
   assert.equal(emitted.cue.source, SOURCES.AGGREGATED);
   assert.equal(emitted.cue.sourceConfidence, CONFIDENCE.HIGH);
   assert.equal(emitted.cue.safeToSpeak, true);

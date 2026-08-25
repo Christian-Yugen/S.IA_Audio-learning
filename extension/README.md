@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.21 é uma release experimental local do YouTube com o desbloqueio de áudio Piper documentado em `docs/releases/1.8.21.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.22 é uma release experimental local do YouTube com captions temporais via player IOS e áudio Piper documentada em `docs/releases/1.8.22.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 
