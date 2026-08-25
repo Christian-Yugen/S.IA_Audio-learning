@@ -31,17 +31,26 @@
     const player = diagnostic.player
       || detail.player
       || (detail.type === "SIA_PLAYER_FOUND" || playerIdentity ? "found" : state.player);
+    const source = detail.source || cue.source || diagnostic.source || state.source;
+    const confidence = detail.confidence || cue.sourceConfidence || diagnostic.confidence || state.confidence;
+    const nextState = detail.state || diagnostic.state || state.state;
+    const recoveredTemporalSource = detail.type === "SIA_CAPTION_SOURCE_READY"
+      && confidence === "high"
+      && source !== "youtube-overlay"
+      && source !== "dom-caption";
     const next = {
       ...state,
       platformId: detail.platformId || cue.platformId || diagnostic.platformId || state.platformId,
       adapterVersion: detail.adapterVersion || cue.adapterVersion || diagnostic.adapterVersion || state.adapterVersion,
       player,
       playerIdentity: copy(playerIdentity),
-      source: detail.source || cue.source || diagnostic.source || state.source,
-      confidence: detail.confidence || cue.sourceConfidence || diagnostic.confidence || state.confidence,
-      state: detail.state || diagnostic.state || state.state,
+      source,
+      confidence,
+      state: nextState,
       safeToSpeak: detail.safeToSpeak ?? cue.safeToSpeak ?? diagnostic.safeToSpeak ?? state.safeToSpeak,
-      reason: detail.reason || diagnostic.reason || state.reason,
+      reason: recoveredTemporalSource
+        ? (detail.reason || diagnostic.reason || "caption-source-ready")
+        : (detail.reason || diagnostic.reason || state.reason),
       lastEventType: detail.type || state.lastEventType,
       updatedAt: Date.now(),
     };

@@ -339,6 +339,109 @@ test("adapter agrega legenda externa palavra-a-palavra antes de emitir", () => {
   adapter.stop();
 });
 
+test("adapter escolhe uma única cue externa quando a tolerância sobrepõe frases consecutivas", () => {
+  const video = {
+    id: "video-overlapping-window",
+    currentTime: 0,
+    currentSrc: "youtube-overlapping-window",
+    duration: 4,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=overlapwindow" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "overlapwindow",
+    trackKey: "ios-overlap-window",
+    cues: [
+      { text: "Primeira frase.", startTime: 0.2, endTime: 1.2 },
+      { text: "Segunda frase.", startTime: 1.3, endTime: 2.4 },
+    ],
+  });
+  for (const currentTime of [0.4, 1.15, 1.35, 1.5]) {
+    video.currentTime = currentTime;
+    adapter.scan();
+  }
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.deepEqual(emitted.map(event => event.cue.text), ["Primeira frase.", "Segunda frase."]);
+  adapter.stop();
+});
+
+test("adapter não rebaixa transcript temporal carregado por overlay durante intervalo", () => {
+  let overlayVisible = false;
+  const video = {
+    id: "video-temporal-gap",
+    currentTime: 0.4,
+    currentSrc: "youtube-temporal-gap",
+    duration: 4,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) {
+      if (selector === "video") return [video];
+      if (selector === "#caption-window-1" && overlayVisible) return [{ innerText: "Legenda visual" }];
+      return [];
+    },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=temporal-gap" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "temporal-gap",
+    trackKey: "ios-temporal-gap",
+    cues: [{ text: "Primeira frase.", startTime: 0.2, endTime: 1.2 }, { text: "Segunda frase.", startTime: 2, endTime: 3 }],
+  });
+  video.currentTime = 1.5;
+  overlayVisible = true;
+  const diagnostic = adapter.scan();
+  assert.equal(diagnostic.source, SOURCES.NONE);
+  assert.equal(diagnostic.state, STATES.WAITING_FOR_CAPTIONS);
+  assert.equal(diagnostic.reason, "caption-source-unavailable");
+  assert.equal(events.some(event => event.type === "SIA_ADAPTER_FALLBACK"), false);
+  adapter.stop();
+});
+
 test("adapter emite imediatamente cue temporal externa já fechada", () => {
   const video = {
     id: "video-external-cue",

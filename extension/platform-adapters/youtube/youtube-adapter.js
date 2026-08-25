@@ -151,6 +151,17 @@ function cueWordCount(cue) {
   return normalizeText(cue?.text).split(/\s+/u).filter(Boolean).length;
 }
 
+function selectExternalCue(cues, currentTime, tolerance = 0.28) {
+  if (!Array.isArray(cues) || !Number.isFinite(currentTime)) return [];
+  const exact = cues.filter(cue => currentTime >= cue.startTime && currentTime <= cue.endTime);
+  const candidates = exact.length
+    ? exact
+    : cues.filter(cue => currentTime + tolerance >= cue.startTime && currentTime - tolerance <= cue.endTime);
+  if (!candidates.length) return [];
+  candidates.sort((a, b) => b.startTime - a.startTime || b.endTime - a.endTime);
+  return [candidates[0]];
+}
+
 function externalCuesAreFragmented(cues) {
   if (!Array.isArray(cues) || cues.length < 2) return false;
   const sample = cues.slice(0, 160);
@@ -501,7 +512,7 @@ export class YoutubeAdapter {
     if (!this.externalSourceReady || !this.externalCues.length) return [];
     const currentTime = Number(video?.currentTime);
     if (!Number.isFinite(currentTime)) return [];
-    return this.externalCueGroups.filter(cue => currentTime + 0.28 >= cue.startTime && currentTime - 0.28 <= cue.endTime);
+    return selectExternalCue(this.externalCueGroups, currentTime);
   }
 
   readOverlayFallback() {
@@ -613,7 +624,10 @@ export class YoutubeAdapter {
     }
     for (const cue of emitted) this.emitAggregatedCue(cue, video);
 
-    const fallbackCue = temporalCues.length ? null : this.readOverlayFallback();
+    // Se o transcript temporal já foi carregado, o overlay é apenas a camada
+    // visual do player e não deve rebaixar a sessão para “timing inseguro”
+    // durante o intervalo entre duas cues. Ele nunca é usado para fala.
+    const fallbackCue = temporalCues.length || this.externalSourceReady ? null : this.readOverlayFallback();
     const source = temporalCues.length ? temporalSource : (fallbackCue ? SOURCES.OVERLAY : SOURCES.NONE);
     const confidence = temporalCues.length ? CONFIDENCE.HIGH : (fallbackCue ? CONFIDENCE.LOW : CONFIDENCE.UNKNOWN);
     const state = deriveState({
