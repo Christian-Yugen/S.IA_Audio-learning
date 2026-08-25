@@ -18,8 +18,9 @@ import { createYoutubeCaptionAggregator } from "../youtube/youtube-caption-aggre
 const parserSource = fs.readFileSync(new URL("../youtube/youtube-caption-parser.js", import.meta.url), "utf8");
 const bridgeSource = fs.readFileSync(new URL("../youtube/youtube-caption-bridge.js", import.meta.url), "utf8");
 
-function loadParser() {
+function loadParser(domParser) {
   const context = vm.createContext({ console });
+  if (domParser) context.DOMParser = domParser;
   context.globalThis = context;
   vm.runInContext(parserSource, context);
   return context.SiaYoutubeCaptionParser;
@@ -94,6 +95,24 @@ test("parser lê WebVTT e rejeita cue inválida", () => {
   assert.equal(cues[0].text, "Olá mundo.");
   assert.equal(cues[0].startTime, 0);
   assert.equal(cues[0].endTime, 1.5);
+});
+
+test("parser usa fallback XML quando TrustedHTML bloqueia DOMParser", () => {
+  class TrustedTypesBlockedParser {
+    parseFromString() {
+      throw new TypeError("This document requires 'TrustedHTML' assignment. The action has been blocked.");
+    }
+  }
+  const parser = loadParser(TrustedTypesBlockedParser);
+  const body = "<transcript><text start=\"1.5\" dur=\"2\">Olá &amp; mundo</text><p t=\"4000\" d=\"1000\"><s>Outra</s> cue</p></transcript>";
+  const cues = parser.parseXml(body);
+  assert.equal(cues.length, 2);
+  assert.equal(cues[0].text, "Olá & mundo");
+  assert.equal(cues[0].startTime, 1.5);
+  assert.equal(cues[0].endTime, 3.5);
+  assert.equal(cues[1].text, "Outra cue");
+  assert.equal(cues[1].startTime, 4);
+  assert.equal(cues[1].endTime, 5);
 });
 
 test("agregador une microcues progressivas e elimina repetição", () => {

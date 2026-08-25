@@ -44,23 +44,90 @@
     return cues;
   }
 
-  function parseXml(value) {
-    if (typeof DOMParser !== 'function') return [];
-    const xml = new DOMParser().parseFromString(String(value || ''), 'text/xml');
-    const nodes = Array.from(xml.querySelectorAll('text, p'));
-    return nodes.slice(0, MAX_CUES).map((node, index) => {
-      const startRaw = node.getAttribute('start') || node.getAttribute('t');
-      const durationRaw = node.getAttribute('dur') || node.getAttribute('d');
+  function decodeXmlEntities(value) {
+    const entities = {
+      amp: '&',
+      apos: "'",
+      gt: '>',
+      lt: '<',
+      nbsp: ' ',
+      quot: '"',
+    };
+    return String(value || '').replace(/&(#x[\da-f]+|#\d+|[a-z]+);/giu, (full, entity) => {
+      const normalized = String(entity).toLowerCase();
+      if (normalized.startsWith('#x')) {
+        const codePoint = Number.parseInt(normalized.slice(2), 16);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : full;
+      }
+      if (normalized.startsWith('#')) {
+        const codePoint = Number.parseInt(normalized.slice(1), 10);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : full;
+      }
+      return entities[normalized] ?? full;
+    });
+  }
+
+  function xmlAttribute(attributes, name) {
+    const pattern = new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'iu');
+    return String(attributes || '').match(pattern)?.[1] || '';
+  }
+
+  function textFromXmlMarkup(value) {
+    return decodeXmlEntities(
+      String(value || '')
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/giu, '$1')
+        .replace(/<br\s*\/?>/giu, ' ')
+        .replace(/<[^>]*>/gu, ' ')
+    );
+  }
+
+  function parseXmlFallback(value) {
+    const source = String(value || '');
+    const cues = [];
+    const cuePattern = /<(text|p)\b([^>]*)>([\s\S]*?)<\/\1\s*>/giu;
+    for (const match of source.matchAll(cuePattern)) {
+      const attributes = match[2] || '';
+      const startRaw = xmlAttribute(attributes, 'start') || xmlAttribute(attributes, 't');
+      const durationRaw = xmlAttribute(attributes, 'dur') || xmlAttribute(attributes, 'd');
       const start = Number(startRaw);
       const duration = Number(durationRaw);
       const startTime = start > 100 ? start / 1000 : start;
       const durationSeconds = duration > 100 ? duration / 1000 : duration;
-      return normalizeCue({
-        text: node.textContent || '',
+      const cue = normalizeCue({
+        text: textFromXmlMarkup(match[3]),
         startTime,
         endTime: startTime + durationSeconds,
-      }, index);
-    }).filter(Boolean);
+      }, cues.length);
+      if (cue) cues.push(cue);
+      if (cues.length >= MAX_CUES) break;
+    }
+    return cues;
+  }
+
+  function parseXml(value) {
+    try {
+      if (typeof DOMParser === 'function') {
+        const xml = new DOMParser().parseFromString(String(value || ''), 'text/xml');
+        const nodes = Array.from(xml.querySelectorAll('text, p'));
+        const cues = nodes.slice(0, MAX_CUES).map((node, index) => {
+          const startRaw = node.getAttribute('start') || node.getAttribute('t');
+          const durationRaw = node.getAttribute('dur') || node.getAttribute('d');
+          const start = Number(startRaw);
+          const duration = Number(durationRaw);
+          const startTime = start > 100 ? start / 1000 : start;
+          const durationSeconds = duration > 100 ? duration / 1000 : duration;
+          return normalizeCue({
+            text: node.textContent || '',
+            startTime,
+            endTime: startTime + durationSeconds,
+          }, index);
+        }).filter(Boolean);
+        if (cues.length) return cues;
+      }
+    } catch {
+      // YouTube pode bloquear parseFromString com Trusted Types; use o fallback abaixo.
+    }
+    return parseXmlFallback(value);
   }
 
   function parseTimestamp(value) {
