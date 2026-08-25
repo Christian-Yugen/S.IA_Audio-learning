@@ -172,6 +172,7 @@ export class YoutubeAdapter {
     this.lastSourceKey = '';
     this.lastFallbackKey = '';
     this.lastTemporalKey = '';
+    this.lastObservedTime = null;
     this.lastProbe = null;
     this.activeTemporalCount = 0;
     this.externalCues = [];
@@ -222,6 +223,7 @@ export class YoutubeAdapter {
     this.externalCues = [];
     this.externalTrackKey = '';
     this.externalSourceReady = false;
+    this.lastObservedTime = null;
     this.aggregator.reset();
     this.started = false;
     this.destroyed = true;
@@ -372,6 +374,7 @@ export class YoutubeAdapter {
     this.externalTrackKey = '';
     this.externalSourceReady = false;
     this.lastTemporalKey = '';
+    this.lastObservedTime = null;
     this.lastSourceKey = '';
     this.lastFallbackKey = '';
     this.installVideoListeners(video);
@@ -477,6 +480,14 @@ export class YoutubeAdapter {
     this.lastProbe = videoResult.probe;
     this.reconcileVideo(videoResult.video);
     const video = videoResult.video;
+    const currentTime = Number(video?.currentTime);
+    if (video && Number.isFinite(currentTime)) {
+      if (Number.isFinite(this.lastObservedTime) && currentTime + 0.35 < this.lastObservedTime) {
+        this.lastTemporalKey = '';
+        this.aggregator.reset();
+      }
+      this.lastObservedTime = currentTime;
+    }
     if (!video) {
       this.state = STATES.PLATFORM_DETECTED;
       return this.publishDiagnostic({ playerFound: false, source: SOURCES.NONE, confidence: CONFIDENCE.UNKNOWN, reason: 'player-not-found', probe: this.lastProbe });

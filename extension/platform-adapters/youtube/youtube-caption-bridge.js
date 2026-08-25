@@ -266,9 +266,12 @@
   function scan() {
     if (stopped) return;
     const videoId = extractVideoId();
-    if (clientTrack && clientTrackVideoId !== videoId) {
+    if (clientTrackVideoId && clientTrackVideoId !== videoId) {
       clientTrack = null;
       clientTrackPromise = null;
+      clientTrackVideoId = '';
+      fallbackRetryAt = 0;
+      timedtextRetryAt = 0;
     }
     const track = findCaptionTrack();
     if (!track) {

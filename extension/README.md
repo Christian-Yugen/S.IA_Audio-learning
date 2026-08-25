@@ -55,7 +55,7 @@ analytics, anúncios ou API externa de inteligência artificial.
 ![Pop-up da S·IA](assets/store/screenshot-popup-1280x800.png)
 
 > As imagens da Chrome Web Store serão atualizadas para incluir o S·IA Companion
-> e os recursos da versão 1.8.14. Coursera e Udemy são direcionados automaticamente pela URL da aula; as abas mantêm sessões neurais independentes sobre o mesmo host Piper. A ponte Shaka só libera cues com timing real; texto DOM sem timing permanece bloqueado. A voz neural Piper PT-BR é experimental e opcional; o motor nativo do navegador permanece como padrão.
+> e os recursos da versão 1.8.14. Coursera e Udemy são direcionados automaticamente pela URL da aula; as abas mantêm sessões neurais independentes sobre o mesmo host Piper. A ponte Shaka só libera cues com timing real; texto DOM sem timing permanece bloqueado. A voz neural Piper PT-BR é opcional e local; o motor nativo do navegador permanece como padrão.
 
 ## Como funciona
 
@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.22 é uma release experimental local do YouTube com captions temporais via player IOS e áudio Piper documentada em `docs/releases/1.8.22.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.22 é a base funcional local do YouTube para captions temporais via player IOS e áudio Piper, documentada em `docs/releases/1.8.22.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

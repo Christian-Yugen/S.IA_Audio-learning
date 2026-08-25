@@ -316,6 +316,182 @@ test("adapter emite imediatamente cue temporal externa já fechada", () => {
   adapter.stop();
 });
 
+test("adapter percorre cues externas, respeita pausa e relê após seek para trás", () => {
+  const video = {
+    id: "video-continuous",
+    currentTime: 0.5,
+    currentSrc: "youtube-video-continuous",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=continuous" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "continuous",
+    trackKey: "ios-pt-BR",
+    cues: [
+      { text: "Primeira cue.", startTime: 0.2, endTime: 1.2 },
+      { text: "Segunda cue.", startTime: 1.5, endTime: 3 },
+      { text: "Terceira cue.", startTime: 3.3, endTime: 4.5 },
+    ],
+  });
+  adapter.scan();
+  video.currentTime = 1.7;
+  adapter.scan();
+  video.currentTime = 3.5;
+  adapter.scan();
+  let emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.deepEqual(emitted.map(event => event.cue.text), ["Primeira cue.", "Segunda cue.", "Terceira cue."]);
+
+  video.paused = true;
+  video.currentTime = 1.7;
+  adapter.scan();
+  assert.equal(events.filter(event => event.type === "SIA_CAPTION_CHANGED").length, 3);
+
+  video.paused = false;
+  adapter.scan();
+  emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.deepEqual(emitted.map(event => event.cue.text), ["Primeira cue.", "Segunda cue.", "Terceira cue.", "Segunda cue."]);
+
+  video.currentTime = 0.5;
+  adapter.scan();
+  emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.deepEqual(emitted.map(event => event.cue.text), ["Primeira cue.", "Segunda cue.", "Terceira cue.", "Segunda cue.", "Primeira cue."]);
+  adapter.stop();
+});
+
+test("adapter limpa estado em troca de vídeo YouTube e aceita apenas a cue nova", () => {
+  const locationRef = { href: "https://www.youtube.com/watch?v=first-video" };
+  const video = {
+    id: "video-spa",
+    currentTime: 0.5,
+    currentSrc: "youtube-first-video",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({ documentRef, locationRef, windowRef, emit: event => events.push(event) });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "first-video",
+    trackKey: "ios-pt-BR-first",
+    cues: [{ text: "Cue do primeiro vídeo.", startTime: 0.2, endTime: 1.2 }],
+  });
+  adapter.scan();
+
+  locationRef.href = "https://www.youtube.com/watch?v=second-video";
+  video.currentSrc = "youtube-second-video";
+  video.currentTime = 0.5;
+  adapter.scan();
+  adapter.setExternalTimedCues({
+    videoId: "second-video",
+    trackKey: "ios-pt-BR-second",
+    cues: [{ text: "Cue do segundo vídeo.", startTime: 0.2, endTime: 1.2 }],
+  });
+  adapter.scan();
+
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.deepEqual(emitted.map(event => event.cue.text), ["Cue do primeiro vídeo.", "Cue do segundo vídeo."]);
+  assert.equal(emitted[1].cue.playerIdentity.videoId, "second-video");
+  adapter.stop();
+});
+
+test("adapter bloqueia cue durante anúncio e retoma após o anúncio", () => {
+  let adShowing = true;
+  const video = {
+    id: "video-ad",
+    currentTime: 0.5,
+    currentSrc: "youtube-video-ad",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) {
+      if (selector.includes("ad-showing") && adShowing) return {};
+      return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null;
+    },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=ad-video" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "ad-video",
+    trackKey: "ios-pt-BR-ad",
+    cues: [{ text: "Cue após anúncio.", startTime: 0.2, endTime: 1.2 }],
+  });
+  adapter.scan();
+  assert.equal(events.some(event => event.type === "SIA_CAPTION_CHANGED"), false);
+  assert.equal(adapter.getDiagnostic().reason, "youtube-ad-showing");
+
+  adShowing = false;
+  adapter.scan();
+  let emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  adapter.scan();
+  emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  adapter.stop();
+});
+
 test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => {
   const listeners = new Map();
   const track = {
