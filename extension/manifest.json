@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.20",
-  "version_name": "1.8.20 · parser YouTube sem DOMParser",
+  "version": "1.8.21",
+  "version_name": "1.8.21 · áudio Piper YouTube após gesto",
   "description": "Lê e sincroniza legendas de cursos no Coursera, Udemy e YouTube com ativação segura por plataforma.",
   "minimum_chrome_version": "114",
   "permissions": ["activeTab", "storage", "sidePanel", "offscreen", "scripting"],

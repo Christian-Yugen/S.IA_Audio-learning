@@ -361,12 +361,16 @@ No PowerShell:
 ```
 
 O pacote será criado em:
-
 ```text
 dist/sia-extension-<versão>.zip
 ```
 
-O script utiliza uma allowlist e inclui somente os arquivos necessários para a
+Em Linux ou CI, o empacotamento determinístico equivalente pode ser executado com:
+```bash
+python3 scripts/package-extension.py
+```
+
+Os scripts utilizam uma allowlist e incluem somente os arquivos necessários para a
 execução da extensão.
 
 ## Princípios de qualidade
@@ -440,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 é a release de referência atual; o histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.21 é uma release experimental local do YouTube com o desbloqueio de áudio Piper documentado em `docs/releases/1.8.21.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

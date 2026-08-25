@@ -14,6 +14,7 @@ const RUNTIME_PATHS = Object.freeze({
 });
 const READY_TIMEOUT_MS = 30000;
   const GENERATE_TIMEOUT_MS = 20000;
+  const AUDIO_RESUME_TIMEOUT_MS = 1200;
   const MAX_AUDIO_CACHE = 8;
 
   let active = false;
@@ -45,6 +46,8 @@ const READY_TIMEOUT_MS = 30000;
       this.runtimeBlobUrls = [];
       this.workerReady = null;
       this.workerState = "idle";
+      this.audioState = "idle";
+      this.audioError = "";
       this.hostSessionId = `${globalThis.location?.href || "extension-context"}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
       this.audioContext = null;
       this.currentSource = null;
@@ -69,8 +72,12 @@ const READY_TIMEOUT_MS = 30000;
       if (active === next) return;
       active = next;
       if (!active) {
+        this.audioState = "idle";
+        this.audioError = "";
         this.cancel();
       } else {
+        this.audioState = "awaiting-gesture";
+        this.audioError = "";
         // Inicializa o host neural e prepara o AudioContext em paralelo assim
         // que o usuário escolhe o Piper. A primeira cue não precisa esperar
         // essas duas etapas, sem alterar fila, geração ou fallback.
@@ -84,7 +91,9 @@ const READY_TIMEOUT_MS = 30000;
         engine: active ? ENGINE_PIPER : ENGINE_BROWSER,
         state: this.workerState,
         queued: this.queue.length + (this.currentRecord ? 1 : 0),
-        ready: this.workerState === "ready"
+        ready: this.workerState === "ready",
+        audioState: this.audioState,
+        audioError: this.audioError
       };
     }
 
@@ -328,7 +337,22 @@ const READY_TIMEOUT_MS = 30000;
         }
       }
       if (this.audioContext.state === "suspended") {
-        await this.audioContext.resume();
+        let resumeTimer = 0;
+        try {
+          const resumePromise = this.audioContext.resume();
+          await Promise.race([
+            Promise.resolve(resumePromise),
+            new Promise((_, reject) => {
+              resumeTimer = setTimeout(() => {
+                const error = new Error("AudioContext bloqueado; interaja com a página antes de iniciar a leitura");
+                error.name = "NotAllowedError";
+                reject(error);
+              }, AUDIO_RESUME_TIMEOUT_MS);
+            })
+          ]);
+        } finally {
+          if (resumeTimer) clearTimeout(resumeTimer);
+        }
       }
       return this.audioContext;
     }
@@ -337,17 +361,22 @@ const READY_TIMEOUT_MS = 30000;
       try {
         const context = await this.ensureAudioContext(sampleRate);
         if (context.state !== "running") {
-          this.workerState = "audio-blocked";
+          this.audioState = "blocked";
+          this.audioError = "o Chrome ainda não liberou o áudio; clique na página e tente novamente";
           return {
             ok: false,
             state: context.state,
-            message: "o Chrome ainda não liberou o áudio; clique na página e tente novamente"
+            message: this.audioError
           };
         }
+        this.audioState = "running";
+        this.audioError = "";
+        if (this.queue.length && !this.currentRecord) void this.processQueue();
         return { ok: true, state: context.state, sampleRate: context.sampleRate };
       } catch (error) {
-        this.workerState = "audio-error";
-        return { ok: false, message: error?.message || "AudioContext indisponível" };
+        this.audioState = "blocked";
+        this.audioError = error?.message || "AudioContext indisponível";
+        return { ok: false, message: this.audioError };
       }
     }
 
@@ -468,10 +497,29 @@ const READY_TIMEOUT_MS = 30000;
           return;
         }
 
-        const context = await this.ensureAudioContext(audio.sampleRate);
-        if (context.state !== "running") {
-          throw new Error("AudioContext bloqueado; interaja com a página antes de iniciar a leitura");
+        let context;
+        try {
+          context = await this.ensureAudioContext(audio.sampleRate);
+        } catch (error) {
+          const detail = String(error?.message || error || "");
+          if (/audio.?context|not.?allowed|bloqueado|blocked/i.test(`${error?.name || ""} ${detail}`)) {
+            this.audioState = "blocked";
+            this.audioError = detail || "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
+            this.queue.unshift(record);
+            this.currentRecord = null;
+            return;
+          }
+          throw error;
         }
+        if (context.state !== "running") {
+          this.audioState = "blocked";
+          this.audioError = "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
+          this.queue.unshift(record);
+          this.currentRecord = null;
+          return;
+        }
+        this.audioState = "running";
+        this.audioError = "";
         if (!audio.samples?.length) {
           throw new Error("O Piper retornou áudio vazio");
         }
@@ -509,6 +557,16 @@ const READY_TIMEOUT_MS = 30000;
         source.start();
         safeCall(record.utterance.onstart);
       } catch (error) {
+        const detailText = String(error?.message || error || "");
+        if (/audio.?context|not.?allowed|bloqueado|blocked/i.test(`${error?.name || ""} ${detailText}`)) {
+          this.audioState = "blocked";
+          this.audioError = detailText || "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
+          if (token === sequence && active && this.currentRecord === record) {
+            this.queue.unshift(record);
+            this.currentRecord = null;
+          }
+          return;
+        }
         if (token !== sequence || error?.name === "AbortError") return;
         this.currentSource = null;
         this.currentGain = null;
@@ -557,6 +615,8 @@ const READY_TIMEOUT_MS = 30000;
       this.runtimeBlobUrls.forEach(url => URL.revokeObjectURL(url));
       this.runtimeBlobUrls = [];
       this.workerState = "idle";
+      this.audioState = active ? "awaiting-gesture" : "idle";
+      this.audioError = "";
       this.runtimeWarmed = false;
       this.warmupPromise = null;
     }

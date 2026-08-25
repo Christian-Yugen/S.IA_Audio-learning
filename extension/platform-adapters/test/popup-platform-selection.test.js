@@ -44,7 +44,7 @@ function createElement(id, value = "") {
   return element;
 }
 
-function createHarness() {
+function createHarness({ statusResponse = null, requestedPlatform = "off" } = {}) {
   const elements = new Map();
   const ids = [
     "toggle-power", "toggle-compact", "summary-voice", "summary-speed", "summary-audio", "summary-sync",
@@ -64,7 +64,8 @@ function createHarness() {
   elements.get("#input-speed").value = "1.2";
   elements.get("#input-pitch").value = "1";
   elements.get("#input-volume").value = "100";
-  elements.get("#connection-status").querySelector = () => createElement("connection-status-child");
+  const connectionStatusSpan = createElement("connection-status-child");
+  elements.get("#connection-status").querySelector = () => connectionStatusSpan;
   const radios = ["accelerate_voice", "slow_video"].map(value => {
     const radio = createElement(`sync-${value}`, value);
     radio.checked = value === "accelerate_voice";
@@ -120,7 +121,7 @@ function createHarness() {
       async sendMessage(message) {
         runtimeMessages.push(message);
         if (message.target === "sia-platform-selection-get") {
-          return { ok: true, requested: "off", compatible: true, source: "default", hostKey: "youtube.com" };
+          return { ok: true, requested: requestedPlatform, compatible: requestedPlatform === "youtube", source: "test", hostKey: "youtube.com" };
         }
         if (message.target === "sia-platform-selection-apply") {
           return { ok: true, active: true, platformId: "youtube" };
@@ -131,15 +132,65 @@ function createHarness() {
     tabs: {
       async query() { return [tab]; },
       async sendMessage() {
-        return { videoFound: true, syncEngineReady: true, paused: false, ended: false, captionActive: false, speechError: "" };
+        return statusResponse || { videoFound: true, syncEngineReady: true, paused: false, ended: false, captionActive: false, speechError: "" };
       },
       async reload(tabId) { reloads.push(tabId); },
     },
     sidePanel: { async open() {} },
   };
   vm.runInContext(popupSource, context, { filename: "popup.js" });
-  return { elements, intervals, reloads, runtimeMessages, domReady, context };
+  return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan };
 }
+
+test("popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica", async () => {
+  const harness = createHarness({
+    requestedPlatform: "youtube",
+    statusResponse: {
+      videoFound: true,
+      syncEngineReady: true,
+      paused: false,
+      ended: false,
+      captionActive: false,
+      speechError: "",
+      voiceEngine: "piper-local",
+      voiceEngineState: "ready",
+      audioState: "blocked",
+      audioError: "AudioContext bloqueado"
+    }
+  });
+  await harness.domReady();
+  await harness.intervals[0]();
+  const label = harness.connectionStatusSpan.textContent;
+  assert.match(label, /Piper aguardando gesto/);
+  assert.doesNotMatch(label, /Conectada/);
+});
+
+test("popup não mostra conexão genérica quando YouTube não tem legenda temporal", async () => {
+  const harness = createHarness({
+    requestedPlatform: "youtube",
+    statusResponse: {
+      videoFound: true,
+      syncEngineReady: true,
+      paused: false,
+      ended: false,
+      captionActive: false,
+      speechError: "",
+      voiceEngine: "browser",
+      voiceEngineState: "ready",
+      audioState: "running",
+      platformId: "youtube",
+      platformDiagnostic: {
+        state: "PRIMARY_UNAVAILABLE",
+        reason: "caption-source-unavailable"
+      }
+    }
+  });
+  await harness.domReady();
+  await harness.intervals[0]();
+  const label = harness.connectionStatusSpan.textContent;
+  assert.match(label, /legenda temporal indisponível/);
+  assert.doesNotMatch(label, /Conectada/);
+});
 
 test("popup mantém YouTube após updateConnectionStatus e aplica na aba", async () => {
   const harness = createHarness();

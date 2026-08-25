@@ -1308,7 +1308,9 @@
                 responder({
                     ok: true,
                     voiceEngine: piperStatus.engine || "browser",
-                    voiceEngineState: piperStatus.state || "unavailable"
+                    voiceEngineState: piperStatus.state || "unavailable",
+                    audioState: piperStatus.audioState || "unknown",
+                    audioError: piperStatus.audioError || ""
                 });
                 return;
             }
@@ -1483,9 +1485,12 @@
                     speechError: ultimoErroSintese,
                     voiceEngine: globalThis.SiaPiperVoiceStatus?.().engine || "browser",
                     voiceEngineState: globalThis.SiaPiperVoiceStatus?.().state || "unavailable",
+                    audioState: globalThis.SiaPiperVoiceStatus?.().audioState || "unknown",
+                    audioError: globalThis.SiaPiperVoiceStatus?.().audioError || "",
                     syncEngineReady: Boolean(MOTOR_SINCRONIA),
                     platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
-                    platformActive: plataformaAtiva
+                    platformActive: plataformaAtiva,
+                    platformDiagnostic: globalThis.SiaCoreDiagnostic?.get?.() || null
                 });
                 return;
             }

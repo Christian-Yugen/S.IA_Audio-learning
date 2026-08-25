@@ -113,6 +113,12 @@ function createHarness({
     clearInterval: () => {},
     setTimeout: callback => { callback(); return 1; },
     clearTimeout: () => {},
+    SiaPiperVoiceStatus: () => ({
+      engine: piperActive ? 'piper-local' : 'browser',
+      state: piperActive ? 'ready' : 'idle',
+      audioState: piperActive ? 'running' : 'idle',
+      audioError: ''
+    }),
     SiaPiperVoice: {
       isActive: () => piperActive,
       speak(utterance) {
@@ -273,6 +279,20 @@ test('YouTube cue agregada chega ao mesmo núcleo de voz nativa', () => {
   assert.equal(harness.spoken.length, 1);
   assert.equal(harness.piperSpoken.length, 0);
   assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('status do YouTube expõe estado de áudio e diagnóstico do núcleo compartilhado', async () => {
+  const harness = createHarness({
+    hostname: 'www.youtube.com',
+    pathname: '/watch?v=youtube-status-1',
+    piperActive: true,
+  });
+  const status = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
+  assert.equal(status.voiceEngine, 'piper-local');
+  assert.equal(status.voiceEngineState, 'ready');
+  assert.equal(status.audioState, 'running');
+  assert.equal(status.audioError, '');
+  assert.ok(Object.prototype.hasOwnProperty.call(status, 'platformDiagnostic'));
 });
 
 test('YouTube cue agregada usa o Piper compartilhado quando ativo', () => {

@@ -389,10 +389,26 @@
           "voice-unavailable": "Voz selecionada indisponível"
         };
         setStatus(errors[status.speechError] || "Falha temporária na síntese de voz", "paused");
+      } else if (status.voiceEngine === "piper-local" && status.audioState === "blocked") {
+        setStatus("Piper aguardando gesto · clique dentro do vídeo", "paused");
+      } else if (status.voiceEngine === "piper-local" && status.audioState === "awaiting-gesture") {
+        setStatus("Piper preparado · clique dentro do vídeo para liberar o áudio", "checking");
       } else if (status.ended) {
         setStatus("Aula finalizada", "paused");
       } else if (status.paused) {
         setStatus("Vídeo pausado", "paused");
+      } else if (status.platformId === "youtube" && !status.captionActive) {
+        const diagnostic = status.platformDiagnostic || {};
+        const reason = String(diagnostic.reason || "").toLowerCase();
+        if (reason === "youtube-ad-showing") {
+          setStatus("YouTube · aguardando o fim do anúncio", "checking");
+        } else if (diagnostic.state === "UNSAFE_TO_SPEAK" || reason.includes("without-confirmed-timing")) {
+          setStatus("YouTube · legenda sem timing seguro; leitura bloqueada", "paused");
+        } else if (reason.includes("timedtext") || reason.includes("caption-source")) {
+          setStatus(`YouTube · legenda temporal indisponível (${diagnostic.reason})`, "paused");
+        } else {
+          setStatus("YouTube conectado · aguardando legenda temporal", "checking");
+        }
       } else if (status.bufferingSentence && !status.speechActive) {
         setStatus("Preparando frase · aguardando pontuação", "connected");
       } else if (status.captionActive) {
