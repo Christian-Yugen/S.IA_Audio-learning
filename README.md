@@ -1,6 +1,6 @@
 # S·IA — Audio-learning by UXBRAS®
 
-A **S·IA** é uma extensão para Google Chrome criada para transformar legendas de cursos online em uma experiência de aprendizagem por áudio. O projeto começou com o Coursera e está sendo preparado para uma expansão controlada a outras plataformas, começando pela Udemy.
+A **S·IA** é uma extensão para Google Chrome criada para transformar legendas de cursos online em uma experiência de aprendizagem por áudio. O projeto começou com o Coursera e segue uma expansão controlada para a Udemy e, experimentalmente, para o YouTube.
 
 A extensão lê as legendas exibidas pelo player, organiza os fragmentos em sentenças, gera fala pela voz nativa do navegador ou pelo motor neural Piper PT-BR local, aplica sincronização adaptativa e oferece mecanismos de fallback quando a fonte principal de legendas não está disponível.
 
@@ -8,7 +8,7 @@ A extensão lê as legendas exibidas pelo player, organiza os fragmentos em sent
 
 ## Estado atual
 
-A versão funcional de referência é a **1.8.5**, com suporte validado ao caminho atual do Coursera e com o Piper PT-BR experimental executado localmente por WebAssembly. O motor nativo do navegador continua sendo a alternativa padrão; o Piper é opcional e deve ser ativado pelo usuário.
+O baseline funcional protegido é a **1.8.14**, com o caminho do Coursera e o motor neural local já validados. A branch experimental **1.8.17** acrescenta um seletor seguro de plataforma: Coursera e Udemy permanecem automáticos, enquanto o YouTube começa **desligado** e só é carregado após escolha explícita no popup. O motor nativo do navegador continua sendo a alternativa padrão; o Piper é opcional e deve ser ativado pelo usuário.
 
 | Capacidade | Estado |
 |---|---|
@@ -19,7 +19,9 @@ A versão funcional de referência é a **1.8.5**, com suporte validado ao camin
 | Pré-síntese da próxima legenda | Implementada |
 | Fallback automático para voz nativa | Implementado |
 | Diagnóstico de fonte e estado | Em evolução e obrigatório para novas plataformas |
-| Adaptador Udemy | Planejado; ainda não declarado compatível |
+| Adaptador Udemy | Automático, preservado e validado na fixture local |
+| Seletor seguro de plataforma | Implementado; escolha por aba ou domínio |
+| Adaptador YouTube | Experimental, manual e desligado por padrão |
 | Recursos educacionais avançados | Roadmap posterior à expansão multiplataforma |
 
 ## Garantias de preservação
@@ -43,7 +45,9 @@ S.IA_Audio-learning/
 │   ├── dom-fallback.js            # Fallback de leitura de legenda
 │   ├── neural-tts/                # Piper + runtime WebAssembly local
 │   ├── offscreen.html/js          # Host autorizado para o Worker neural
-│   ├── service-worker.js          # Roteamento de mensagens
+│   ├── service-worker.js          # Roteamento, gate e injeção segura
+│   ├── platform-selection*.js     # Seletor e bootstrap opt-in YouTube
+│   ├── platform-adapters/youtube/ # Adaptador YouTube isolado
 │   ├── popup.*                    # Configuração do usuário
 │   ├── sidepanel.*                # S·IA Companion
 │   ├── tests/                     # Testes automatizados
@@ -68,16 +72,16 @@ A extensão não utiliza um processo de servidor para inferência neural. Para t
 
 ```bash
 cd extension
-node --test tests/sync-engine.test.js tests/piper-bridge.test.js
+find tests platform-adapters/test -type f -name '*.test.js' -print0 | sort -z | xargs -0 node --test
 ```
 
 Para carregá-la no Chrome, abra `chrome://extensions`, ative o **Modo do desenvolvedor**, escolha **Carregar sem compactação** e selecione a pasta `extension/`. Depois, abra uma nova aba da plataforma compatível para garantir que o content script seja carregado de novo.
 
-O uso do Piper neural é experimental. A ativação deve ser feita pelo popup da extensão, depois que o modelo e o runtime estiverem presentes no pacote. Quando o Piper falhar, a extensão deverá retornar à voz nativa do navegador.
+O uso do Piper neural é experimental. A ativação deve ser feita pelo popup da extensão, depois que o modelo e o runtime estiverem presentes no pacote. Quando o Piper falhar, a extensão deverá retornar à voz nativa do navegador. No YouTube, a seleção também precisa ser aplicada explicitamente; nenhuma legenda ou áudio é processado pela S·IA nessa plataforma enquanto o modo estiver desligado.
 
 ## Estratégia de expansão
 
-A expansão seguirá a sequência abaixo:
+A expansão segue a sequência abaixo. Na release experimental 1.8.17, as etapas de contrato, diagnóstico, integração com o núcleo único e regressão foram aplicadas ao YouTube apenas por meio do gate manual; isso não declara suporte geral ou estabilidade equivalente ao Coursera.
 
 | Fase | Resultado esperado |
 |---|---|
@@ -88,7 +92,8 @@ A expansão seguirá a sequência abaixo:
 | **5. Integração com o núcleo único** | Encaminhar cues ao mesmo motor usado pelo Coursera. |
 | **6. Regressão e validação física** | Repetir os testes do Coursera e validar aulas reais da Udemy. |
 | **7. Compatibilidade experimental** | Liberar apenas com limitações documentadas e rollback pronto. |
-| **8. Recursos de aprendizagem** | Adicionar notas, flashcards, tutor e revisão após a base multiplataforma estar estável. |
+| **8. Seletor seguro YouTube** | Ativar somente por domínio/aba, aceitar apenas páginas `/watch?v=...` e permitir desligamento reversível. |
+| **9. Recursos de aprendizagem** | Adicionar notas, flashcards, tutor e revisão após a base multiplataforma estar estável. |
 
 Nenhuma plataforma será considerada compatível apenas porque uma aula isolada funcionou. A plataforma deverá possuir adaptador identificado, diagnóstico, fallback, testes automatizados, validação real e regressão do Coursera.
 
@@ -104,7 +109,7 @@ A camada educacional deverá consumir eventos padronizados da extensão, trabalh
 
 ## Privacidade, licenças e distribuição
 
-A extensão foi estruturada para processar localmente as legendas e as preferências do usuário. Entretanto, a distribuição pública do runtime, do modelo neural e de componentes de terceiros exige auditoria documental própria. O dataset declarado no model card não deve ser confundido automaticamente com uma licença de redistribuição comercial dos pesos finais.
+A extensão foi estruturada para processar localmente as legendas e as preferências do usuário. O bridge YouTube recupera captions temporais do endpoint same-origin do próprio vídeo e não envia legendas para um servidor de inferência. Entretanto, a distribuição pública do runtime, do modelo neural e de componentes de terceiros exige auditoria documental própria. O dataset declarado no model card não deve ser confundido automaticamente com uma licença de redistribuição comercial dos pesos finais.
 
 O estado das licenças e pendências está registrado em [Licenças e distribuição](docs/legal/THIRD-PARTY-DISTRIBUTION.md). Até a conclusão dessa auditoria, o suporte neural deve ser tratado como **experimental/técnico**, não como uma promessa de uso comercial irrestrito.
 
@@ -114,11 +119,12 @@ O estado das licenças e pendências está registrado em [Licenças e distribui�
 |---|---|
 | [Documento Mestre](docs/governance/MASTER-SIA-EXPANSION.md) | Norma obrigatória de preservação e expansão. |
 | [Arquitetura do sistema](docs/architecture/SYSTEM-ARCHITECTURE.md) | Separação entre adaptadores, núcleo de áudio e camada educacional. |
-| [Estratégia de expansão](docs/roadmap/MULTIPLATFORM-EXPANSION-STRATEGY.md) | Roadmap Coursera → Udemy → futuras plataformas. |
+| [Estratégia de expansão](docs/roadmap/MULTIPLATFORM-EXPANSION-STRATEGY.md) | Roadmap Coursera → Udemy → YouTube experimental → futuras plataformas. |
 | [Roadmap de melhorias](docs/roadmap/LEARNING-IMPROVEMENTS-ROADMAP.md) | Evolução para aprendizagem ativa. |
 | [Plano oficial de execução](docs/roadmap/PLAN-EXECUTION-UDEMY-AND-LEARNING.md) | Fases, gates e aprovação da próxima etapa. |
 | [Política de mudanças](docs/governance/CHANGE-CONTROL.md) | Processo normal, exceções e aprovação. |
-| [Status da versão 1.8.5](docs/releases/1.8.5.md) | Escopo, testes e limitações da release. |
+| [Status da versão 1.8.17](docs/releases/1.8.17.md) | Escopo, seletor, testes, limitações e rollback da release experimental. |
+| [Relatório do seletor seguro](docs/reports/PLATFORM-SELECTION-1.8.17.md) | Evidências automatizadas e físicas da política opt-in. |
 | [Licenças de terceiros](docs/legal/THIRD-PARTY-DISTRIBUTION.md) | Situação do runtime, modelo e distribuição. |
 | [Guia de contribuição](CONTRIBUTING.md) | Como propor e validar alterações. |
 

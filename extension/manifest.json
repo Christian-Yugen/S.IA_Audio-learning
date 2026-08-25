@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.14",
-  "version_name": "1.8.14 · latência neural reduzida",
-  "description": "Lê, sincroniza e permite revisar as legendas de aulas do Coursera.",
+  "version": "1.8.17",
+  "version_name": "1.8.17 · seletor seguro de plataforma",
+  "description": "Lê e sincroniza legendas de cursos no Coursera, Udemy e YouTube com ativação segura por plataforma.",
   "minimum_chrome_version": "114",
-  "permissions": ["activeTab", "storage", "sidePanel", "offscreen"],
+  "permissions": ["activeTab", "storage", "sidePanel", "offscreen", "scripting"],
+  "host_permissions": ["https://*.youtube.com/*", "https://youtube.com/*"],
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -43,6 +44,11 @@
       "js": ["sync-engine.js", "dom-fallback.js", "neural-tts/piper-bridge.js", "content.js"]
     },
     {
+      "matches": ["https://www.youtube.com/watch*", "https://m.youtube.com/watch*", "https://youtube.com/watch*"],
+      "js": ["platform-selection-bootstrap.js"],
+      "run_at": "document_start"
+    },
+    {
       "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
       "js": ["platform-adapters/udemy/shaka-caption-bridge.js"],
       "world": "MAIN",
@@ -69,7 +75,7 @@
         "neural-tts/piper-worker.js",
         "neural-tts/runtime/*"
       ],
-      "matches": ["https://*.coursera.org/*", "https://www.udemy.com/*"]
+      "matches": ["https://*.coursera.org/*", "https://www.udemy.com/*", "https://*.youtube.com/*", "https://youtube.com/*"]
     },
     {
       "resources": [
@@ -77,6 +83,17 @@
         "platform-adapters/udemy/udemy-adapter-contract.js"
       ],
       "matches": ["https://www.udemy.com/*"]
+    },
+    {
+      "resources": [
+        "platform-adapters/youtube/youtube-adapter.js",
+        "platform-adapters/youtube/youtube-adapter-contract.js",
+        "platform-adapters/youtube/youtube-caption-aggregator.js",
+        "platform-adapters/youtube/youtube-caption-parser.js",
+        "platform-adapters/youtube/youtube-caption-bridge.js",
+        "platform-adapters/youtube/youtube-host.js"
+      ],
+      "matches": ["https://*.youtube.com/*", "https://youtube.com/*"]
     }
   ]
 }

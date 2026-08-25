@@ -39,7 +39,11 @@
       reset: document.getElementById("reset-settings"),
       status: document.getElementById("connection-status"),
       saveFeedback: document.getElementById("save-feedback"),
-      version: document.getElementById("version-label")
+      version: document.getElementById("version-label"),
+      platform: document.getElementById("select-platform"),
+      platformScope: document.getElementById("platform-scope"),
+      applyPlatform: document.getElementById("apply-platform"),
+      platformDiagnostic: document.getElementById("platform-diagnostic")
     };
 
     const manifest = chrome.runtime.getManifest?.() || {};
@@ -49,13 +53,23 @@
 
     const saved = await chrome.storage.local.get([
       ...Object.keys(DEFAULTS),
-      "sia_course_profiles"
+      "sia_course_profiles",
+      "sia_platform_selections"
     ]);
     const tabAtivo = await activeTab();
     const courseId = tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
     const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
     const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
     let feedbackTimer = 0;
+    let platformContext = {
+      tab: tabAtivo,
+      url: tabAtivo?.url || "",
+      hostKey: "",
+      detected: "",
+      requested: "off",
+      source: "default",
+      compatible: false
+    };
 
     function setStatus(text, state = "unavailable") {
       ui.status.className = `connection-status ${state}`;
@@ -70,6 +84,105 @@
       ui.container.classList.toggle("is-disabled", !enabled);
       ui.testVoice.disabled = !enabled;
       ui.replayLast.disabled = !enabled;
+    }
+
+    async function readPlatformContext() {
+      const tab = await activeTab();
+      const url = String(tab?.url || "");
+      const selectionApi = globalThis.SiaPlatformSelection;
+      if (!selectionApi || !tab?.id || !url) {
+        return { ...platformContext, tab, url };
+      }
+      try {
+        const remote = await chrome.runtime.sendMessage({
+          target: "sia-platform-selection-get",
+          tabId: tab.id,
+          url
+        });
+        if (remote?.ok) {
+          const description = selectionApi.describeSelection(url, remote.requested);
+          return { ...remote, tab, url, detected: description.detected, ...description };
+        }
+      } catch {
+        // O popup continua funcional mesmo enquanto o service worker é acordado.
+      }
+      const hostKey = selectionApi.hostKeyFromUrl(url);
+      const fallbackMode = saved.sia_platform_selections?.[hostKey]
+        || selectionApi.defaultModeForUrl(url);
+      const description = selectionApi.describeSelection(url, fallbackMode);
+      return { tab, url, hostKey, source: "default", ...description };
+    }
+
+    function renderPlatform() {
+      if (!ui.platform || !globalThis.SiaPlatformSelection) return;
+      const detected = platformContext.detected;
+      [...ui.platform.options].forEach(option => {
+        const value = option.value;
+        const allowed = value === "auto"
+          ? Boolean(detected)
+          : value === detected
+            || (detected === "youtube" && value === "off")
+            || (!detected && value === "off");
+        option.disabled = !allowed;
+      });
+      const requested = globalThis.SiaPlatformSelection.normalizePlatform(platformContext.requested);
+      ui.platform.value = [...ui.platform.options].some(option => option.value === requested && !option.disabled)
+        ? requested
+        : (detected === "youtube" ? "off" : detected || "off");
+      ui.platformScope.disabled = detected !== "youtube";
+      ui.platformScope.checked = platformContext.source === "domain" && detected === "youtube";
+      ui.applyPlatform.disabled = !detected || (ui.platform.value !== "off" && !globalThis.SiaPlatformSelection.isCompatible(platformContext.url, ui.platform.value));
+      const selected = ui.platform.value;
+      if (!detected) {
+        ui.platformDiagnostic.textContent = "Esta página ainda não possui adaptador S·IA.";
+        ui.platformDiagnostic.className = "platform-diagnostic is-warning";
+      } else if (detected === "youtube" && selected === "off") {
+        ui.platformDiagnostic.textContent = "YouTube detectado. Selecione YouTube e aplique para ativar o adaptador nesta aba.";
+        ui.platformDiagnostic.className = "platform-diagnostic is-warning";
+      } else if (detected === "youtube") {
+        const scope = platformContext.source === "domain" ? "fixado neste site" : "válido nesta aba";
+        ui.platformDiagnostic.textContent = `YouTube selecionado · ${scope}. O núcleo de áudio continuará compartilhado.`;
+        ui.platformDiagnostic.className = "platform-diagnostic is-ready";
+      } else {
+        ui.platformDiagnostic.textContent = `${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} permanece no modo legado automático protegido.`;
+        ui.platformDiagnostic.className = "platform-diagnostic";
+      }
+    }
+
+    async function applyPlatformSelection() {
+      const tab = await activeTab();
+      const selected = ui.platform?.value || "off";
+      const detected = platformContext.detected;
+      if (!tab?.id || !detected) {
+        showSavedFeedback("Nenhum adaptador disponível nesta página");
+        return;
+      }
+      if (detected !== "youtube") {
+        if (selected === detected || selected === "auto") {
+          showSavedFeedback(`${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} permanece protegido`);
+        } else {
+          showSavedFeedback("Escolha incompatível; nada foi alterado");
+        }
+        renderPlatform();
+        return;
+      }
+      const result = await chrome.runtime.sendMessage({
+        target: "sia-platform-selection-apply",
+        tabId: tab.id,
+        url: tab.url,
+        mode: selected,
+        scope: ui.platformScope.checked ? "domain" : "tab"
+      }).catch(error => ({ ok: false, message: error?.message || String(error) }));
+      if (!result?.ok) {
+        ui.platformDiagnostic.textContent = result?.diagnostic?.message || result?.message || "Não foi possível aplicar a plataforma.";
+        ui.platformDiagnostic.className = "platform-diagnostic is-warning";
+        return;
+      }
+      showSavedFeedback(selected === "off" ? "YouTube desativado nesta aba" : "YouTube ativado nesta aba");
+      if (selected === "off" || result.active) {
+        await chrome.tabs.reload(tab.id);
+        window.close();
+      }
     }
 
     function updateRangeFill(input) {
@@ -120,6 +233,7 @@
       renderPower();
       renderCompactMode();
       renderSummary();
+      renderPlatform();
     }
 
     function matchingVoices() {
@@ -229,10 +343,17 @@
 
     async function updateConnectionStatus() {
       const tab = await activeTab();
+      platformContext = await readPlatformContext();
+      renderPlatform();
       const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
       const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
-      if (!isCourseraLecture && !isUdemyLecture) {
-        setStatus("Abra uma aula do Coursera ou da Udemy", "unavailable");
+      const isYoutubeWatch = Boolean(tab?.url?.match(/^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?[^#]*\bv=[^&#]+/i));
+      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch) {
+        setStatus("Abra uma página compatível do Coursera, Udemy ou YouTube", "unavailable");
+        return;
+      }
+      if (isYoutubeWatch && platformContext.requested === "off") {
+        setStatus("YouTube detectado · ative o adaptador no card Plataforma", "unavailable");
         return;
       }
 
@@ -371,6 +492,7 @@
     async function resetSettings() {
       Object.assign(settings, DEFAULTS);
       await chrome.storage.local.set(DEFAULTS);
+      await chrome.storage.local.remove("sia_platform_selections");
       if (courseId) {
         const result = await chrome.storage.local.get("sia_course_profiles");
         const profiles = result.sia_course_profiles || {};
@@ -381,11 +503,22 @@
         sendToContent({ type: "SIA_CONFIG_UPDATE", key, value })
       ));
       speechSynthesis.cancel();
+      platformContext = await readPlatformContext();
       render();
       loadVoices();
       showSavedFeedback("Padrões restaurados");
       void updateConnectionStatus();
     }
+
+    ui.platform?.addEventListener("change", () => {
+      platformContext = {
+        ...platformContext,
+        requested: ui.platform.value || "off",
+        source: "tab"
+      };
+      renderPlatform();
+    });
+    ui.applyPlatform?.addEventListener("click", () => void applyPlatformSelection());
 
     ui.power.addEventListener("click", () => {
       settings.sia_enabled = !settings.sia_enabled;
@@ -479,6 +612,7 @@
     });
     ui.reset.addEventListener("click", () => void resetSettings());
 
+    platformContext = await readPlatformContext();
     render();
     loadVoices();
     void updateConnectionStatus();

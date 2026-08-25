@@ -20,7 +20,9 @@
         maximoHistoricoFrases: 60
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
-    const PLATAFORMA_EXTERNA = location.hostname === "www.udemy.com";
+    const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
+    const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
+    let plataformaAtiva = true;
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -140,7 +142,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption"].includes(contexto.gate)) return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption", "YT-temporal-caption-aggregated"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -1012,8 +1014,9 @@
         if (
             !PLATAFORMA_EXTERNA
             || !cue
-            || cue.platformId !== "udemy"
-            || !["texttrack", "shaka-caption"].includes(cue.source)
+            || !plataformaAtiva
+            || cue.platformId !== PLATAFORMA_EXTERNA_ID
+            || !["texttrack", "shaka-caption", "youtube-track", "youtube-aggregated"].includes(cue.source)
             || cue.sourceConfidence !== "high"
             || cue.safeToSpeak !== true
             || !Number.isFinite(Number(cue.startTime))
@@ -1068,7 +1071,7 @@
     }
 
     function conectarEntradaDeCaption() {
-        if (!PLATAFORMA_EXTERNA) return;
+        if (!PLATAFORMA_EXTERNA || !plataformaAtiva) return;
         const input = globalThis.SiaCaptionInput;
         if (!input?.subscribe) return;
 
@@ -1275,6 +1278,30 @@
         });
 
         chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
+            if (mensagem?.type === "SIA_PLATFORM_DEACTIVATE") {
+                plataformaAtiva = false;
+                removerEntradaDeCaption();
+                interromperFala();
+                globalThis.SiaPiperVoice?.cancel?.();
+                responder({
+                    ok: true,
+                    platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
+                    platformActive: false
+                });
+                return;
+            }
+            if (mensagem?.type === "SIA_PLATFORM_ACTIVATE") {
+                const requested = String(mensagem.platformId || "").toLowerCase();
+                const current = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
+                if (requested !== current) {
+                    responder({ ok: false, reason: "platform-mismatch", platformId: current, platformActive: plataformaAtiva });
+                    return;
+                }
+                plataformaAtiva = true;
+                conectarEntradaDeCaption();
+                responder({ ok: true, platformId: current, platformActive: true });
+                return;
+            }
             if (mensagem?.type === "SIA_CONFIG_UPDATE") {
                 aplicarConfiguracao(mensagem.key, mensagem.value);
                 const piperStatus = globalThis.SiaPiperVoiceStatus?.() || {};
@@ -1456,7 +1483,9 @@
                     speechError: ultimoErroSintese,
                     voiceEngine: globalThis.SiaPiperVoiceStatus?.().engine || "browser",
                     voiceEngineState: globalThis.SiaPiperVoiceStatus?.().state || "unavailable",
-                    syncEngineReady: Boolean(MOTOR_SINCRONIA)
+                    syncEngineReady: Boolean(MOTOR_SINCRONIA),
+                    platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
+                    platformActive: plataformaAtiva
                 });
                 return;
             }

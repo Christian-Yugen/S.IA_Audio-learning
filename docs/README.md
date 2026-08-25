@@ -29,11 +29,13 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 
 | Documento | Uso |
 |---|---|
-| [S·IA 1.8.5](releases/1.8.5.md) | Escopo, testes, limitações e rollback. |
+| [S·IA 1.8.5](releases/1.8.5.md) | Escopo, testes, limitações e rollback do baseline neural. |
+| [S·IA 1.8.17](releases/1.8.17.md) | Seletor seguro, YouTube opt-in, testes, limitações e rollback. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |
 | [Relatório da Fase 2 Udemy](reports/PHASE2-UDEMY-RUNTIME-REPORT.md) | Runtime real, fontes de cue, diagnóstico e regressão. |
+| [Relatório do seletor 1.8.17](reports/PLATFORM-SELECTION-1.8.17.md) | Evidências do gate YouTube, isolamento, off e não-regressão. |
 | [Log de runtime Fase 2](reports/PHASE2-RUNTIME-OBSERVATION-LOG.md) | Métricas sanitizadas das capturas e do probe. |
 | [Plano de publicação no GitHub](operations/GITHUB-PUBLICATION-PLAN.md) | Staging, revisão e publicação remota. |
 | [Histórico técnico](history/README.md) | Análises e diagnósticos anteriores. |
