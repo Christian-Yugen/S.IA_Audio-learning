@@ -255,6 +255,46 @@ test('H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponí
   assert.equal(harness.spoken[0].lang, 'pt-BR');
 });
 
+test('YouTube cue agregada chega ao mesmo núcleo de voz nativa', () => {
+  const harness = createHarness({
+    hostname: 'www.youtube.com',
+    pathname: '/watch?v=youtube-cue-1',
+    piperActive: false,
+  });
+  harness.input.registerPlatform('youtube');
+  harness.input.setActivePlayer({ videoId: 'youtube-cue-1', containerId: 'movie_player' });
+  const result = harness.input.push(cue({
+    platformId: 'youtube',
+    adapterVersion: 'youtube-v0-experimental',
+    source: 'youtube-aggregated',
+    playerIdentity: { videoId: 'youtube-cue-1', containerId: 'movie_player' },
+  }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('YouTube cue agregada usa o Piper compartilhado quando ativo', () => {
+  const harness = createHarness({
+    hostname: 'www.youtube.com',
+    pathname: '/watch?v=youtube-cue-2',
+    piperActive: true,
+  });
+  harness.input.registerPlatform('youtube');
+  harness.input.setActivePlayer({ videoId: 'youtube-cue-2', containerId: 'movie_player' });
+  const result = harness.input.push(cue({
+    platformId: 'youtube',
+    adapterVersion: 'youtube-v0-experimental',
+    source: 'youtube-aggregated',
+    playerIdentity: { videoId: 'youtube-cue-2', containerId: 'movie_player' },
+  }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 0);
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].lang, 'pt-BR');
+});
+
 test('Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache', async () => {
   const cues = [
     { startTime: 10, endTime: 11, text: 'Primeira frase.' },

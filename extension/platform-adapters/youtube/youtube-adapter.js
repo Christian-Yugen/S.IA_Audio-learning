@@ -489,9 +489,7 @@ export class YoutubeAdapter {
     this.activeTemporalCount = temporalCues.length;
     let emitted = [];
     for (const cue of temporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
-    if (!temporalCues.length && !video.paused && !video.ended) {
-      emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
-    }
+    emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
     for (const cue of emitted) this.emitAggregatedCue(cue, video);
 
     const fallbackCue = temporalCues.length ? null : this.readOverlayFallback();

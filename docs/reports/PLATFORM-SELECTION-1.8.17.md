@@ -48,7 +48,7 @@ Texto capturado somente de overlay visual, DOM sem timing ou transcrição não 
 
 ## Validação automatizada
 
-A suíte completa foi executada a partir de `extension/` com 81 testes aprovados e nenhuma falha. O teste comportamental do popup cobre a escolha `youtube`, a atualização periódica de status, a aplicação por aba e a fixação por domínio. Os testes específicos do novo caminho cobrem:
+A suíte completa foi executada a partir de `extension/` com 84 testes aprovados e nenhuma falha. O teste comportamental do popup cobre a escolha `youtube`, a atualização periódica de status, a aplicação por aba e a fixação por domínio. As novas regressões também cobrem o flush temporal e a entrega de cues YouTube para Browser/Piper. Os testes específicos do novo caminho cobrem:
 
 | Grupo | Cobertura |
 |---|---|
@@ -67,6 +67,14 @@ Também foram executados `node --check` nos arquivos alterados, parse do manifes
 O popup fazia uma nova leitura assíncrona da seleção a cada segundo. Durante uma escolha ainda não aplicada, essa leitura podia re-renderizar o `<select>` com o valor persistido anterior (`off`) antes do clique do usuário. O mesmo padrão podia desfazer o checkbox de fixação por domínio.
 
 A correção mantém um estado local de seleção em edição (`platformSelectionDirty`) até a resposta de aplicação. Enquanto esse estado está ativo, as atualizações de diagnóstico continuam possíveis, mas não sobrescrevem a escolha visível. O checkbox agora atualiza explicitamente o escopo (`tab` ou `domain`) e também fica protegido contra o re-render concorrente. Depois de uma aplicação bem-sucedida, a seleção é confirmada, a aba é recarregada e o popup recupera o valor persistido pelo service worker.
+
+## Diagnóstico e correção do silêncio
+
+A reprodução isolada mostrou que o player era encontrado e as captions temporais estavam ativas, mas uma frase YouTube sem pontuação permanecia retida no agregador enquanto a mesma cue continuava ativa. O adapter só chamava `flushDue()` quando não havia cue temporal; por isso, o agregador não liberava a frase para `SiaCaptionInput`, e `content.js` nunca chamava `falar()`.
+
+A correção chama o `flushDue()` uma vez por `scan()`, inclusive quando existe uma cue temporal ativa. O agregador continua sendo a única camada responsável por estabilidade, retenção, deduplicação e emissão; não foi criada fila ou voz específica do YouTube.
+
+No teste físico da fixture com o ZIP corrigido, após ativar YouTube e iniciar o vídeo, o status observou `captionActive: true`, `voiceEngine: piper-local`, `voiceEngineState: ready`, `speechActive: true` e ausência de `speechError`. O caminho Browser também recebeu a cue, mas o Chromium isolado reportou `speechError: not-allowed`, limitação de gesto/autoplay do ambiente de teste, não falha do adapter.
 
 ## Validação física em Chromium isolado
 

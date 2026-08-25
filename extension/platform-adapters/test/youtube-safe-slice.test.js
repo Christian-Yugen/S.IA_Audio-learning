@@ -122,6 +122,61 @@ test("bridge prioriza pt-BR antes de pt genérico", () => {
   assert.equal(fetching.languageCode, "pt-BR");
 });
 
+test("adapter libera cue temporal estável sem pontuação depois do tempo máximo", () => {
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: [{ text: "Esta frase ainda está sendo formada", startTime: 1, endTime: 4 }],
+    activeCues: [{ text: "Esta frase ainda está sendo formada", startTime: 1, endTime: 4 }],
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const video = {
+    id: "video-stable-cue",
+    currentTime: 1.5,
+    currentSrc: "youtube-video-stable-cue",
+    duration: 10,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  let now = 1000;
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=stablecue" },
+    windowRef,
+    now: () => now,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  assert.equal(events.some(event => event.type === "SIA_CAPTION_CHANGED"), false);
+  now = 3000;
+  adapter.scan();
+  const emitted = events.find(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(Boolean(emitted), true);
+  assert.equal(emitted.cue.source, SOURCES.AGGREGATED);
+  assert.equal(emitted.cue.sourceConfidence, CONFIDENCE.HIGH);
+  assert.equal(emitted.cue.safeToSpeak, true);
+  adapter.stop();
+});
+
 test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => {
   const listeners = new Map();
   const track = {
