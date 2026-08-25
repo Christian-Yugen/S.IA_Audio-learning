@@ -29,11 +29,22 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 
 | Documento | Uso |
 |---|---|
-| [S·IA 1.8.5](releases/1.8.5.md) | Escopo, testes, limitações e rollback. |
+| [S·IA 1.8.5](releases/1.8.5.md) | Escopo, testes, limitações e rollback do baseline neural. |
+| [S·IA 1.8.17](releases/1.8.17.md) | Seletor seguro, YouTube opt-in, testes, limitações e rollback. |
+| [S·IA 1.8.18](releases/1.8.18.md) | Atualização limpa, flush temporal YouTube e diagnóstico de contexto invalidado. |
+| [S·IA 1.8.19](releases/1.8.19.md) | Compatibilidade TrustedHTML, fallback XML temporal e validação YouTube/Piper. |
+| [S·IA 1.8.20](releases/1.8.20.md) | Remove DOMParser do caminho YouTube e elimina a violação TrustedHTML. |
+| [S·IA 1.8.21](releases/1.8.21.md) | Recupera o áudio Piper após gesto real e explicita o diagnóstico YouTube. |
+| [S·IA 1.8.22](releases/1.8.22.md) | Obtém captions temporais pelo player IOS local e emite cues completas imediatamente. |
+| [S·IA 1.8.23](releases/1.8.23.md) | Agrupa captions palavra-a-palavra em frases contínuas sem reiniciar o Piper. |
+| [S·IA 1.8.24](releases/1.8.24.md) | Preserva a legenda visual do YouTube e mantém a agregação de frases. |
+| [S·IA 1.8.25](releases/1.8.25.md) | Evita repetir frases quando o YouTube muda a qualidade do stream. |
+| [S·IA 1.8.26](releases/1.8.26.md) | Seleciona uma cue por instante e não mantém bloqueio inseguro entre cues temporais. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |
 | [Relatório da Fase 2 Udemy](reports/PHASE2-UDEMY-RUNTIME-REPORT.md) | Runtime real, fontes de cue, diagnóstico e regressão. |
+| [Relatório do seletor 1.8.17](reports/PLATFORM-SELECTION-1.8.17.md) | Evidências do gate YouTube, isolamento, off e não-regressão. |
 | [Log de runtime Fase 2](reports/PHASE2-RUNTIME-OBSERVATION-LOG.md) | Métricas sanitizadas das capturas e do probe. |
 | [Plano de publicação no GitHub](operations/GITHUB-PUBLICATION-PLAN.md) | Staging, revisão e publicação remota. |
 | [Histórico técnico](history/README.md) | Análises e diagnósticos anteriores. |

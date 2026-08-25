@@ -9,7 +9,7 @@ const bridgeSource = fs.readFileSync(
   "utf8"
 );
 
-function createHarness({ engine = "browser", failGeneration = false } = {}) {
+function createHarness({ engine = "browser", failGeneration = false, audioBlocked = false, audioResumePending = false } = {}) {
   const storageChanges = [];
   const messages = [];
   const played = [];
@@ -98,13 +98,23 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
     }
   }
 
+  let audioUnlocked = !audioBlocked;
+
   class FakeAudioContext {
     constructor() {
-      this.state = "running";
+      this.state = audioUnlocked ? "running" : "suspended";
       this.destination = {};
     }
 
-    async resume() {}
+    async resume() {
+      if (!audioUnlocked) {
+        if (audioResumePending) return new Promise(() => {});
+        const error = new Error("The user didn't interact with the document first");
+        error.name = "NotAllowedError";
+        throw error;
+      }
+      this.state = "running";
+    }
 
     createBuffer(_channels, length, sampleRate) {
       const channel = new Float32Array(length);
@@ -157,6 +167,10 @@ function createHarness({ engine = "browser", failGeneration = false } = {}) {
     },
     get generationCount() {
       return generationCount;
+    },
+    unlockAudio() {
+      audioUnlocked = true;
+      if (context.SiaPiperVoice?.audioContext) context.SiaPiperVoice.audioContext.state = "running";
     }
   };
 }
@@ -192,6 +206,63 @@ test("ativa o Piper somente quando selecionado e reproduz o resultado do Worker"
   assert.equal(harness.status().state, "ready");
   assert.equal(harness.played.length, 1);
   assert.equal(harness.workerCount, 1);
+});
+
+test("preserva a cue quando o AudioContext está bloqueado e retoma após gesto", async () => {
+  const harness = createHarness({ audioBlocked: true });
+  const events = [];
+  harness.provider.setActive("piper-local");
+  harness.provider.speak({
+    text: "Frase aguardando gesto.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => events.push("start"),
+    onend: () => events.push("end"),
+    onerror: () => events.push("error")
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(harness.provider.isActive(), true);
+  assert.equal(events.length, 0);
+  assert.equal(harness.played.length, 0);
+  assert.equal(harness.status().audioState, "blocked");
+  assert.equal(harness.status().queued, 1);
+
+  harness.unlockAudio();
+  const primed = await harness.provider.primeAudio();
+  assert.equal(primed.ok, true);
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.deepEqual(events, ["start", "end"]);
+  assert.equal(harness.played.length, 1);
+});
+
+test("converte resume pendente em bloqueio recuperável sem perder a cue", async () => {
+  const harness = createHarness({ audioBlocked: true, audioResumePending: true });
+  const events = [];
+  harness.provider.setActive("piper-local");
+  harness.provider.speak({
+    text: "Frase com gesto posterior.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => events.push("start"),
+    onend: () => events.push("end"),
+    onerror: () => events.push("error")
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 1400));
+  assert.equal(harness.provider.isActive(), true);
+  assert.deepEqual(events, []);
+  assert.equal(harness.status().audioState, "blocked");
+  assert.equal(harness.status().queued, 1);
+
+  harness.unlockAudio();
+  const primed = await harness.provider.primeAudio();
+  assert.equal(primed.ok, true);
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.deepEqual(events, ["start", "end"]);
+  assert.equal(harness.played.length, 1);
 });
 
 test("reutiliza a frase pré-sintetizada sem gerar áudio duas vezes", async () => {

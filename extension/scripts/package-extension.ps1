@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param(
     [string]$OutputDirectory = "dist"
 )
@@ -23,16 +24,24 @@ $files = @(
     "sidepanel.css",
     "sidepanel.js",
     "service-worker.js",
-        "offscreen.html",
-        "offscreen.js",
-        "platform-adapters/caption-input.js",
-        "platform-adapters/platform-router.js",
-        "platform-adapters/core-event-bridge.js",
-        "platform-adapters/core-diagnostic-state.js",
-        "platform-adapters/udemy/shaka-caption-bridge.js",
-        "platform-adapters/udemy/udemy-host.js",
-        "platform-adapters/udemy/udemy-adapter.js",
-        "platform-adapters/udemy/udemy-adapter-contract.js"
+    "platform-selection.js",
+    "platform-selection-bootstrap.js",
+    "offscreen.html",
+    "offscreen.js",
+    "platform-adapters/caption-input.js",
+    "platform-adapters/platform-router.js",
+    "platform-adapters/core-event-bridge.js",
+    "platform-adapters/core-diagnostic-state.js",
+    "platform-adapters/udemy/shaka-caption-bridge.js",
+    "platform-adapters/udemy/udemy-host.js",
+    "platform-adapters/udemy/udemy-adapter.js",
+    "platform-adapters/udemy/udemy-adapter-contract.js",
+    "platform-adapters/youtube/youtube-adapter-contract.js",
+    "platform-adapters/youtube/youtube-adapter.js",
+    "platform-adapters/youtube/youtube-caption-aggregator.js",
+    "platform-adapters/youtube/youtube-caption-parser.js",
+    "platform-adapters/youtube/youtube-caption-bridge.js",
+    "platform-adapters/youtube/youtube-host.js"
 )
 
 try {
@@ -40,10 +49,18 @@ try {
     New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 
     foreach ($file in $files) {
-        Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination $stagingPath
+        $sourcePath = Join-Path $projectRoot $file
+        $destinationPath = Join-Path $stagingPath $file
+        $destinationDirectory = Split-Path -Parent $destinationPath
+        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
     }
-    Copy-Item -LiteralPath (Join-Path $projectRoot "icons") -Destination $stagingPath -Recurse
-    Copy-Item -LiteralPath (Join-Path $projectRoot "neural-tts") -Destination $stagingPath -Recurse
+
+    foreach ($directory in @("icons", "neural-tts")) {
+        $sourceDirectory = Join-Path $projectRoot $directory
+        $destinationDirectory = Join-Path $stagingPath $directory
+        Copy-Item -LiteralPath $sourceDirectory -Destination $destinationDirectory -Recurse -Force
+    }
 
     if (Test-Path -LiteralPath $archivePath) {
         Remove-Item -LiteralPath $archivePath -Force

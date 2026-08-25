@@ -55,7 +55,7 @@ analytics, anúncios ou API externa de inteligência artificial.
 ![Pop-up da S·IA](assets/store/screenshot-popup-1280x800.png)
 
 > As imagens da Chrome Web Store serão atualizadas para incluir o S·IA Companion
-> e os recursos da versão 1.8.14. Coursera e Udemy são direcionados automaticamente pela URL da aula; as abas mantêm sessões neurais independentes sobre o mesmo host Piper. A ponte Shaka só libera cues com timing real; texto DOM sem timing permanece bloqueado. A voz neural Piper PT-BR é experimental e opcional; o motor nativo do navegador permanece como padrão.
+> e os recursos da versão 1.8.14. Coursera e Udemy são direcionados automaticamente pela URL da aula; as abas mantêm sessões neurais independentes sobre o mesmo host Piper. A ponte Shaka só libera cues com timing real; texto DOM sem timing permanece bloqueado. A voz neural Piper PT-BR é opcional e local; o motor nativo do navegador permanece como padrão.
 
 ## Como funciona
 
@@ -361,12 +361,16 @@ No PowerShell:
 ```
 
 O pacote será criado em:
-
 ```text
 dist/sia-extension-<versão>.zip
 ```
 
-O script utiliza uma allowlist e inclui somente os arquivos necessários para a
+Em Linux ou CI, o empacotamento determinístico equivalente pode ser executado com:
+```bash
+python3 scripts/package-extension.py
+```
+
+Os scripts utilizam uma allowlist e incluem somente os arquivos necessários para a
 execução da extensão.
 
 ## Princípios de qualidade
@@ -440,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 é a release de referência atual; o histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.26 é a correção atual para estabilizar o timing do YouTube, impedir alternância entre cues sobrepostas e limpar bloqueios transitórios, sobre a base funcional 1.8.22 documentada em `docs/releases/1.8.22.md`; a 1.8.25 permanece disponível para rollback imediato. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

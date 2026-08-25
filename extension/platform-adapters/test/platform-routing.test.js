@@ -173,6 +173,42 @@ test('o roteador não inicia adaptador em URL incompatível', async () => {
   assert.equal(created, false);
 });
 
+test('o diagnóstico limpa motivo inseguro quando uma fonte temporal segura se recupera', () => {
+  const windowRef = createWindow();
+  const context = vm.createContext({ window: windowRef, Event, console });
+  context.globalThis = context;
+  vm.runInContext(diagnosticSource, context);
+  context.SiaCoreDiagnostic.updateFromEvent({
+    type: 'SIA_CAPTION_SOURCE_READY',
+    platformId: 'youtube',
+    adapterVersion: 'youtube-v0-experimental',
+    player: 'found',
+    playerIdentity: { videoId: 'video-1', containerId: 'movie_player' },
+    source: 'youtube-overlay',
+    confidence: 'low',
+    state: 'UNSAFE_TO_SPEAK',
+    safeToSpeak: false,
+    reason: 'youtube-overlay-without-confirmed-timing',
+  });
+  context.SiaCoreDiagnostic.updateFromEvent({
+    type: 'SIA_CAPTION_SOURCE_READY',
+    platformId: 'youtube',
+    adapterVersion: 'youtube-v0-experimental',
+    player: 'found',
+    playerIdentity: { videoId: 'video-1', containerId: 'movie_player' },
+    source: 'youtube-aggregated',
+    confidence: 'high',
+    state: 'PRIMARY_READY',
+    safeToSpeak: true,
+  });
+  const diagnostic = context.SiaCoreDiagnostic.get();
+  assert.equal(diagnostic.source, 'youtube-aggregated');
+  assert.equal(diagnostic.confidence, 'high');
+  assert.equal(diagnostic.state, 'PRIMARY_READY');
+  assert.equal(diagnostic.safeToSpeak, true);
+  assert.equal(diagnostic.reason, 'caption-source-ready');
+});
+
 test('o estado diagnóstico comum conserva a fonte e bloqueia cue insegura', () => {
   const windowRef = createWindow();
   const context = vm.createContext({ window: windowRef, Event, console });
