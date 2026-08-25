@@ -675,6 +675,7 @@ test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => 
     emit: event => events.push(event)
   });
   const diagnostic = adapter.start();
+  assert.equal(track.mode, "disabled");
   assert.equal(diagnostic.state, STATES.PRIMARY_READY);
   assert.equal(diagnostic.source, SOURCES.TEXT_TRACK);
   assert.equal(events.some(event => event.type === "SIA_CAPTION_CHANGED" && event.cue?.safeToSpeak), true);

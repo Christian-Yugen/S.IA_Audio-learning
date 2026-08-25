@@ -133,13 +133,11 @@ function captionTracks(video) {
 }
 
 function prepareCaptionTracks(video) {
-  for (const track of captionTracks(video)) {
-    try {
-      if (track.mode === 'disabled') track.mode = 'hidden';
-    } catch {
-      // O player pode controlar o modo da faixa; o polling continua seguro.
-    }
-  }
+  // Nunca altere `TextTrack.mode`: `disabled` e `hidden` são escolhas visuais
+  // do usuário/player. Forçar `hidden` fazia o botão do YouTube indicar
+  // “legenda oculta” e removia a legenda da tela. O timedtext externo continua
+  // disponível para capturar cues temporais sem interferir na apresentação.
+  return captionTracks(video);
 }
 
 function temporalCueKey(cue) {
