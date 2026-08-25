@@ -74,6 +74,13 @@ function likelyContinuation(previous, next, options) {
   if (next.startTime < previous.startTime - 0.05) return true;
   if (next.text.startsWith(previous.text) || previous.text.startsWith(next.text)) return true;
   if (longestSuffixPrefix(previous.text, next.text) > 0) return true;
+  const previousSequence = Number(previous.sequenceId);
+  const nextSequence = Number(next.sequenceId);
+  const sequenceIsConsecutive = Number.isInteger(previousSequence)
+    && Number.isInteger(nextSequence)
+    && nextSequence === previousSequence + 1;
+  if (sequenceIsConsecutive && !hasSentencePunctuation(previous.text)
+    && (words(previous.text).length <= 3 || words(next.text).length <= 3)) return true;
   if (hasSentencePunctuation(previous.text)) return false;
   const firstWord = words(next.text)[0] || '';
   const startsUppercase = /^[A-ZÀ-ÖØ-Ý]/u.test(firstWord);
@@ -133,9 +140,14 @@ export class YoutubeCaptionAggregator {
       sourceConfidence: 'high',
       safeToSpeak: true,
     });
+    this.buffer = null;
+    const sameTemporalWindow = this.lastEmittedText
+      && buffer.startTime <= this.lastEmittedEndTime + this.options.maxGapSeconds;
+    const repeatedSuffix = sameTemporalWindow
+      && (buffer.text === this.lastEmittedText || this.lastEmittedText.endsWith(` ${buffer.text}`));
+    if (repeatedSuffix) return [];
     this.lastEmittedText = buffer.text;
     this.lastEmittedEndTime = buffer.endTime;
-    this.buffer = null;
     const key = fingerprint(cue);
     if (this.emittedFingerprints.includes(key)) return [];
     this.emittedFingerprints.push(key);

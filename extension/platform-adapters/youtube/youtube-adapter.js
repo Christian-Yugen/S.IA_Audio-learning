@@ -13,7 +13,7 @@ import {
   normalizeCue,
   normalizePlayerIdentity,
 } from './youtube-adapter-contract.js';
-import { createYoutubeCaptionAggregator } from './youtube-caption-aggregator.js';
+import { createYoutubeCaptionAggregator, youtubeCaptionInternals } from './youtube-caption-aggregator.js';
 
 const AD_SELECTORS = Object.freeze([
   '#movie_player.ad-showing',
@@ -146,6 +146,68 @@ function temporalCueKey(cue) {
   return `${cue.startTime.toFixed(3)}|${cue.endTime.toFixed(3)}|${cue.text}`;
 }
 
+function cueWordCount(cue) {
+  return normalizeText(cue?.text).split(/\s+/u).filter(Boolean).length;
+}
+
+function externalCuesAreFragmented(cues) {
+  if (!Array.isArray(cues) || cues.length < 2) return false;
+  const sample = cues.slice(0, 160);
+  const shortTextRatio = sample.filter(cue => cueWordCount(cue) <= 3).length / sample.length;
+  const shortDurationRatio = sample.filter(cue => cue.endTime - cue.startTime <= 0.9).length / sample.length;
+  const unfinishedRatio = sample.filter(cue => !/[.!?…]["'”’»)\]]*$/u.test(normalizeText(cue.text))).length / sample.length;
+  let adjacentPairs = 0;
+  let overlappingPairs = 0;
+  for (let index = 1; index < sample.length; index += 1) {
+    const previous = sample[index - 1];
+    const current = sample[index];
+    const gap = current.startTime - previous.endTime;
+    if (gap <= 0.65 && gap >= -0.35) adjacentPairs += 1;
+    if (current.startTime < previous.endTime || current.text.startsWith(previous.text)) overlappingPairs += 1;
+  }
+  const pairCount = Math.max(1, sample.length - 1);
+  const adjacencyRatio = adjacentPairs / pairCount;
+  const overlapRatio = overlappingPairs / pairCount;
+  return shortTextRatio >= 0.65
+    && shortDurationRatio >= 0.65
+    && unfinishedRatio >= 0.65
+    && (adjacencyRatio >= 0.35 || overlapRatio >= 0.2);
+}
+
+function groupFragmentedCues(cues) {
+  const groups = [];
+  let group = null;
+  for (const cue of cues || []) {
+    if (!group) {
+      group = { ...cue };
+    } else {
+      const gap = cue.startTime - group.endTime;
+      const span = Math.max(cue.endTime, group.endTime) - group.startTime;
+      const canJoin = gap <= 0.65
+        && gap >= -0.35
+        && span <= 8
+        && !youtubeCaptionInternals.hasSentencePunctuation(group.text);
+      if (!canJoin) {
+        groups.push(group);
+        group = { ...cue };
+      } else {
+        group = {
+          ...group,
+          text: youtubeCaptionInternals.mergeText(group.text, cue.text),
+          endTime: Math.max(group.endTime, cue.endTime),
+          sequenceId: cue.sequenceId || group.sequenceId,
+        };
+      }
+    }
+    if (group && youtubeCaptionInternals.hasSentencePunctuation(group.text)) {
+      groups.push(group);
+      group = null;
+    }
+  }
+  if (group) groups.push(group);
+  return groups;
+}
+
 export class YoutubeAdapter {
   constructor({ documentRef, locationRef, windowRef, emit, now = () => Date.now() } = {}) {
     this.documentRef = documentRef || globalThis.document;
@@ -176,8 +238,10 @@ export class YoutubeAdapter {
     this.lastProbe = null;
     this.activeTemporalCount = 0;
     this.externalCues = [];
+    this.externalCueGroups = [];
     this.externalTrackKey = '';
     this.externalSourceReady = false;
+    this.externalCuesAreFragmented = false;
     this.aggregator = createYoutubeCaptionAggregator({ now: this.now });
   }
 
@@ -221,8 +285,10 @@ export class YoutubeAdapter {
     this.playerIdentity = null;
     this.videoSourceKey = '';
     this.externalCues = [];
+    this.externalCueGroups = [];
     this.externalTrackKey = '';
     this.externalSourceReady = false;
+    this.externalCuesAreFragmented = false;
     this.lastObservedTime = null;
     this.aggregator.reset();
     this.started = false;
@@ -371,8 +437,10 @@ export class YoutubeAdapter {
     this.playerIdentity = nextIdentity;
     this.videoSourceKey = nextSourceKey;
     this.externalCues = [];
+    this.externalCueGroups = [];
     this.externalTrackKey = '';
     this.externalSourceReady = false;
+    this.externalCuesAreFragmented = false;
     this.lastTemporalKey = '';
     this.lastObservedTime = null;
     this.lastSourceKey = '';
@@ -419,6 +487,10 @@ export class YoutubeAdapter {
     this.externalCues = normalized;
     this.externalTrackKey = nextTrackKey;
     this.externalSourceReady = true;
+    this.externalCuesAreFragmented = externalCuesAreFragmented(normalized);
+    this.externalCueGroups = this.externalCuesAreFragmented
+      ? groupFragmentedCues(normalized)
+      : normalized;
     if (trackChanged) this.aggregator.reset();
     this.scheduleScan();
     return true;
@@ -428,7 +500,7 @@ export class YoutubeAdapter {
     if (!this.externalSourceReady || !this.externalCues.length) return [];
     const currentTime = Number(video?.currentTime);
     if (!Number.isFinite(currentTime)) return [];
-    return this.externalCues.filter(cue => currentTime + 0.28 >= cue.startTime && currentTime - 0.28 <= cue.endTime);
+    return this.externalCueGroups.filter(cue => currentTime + 0.28 >= cue.startTime && currentTime - 0.28 <= cue.endTime);
   }
 
   readOverlayFallback() {
@@ -506,21 +578,35 @@ export class YoutubeAdapter {
       });
     }
 
+    const nativeCaptionTracks = captionTracks(video);
     const nativeTemporalCues = this.readTemporalCues(video);
+    const nativeTrackPresent = nativeCaptionTracks.length > 0;
     const externalTemporalCues = nativeTemporalCues.length ? [] : this.readExternalCues(video);
     const temporalCues = nativeTemporalCues.length ? nativeTemporalCues : externalTemporalCues;
     const temporalSource = nativeTemporalCues.length ? SOURCES.TEXT_TRACK : (externalTemporalCues.length ? SOURCES.AGGREGATED : SOURCES.NONE);
     this.activeTemporalCount = temporalCues.length;
     let emitted = [];
     if (nativeTemporalCues.length) {
+      if (this.externalCuesAreFragmented) this.aggregator.reset();
       for (const cue of nativeTemporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
       emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
     } else if (externalTemporalCues.length) {
-      // O fallback Innertube entrega um transcript completo com cues temporais
-      // já fechadas. Segurá-lo como microcue acrescenta 420 ms e pode fazer uma
-      // cue curta desaparecer antes de alcançar o núcleo compartilhado.
-      this.aggregator.reset();
-      emitted = externalTemporalCues;
+      if (this.externalCuesAreFragmented) {
+        // O transcript completo permite reconstruir a frase antes da fala;
+        // emitir o grupo uma única vez evita reinícios palavra-a-palavra.
+        this.aggregator.reset();
+        emitted = externalTemporalCues;
+      } else {
+        // O fallback Innertube entrega um transcript completo com cues temporais
+        // já fechadas. Segurá-lo como microcue acrescenta atraso desnecessário;
+        // esse ramo continua emitindo frases normais imediatamente.
+        this.aggregator.reset();
+        emitted = externalTemporalCues;
+      }
+    } else if (nativeTrackPresent && this.aggregator.snapshot().buffer) {
+      // Uma faixa nativa palavra-a-palavra pode ter pequenos intervalos entre
+      // cues. Preserve a frase parcial até a estabilidade/limite do agregador.
+      emitted = this.aggregator.flushDue(this.now(), false);
     } else {
       this.aggregator.reset();
     }

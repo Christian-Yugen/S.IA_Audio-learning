@@ -36,6 +36,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.20](releases/1.8.20.md) | Remove DOMParser do caminho YouTube e elimina a violação TrustedHTML. |
 | [S·IA 1.8.21](releases/1.8.21.md) | Recupera o áudio Piper após gesto real e explicita o diagnóstico YouTube. |
 | [S·IA 1.8.22](releases/1.8.22.md) | Obtém captions temporais pelo player IOS local e emite cues completas imediatamente. |
+| [S·IA 1.8.23](releases/1.8.23.md) | Agrupa captions palavra-a-palavra em frases contínuas sem reiniciar o Piper. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

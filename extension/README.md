@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.22 é a base funcional local do YouTube para captions temporais via player IOS e áudio Piper, documentada em `docs/releases/1.8.22.md`. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.23 é a correção atual para frases contínuas do YouTube, sobre a base funcional 1.8.22 documentada em `docs/releases/1.8.22.md`; a 1.8.22 permanece disponível para rollback. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

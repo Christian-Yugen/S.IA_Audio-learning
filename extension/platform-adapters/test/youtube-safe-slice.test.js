@@ -118,6 +118,24 @@ test("parser usa fallback XML sem chamar DOMParser sob Trusted Types", () => {
   assert.equal(cues[1].endTime, 5);
 });
 
+test("agregador une palavras consecutivas e emite uma frase única", () => {
+  let now = 1000;
+  const aggregator = createYoutubeCaptionAggregator({ now: () => now, stabilityMs: 400, maxGapSeconds: 0.65 });
+  assert.deepEqual(aggregator.push({ text: "A", startTime: 1, endTime: 1.2, sequenceId: "1" }, now), []);
+  now += 80;
+  assert.deepEqual(aggregator.push({ text: "SIA", startTime: 1.4, endTime: 1.6, sequenceId: "2" }, now), []);
+  now += 80;
+  assert.deepEqual(aggregator.push({ text: "lê", startTime: 1.8, endTime: 2, sequenceId: "3" }, now), []);
+  now += 80;
+  const emitted = aggregator.push({ text: "legendas.", startTime: 2.2, endTime: 2.5, sequenceId: "4" }, now);
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].text, "A SIA lê legendas.");
+  assert.equal(emitted[0].source, SOURCES.AGGREGATED);
+  assert.equal(emitted[0].safeToSpeak, true);
+
+  assert.deepEqual(aggregator.push({ text: "legendas.", startTime: 2.25, endTime: 2.55, sequenceId: "5" }, now + 20), []);
+});
+
 test("agregador une microcues progressivas e elimina repetição", () => {
   const aggregator = createYoutubeCaptionAggregator({ now: () => 1000, stabilityMs: 400 });
   assert.deepEqual(aggregator.push({ text: "A S·IA", startTime: 1, endTime: 1.5, sequenceId: "1" }, 1000), []);
@@ -264,6 +282,60 @@ test("adapter libera cue temporal estável sem pontuação depois do tempo máxi
   assert.equal(emitted.cue.source, SOURCES.AGGREGATED);
   assert.equal(emitted.cue.sourceConfidence, CONFIDENCE.HIGH);
   assert.equal(emitted.cue.safeToSpeak, true);
+  adapter.stop();
+});
+
+test("adapter agrega legenda externa palavra-a-palavra antes de emitir", () => {
+  const video = {
+    id: "video-word-cues",
+    currentTime: 0.3,
+    currentSrc: "youtube-video-word-cues",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=wordcues" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  adapter.setExternalTimedCues({
+    videoId: "wordcues",
+    trackKey: "ios-pt-BR-word-cues",
+    cues: [
+      { text: "A", startTime: 0.2, endTime: 0.4, sequenceId: "0" },
+      { text: "SIA", startTime: 0.8, endTime: 1.0, sequenceId: "1" },
+      { text: "lê", startTime: 1.4, endTime: 1.6, sequenceId: "2" },
+      { text: "legendas.", startTime: 2.0, endTime: 2.3, sequenceId: "3" },
+    ],
+  });
+  for (const currentTime of [0.3, 0.9, 1.5, 2.1]) {
+    video.currentTime = currentTime;
+    adapter.scan();
+  }
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "A SIA lê legendas.");
+  assert.equal(emitted[0].cue.safeToSpeak, true);
   adapter.stop();
 });
 
@@ -489,6 +561,74 @@ test("adapter bloqueia cue durante anúncio e retoma após o anúncio", () => {
   adapter.scan();
   emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
   assert.equal(emitted.length, 1);
+  adapter.stop();
+});
+
+test("adapter preserva buffer de TextTrack fragmentado durante intervalo e fala frase única", () => {
+  const listeners = new Map();
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: [],
+    activeCues: [],
+    addEventListener(name, listener) { listeners.set(`track:${name}`, listener); },
+    removeEventListener() {},
+  };
+  track.cues = [
+    { text: "A", startTime: 0.2, endTime: 0.4, sequenceId: "0" },
+    { text: "SIA", startTime: 0.8, endTime: 1.0, sequenceId: "1" },
+    { text: "lê", startTime: 1.4, endTime: 1.6, sequenceId: "2" },
+    { text: "legendas.", startTime: 2.0, endTime: 2.3, sequenceId: "3" },
+  ];
+  const video = {
+    id: "video-native-word-cues",
+    currentTime: 0.3,
+    currentSrc: "youtube-video-native-word-cues",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener(name, listener) { listeners.set(`video:${name}`, listener); },
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=nativewordcues" },
+    windowRef,
+    now: () => 1000,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  for (const [currentTime, activeCues] of [
+    [0.3, [track.cues[0]]],
+    [0.55, []],
+    [0.9, [track.cues[1]]],
+    [1.5, [track.cues[2]]],
+    [2.1, [track.cues[3]]],
+  ]) {
+    video.currentTime = currentTime;
+    track.activeCues = activeCues;
+    adapter.scan();
+  }
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "A SIA lê legendas.");
+  assert.equal(emitted[0].cue.source, SOURCES.AGGREGATED);
   adapter.stop();
 });
 
