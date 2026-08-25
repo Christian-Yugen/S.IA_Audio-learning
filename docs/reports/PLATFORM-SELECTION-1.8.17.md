@@ -48,7 +48,7 @@ Texto capturado somente de overlay visual, DOM sem timing ou transcrição não 
 
 ## Validação automatizada
 
-A suíte completa foi executada a partir de `extension/` com 80 testes aprovados e nenhuma falha. Os testes específicos do novo caminho cobrem:
+A suíte completa foi executada a partir de `extension/` com 81 testes aprovados e nenhuma falha. O teste comportamental do popup cobre a escolha `youtube`, a atualização periódica de status, a aplicação por aba e a fixação por domínio. Os testes específicos do novo caminho cobrem:
 
 | Grupo | Cobertura |
 |---|---|
@@ -61,6 +61,12 @@ A suíte completa foi executada a partir de `extension/` com 80 testes aprovados
 | Regressão existente | Sync engine, Piper bridge, offscreen, core integration, caption input, router e hooks atuais. |
 
 Também foram executados `node --check` nos arquivos alterados, parse do manifesto com `JSON.parse` e `git diff --check` sem ocorrências.
+
+## Correção do popup
+
+O popup fazia uma nova leitura assíncrona da seleção a cada segundo. Durante uma escolha ainda não aplicada, essa leitura podia re-renderizar o `<select>` com o valor persistido anterior (`off`) antes do clique do usuário. O mesmo padrão podia desfazer o checkbox de fixação por domínio.
+
+A correção mantém um estado local de seleção em edição (`platformSelectionDirty`) até a resposta de aplicação. Enquanto esse estado está ativo, as atualizações de diagnóstico continuam possíveis, mas não sobrescrevem a escolha visível. O checkbox agora atualiza explicitamente o escopo (`tab` ou `domain`) e também fica protegido contra o re-render concorrente. Depois de uma aplicação bem-sucedida, a seleção é confirmada, a aba é recarregada e o popup recupera o valor persistido pelo service worker.
 
 ## Validação física em Chromium isolado
 

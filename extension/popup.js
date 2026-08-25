@@ -61,6 +61,7 @@
     const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
     const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
     let feedbackTimer = 0;
+    let platformSelectionDirty = false;
     let platformContext = {
       tab: tabAtivo,
       url: tabAtivo?.url || "",
@@ -178,6 +179,12 @@
         ui.platformDiagnostic.className = "platform-diagnostic is-warning";
         return;
       }
+      platformSelectionDirty = false;
+      platformContext = {
+        ...platformContext,
+        requested: selected,
+        source: ui.platformScope.checked ? "domain" : "tab"
+      };
       showSavedFeedback(selected === "off" ? "YouTube desativado nesta aba" : "YouTube ativado nesta aba");
       if (selected === "off" || result.active) {
         await chrome.tabs.reload(tab.id);
@@ -343,8 +350,14 @@
 
     async function updateConnectionStatus() {
       const tab = await activeTab();
-      platformContext = await readPlatformContext();
-      renderPlatform();
+      const nextPlatformContext = await readPlatformContext();
+      if (nextPlatformContext.url !== platformContext.url) {
+        platformSelectionDirty = false;
+      }
+      if (!platformSelectionDirty) {
+        platformContext = nextPlatformContext;
+        renderPlatform();
+      }
       const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
       const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
       const isYoutubeWatch = Boolean(tab?.url?.match(/^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?[^#]*\bv=[^&#]+/i));
@@ -511,10 +524,19 @@
     }
 
     ui.platform?.addEventListener("change", () => {
+      platformSelectionDirty = true;
       platformContext = {
         ...platformContext,
         requested: ui.platform.value || "off",
         source: "tab"
+      };
+      renderPlatform();
+    });
+    ui.platformScope?.addEventListener("change", () => {
+      platformSelectionDirty = true;
+      platformContext = {
+        ...platformContext,
+        source: ui.platformScope.checked ? "domain" : "tab"
       };
       renderPlatform();
     });
@@ -612,7 +634,10 @@
     });
     ui.reset.addEventListener("click", () => void resetSettings());
 
-    platformContext = await readPlatformContext();
+    const initialPlatformContext = await readPlatformContext();
+    if (!platformSelectionDirty) {
+      platformContext = initialPlatformContext;
+    }
     render();
     loadVoices();
     void updateConnectionStatus();
