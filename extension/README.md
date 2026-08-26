@@ -3,7 +3,7 @@
 > Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
 > sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.8.35-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.8.36-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
@@ -43,6 +43,7 @@ analytics, anúncios ou API externa de inteligência artificial.
 - S·IA Recall para repetir a última frase.
 - Histórico local com timestamps.
 - Marcação temporal, perguntas determinísticas de recuperação e revisão espaçada local no Companion.
+- Resumo local sob demanda da aula e leitura opcional pelo mesmo núcleo Browser/Piper.
 - Favoritos e anotações.
 - Exportação dos trechos salvos em Markdown.
 - Painel lateral nativo S·IA Companion.
@@ -264,7 +265,7 @@ S.IA_Audio-learning/
 | `content.js` | Detectar legendas, controlar fala, vídeo, histórico e Recall |
 | `sync-engine.js` | Regras puras de tempo, pontuação e deduplicação |
 | `popup.*` | Configuração rápida e status da aula |
-| `sidepanel.*` | Histórico, favoritos, notas, exportação e estudo ativo |
+| `sidepanel.*` | Histórico, favoritos, notas, exportação, resumo e estudo ativo |
 | `learning/learning-engine.js` | Marcações temporais, cartões, avaliações, due cards e métricas locais |
 | `service-worker.js` | Atalhos e comunicação com a aba ativa |
 | `manifest.json` | Permissões e componentes da extensão |
@@ -303,6 +304,8 @@ SIA_CREATE_STUDY_BOOKMARK
 SIA_REVIEW_STUDY_CARD
 SIA_REPLAY_STUDY_BOOKMARK
 SIA_CLEAR_STUDY
+SIA_GET_LESSON_SUMMARY
+SIA_READ_LESSON_SUMMARY
 ```
 
 ## Permissões
@@ -458,7 +461,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.36 adiciona resumo local sob demanda da aula e leitura opcional pelo mesmo núcleo Browser/Piper. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

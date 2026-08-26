@@ -9,6 +9,12 @@
     exportSaved: document.getElementById("export-saved"),
     clearHistory: document.getElementById("clear-history"),
     clearStudy: document.getElementById("clear-study"),
+    generateSummary: document.getElementById("generate-summary"),
+    readSummary: document.getElementById("read-summary"),
+    summaryCount: document.getElementById("summary-count"),
+    summaryStatus: document.getElementById("summary-status"),
+    summaryOutput: document.getElementById("summary-output"),
+    lessonSummary: document.getElementById("lesson-summary"),
     template: document.getElementById("history-item-template"),
     filters: [...document.querySelectorAll(".filter")],
     studyProgress: document.getElementById("study-progress"),
@@ -33,6 +39,7 @@
   };
   let filter = "all";
   let revealedCardId = "";
+  let summary = null;
 
   function formatTime(seconds) {
     const value = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -112,6 +119,30 @@
     ui.recallSource.textContent = revealed ? card.texto : "";
   }
 
+  function renderSummary() {
+    const data = summary?.resumo;
+    const text = data?.texto || "";
+    const selected = Number(data?.frasesSelecionadas || 0);
+    const total = Number(data?.totalFrases || 0);
+    const hasText = Boolean(text);
+    ui.summaryOutput.hidden = !hasText;
+    ui.lessonSummary.textContent = text;
+    ui.generateSummary.disabled = !entries.length;
+    ui.readSummary.disabled = !hasText;
+    ui.summaryCount.textContent = hasText
+      ? `${selected} de ${total} frases usadas`
+      : "Ainda não gerado";
+    if (!hasText) {
+      ui.summaryStatus.textContent = entries.length
+        ? "Clique em “Gerar resumo da aula” quando quiser revisar o que já foi lido."
+        : "Aguarde a S·IA ler algumas frases antes de pedir o resumo.";
+    } else if (data.limitado) {
+      ui.summaryStatus.textContent = `Resumo curto feito com ${selected} frases de ${total}. Ele pode ficar parcial.`;
+    } else {
+      ui.summaryStatus.textContent = `Resumo feito com as ${selected} frases lidas nesta aula.`;
+    }
+  }
+
   function render() {
     const visible = filter === "favorites"
       ? entries.filter(item => item.favorito)
@@ -120,6 +151,7 @@
     ui.current.textContent = current?.texto || "Aguardando a primeira frase da aula…";
     ui.count.textContent = `${visible.length} ${visible.length === 1 ? "frase" : "frases"}`;
     ui.history.replaceChildren();
+    renderSummary();
     renderStudy();
 
     if (!visible.length) {
@@ -168,9 +200,13 @@
       ui.current.textContent = "Abra uma aula compatível para acompanhar e revisar a leitura.";
       ui.bookmarkCurrent.disabled = true;
       ui.clearStudy.disabled = true;
+      ui.generateSummary.disabled = true;
+      ui.readSummary.disabled = true;
       ui.recallAnswer.disabled = true;
       ui.revealRecall.disabled = true;
       ui.reviewRatings.forEach(button => { button.disabled = true; });
+      summary = null;
+      renderSummary();
       ui.studyFeedback.textContent = "Abra uma aula compatível para guardar trechos de estudo.";
       ui.recallQuestion.textContent = "O estudo começa quando você abrir uma aula compatível.";
       return;
@@ -196,6 +232,32 @@
       : "Trecho guardado. Ele virou uma pergunta para você revisar depois.";
     await refresh();
     ui.studyFeedback.textContent = feedback;
+  }
+
+  async function generateSummary() {
+    ui.generateSummary.disabled = true;
+    ui.summaryStatus.textContent = "Organizando as frases que a S·IA já leu…";
+    const result = await send({ type: "SIA_GET_LESSON_SUMMARY" });
+    ui.generateSummary.disabled = false;
+    if (!result?.ok) {
+      summary = null;
+      renderSummary();
+      ui.summaryStatus.textContent = "Não foi possível criar o resumo nesta aula.";
+      return;
+    }
+    summary = result;
+    renderSummary();
+  }
+
+  async function readSummary() {
+    const text = summary?.resumo?.texto || "";
+    if (!text) return;
+    ui.readSummary.disabled = true;
+    const result = await send({ type: "SIA_READ_LESSON_SUMMARY", text });
+    ui.readSummary.disabled = false;
+    ui.summaryStatus.textContent = result?.ok
+      ? "O resumo foi enviado para a leitura. A aula foi pausada para você ouvir."
+      : "Não foi possível iniciar a leitura do resumo.";
   }
 
   async function reviewCurrent(rating) {
@@ -229,6 +291,8 @@
   }
 
   ui.replayCurrent.addEventListener("click", () => replay());
+  ui.generateSummary.addEventListener("click", () => void generateSummary());
+  ui.readSummary.addEventListener("click", () => void readSummary());
   ui.bookmarkCurrent.addEventListener("click", () => void markCurrent());
   ui.revealRecall.addEventListener("click", () => {
     const card = study.dueCards?.[0];

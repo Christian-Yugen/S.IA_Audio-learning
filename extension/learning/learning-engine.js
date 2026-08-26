@@ -22,6 +22,12 @@
   const VALID_TYPES = new Set(Object.values(TYPES));
   const VALID_RATINGS = new Set(Object.values(RATINGS));
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const SUMMARY_STOP_WORDS = new Set([
+    "a", "ao", "aos", "as", "com", "como", "da", "das", "de", "do", "dos", "e", "em", "entre",
+    "essa", "essas", "esse", "esses", "esta", "estas", "este", "estes", "isso", "isto", "mas", "na",
+    "nas", "no", "nos", "o", "os", "ou", "para", "pela", "pelas", "pelo", "pelos", "por", "que", "se",
+    "sem", "sua", "suas", "seu", "seus", "um", "uma", "umas", "uns", "é", "são"
+  ]);
 
   function normalizeText(value) {
     return String(value ?? "").replace(/\s+/gu, " ").trim();
@@ -58,6 +64,73 @@
       default:
         return "Qual é a ideia principal deste trecho?";
     }
+  }
+
+  function summaryTokens(text) {
+    return normalizeText(text)
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}]{3,}/gu)
+      ?.filter(token => !SUMMARY_STOP_WORDS.has(token)) || [];
+  }
+
+  function summarizeHistory(entries, { maxSentences = 6, maxChars = 1200 } = {}) {
+    const sentenceLimit = Math.max(1, Math.min(12, Math.trunc(finiteNumber(maxSentences, 6))));
+    const characterLimit = Math.max(240, Math.min(4000, Math.trunc(finiteNumber(maxChars, 1200))));
+    const source = (Array.isArray(entries) ? entries : [])
+      .map((entry, index) => ({
+        entry,
+        index,
+        text: normalizeText(entry?.texto ?? entry?.text),
+      }))
+      .filter(item => item.text)
+      .sort((a, b) => finiteNumber(a.entry?.inicio, a.index) - finiteNumber(b.entry?.inicio, b.index));
+    const unique = [];
+    const seen = new Set();
+    for (const item of source) {
+      const key = item.text.toLocaleLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(item);
+      }
+    }
+    const frequencies = new Map();
+    unique.forEach(item => summaryTokens(item.text).forEach(token => {
+      frequencies.set(token, (frequencies.get(token) || 0) + 1);
+    }));
+    const ranked = unique.map((item, index) => {
+      const tokens = summaryTokens(item.text);
+      const lexicalScore = tokens.reduce(
+        (score, token) => score + 1 / Math.sqrt(frequencies.get(token) || 1),
+        0
+      );
+      const positionScore = index === 0 ? 1 : index === unique.length - 1 ? 0.5 : 0;
+      return { ...item, score: lexicalScore + positionScore };
+    }).sort((a, b) => b.score - a.score || a.index - b.index);
+    const selected = [];
+    let characters = 0;
+    for (const item of ranked) {
+      if (selected.length >= sentenceLimit) break;
+      const nextCharacters = characters + (selected.length ? 1 : 0) + item.text.length;
+      if (nextCharacters > characterLimit) continue;
+      selected.push(item);
+      characters = nextCharacters;
+    }
+    if (!selected.length && unique.length) {
+      selected.push({ ...unique[0], text: unique[0].text.slice(0, characterLimit).trim() });
+    }
+    selected.sort((a, b) => a.index - b.index);
+    return Object.freeze({
+      texto: selected.map(item => item.text).join(" "),
+      trechos: selected.map(item => Object.freeze({
+        id: String(item.entry?.id || `summary-${item.index}`),
+        texto: item.text,
+        inicio: finiteNumber(item.entry?.inicio, 0),
+        fim: finiteNumber(item.entry?.fim, 0),
+      })),
+      totalFrases: source.length,
+      frasesSelecionadas: selected.length,
+      limitado: selected.length < unique.length,
+    });
   }
 
   function createBookmark({
@@ -203,6 +276,7 @@
     RATINGS,
     normalizeText,
     questionForType,
+    summarizeHistory,
     createBookmark,
     createRecallCard,
     reviewCard,

@@ -565,3 +565,46 @@ test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async (
   assert.equal(harness.piperSpoken.length, 1);
   assert.equal(harness.spoken.length, 0);
 });
+
+test('resumo local usa frases lidas e sua leitura não polui o histórico', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'A aula apresenta o conceito principal.', startTime: 10, endTime: 12 }));
+  harness.spoken[0].onend?.();
+  harness.input.push(cue({ text: 'O exemplo mostra como aplicar esse conceito.', startTime: 10.1, endTime: 15 }));
+
+  const summary = await harness.sendMessage({ type: 'SIA_GET_LESSON_SUMMARY' });
+  assert.equal(summary.ok, true, JSON.stringify(summary));
+  assert.equal(summary.fonte, 'historico-local');
+  assert.equal(summary.resumo.totalFrases, 2);
+  assert.ok(summary.resumo.texto.length > 0);
+  assert.ok(summary.resumo.trechos.every(item => item.texto));
+
+  const before = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  const read = await harness.sendMessage({
+    type: 'SIA_READ_LESSON_SUMMARY',
+    text: summary.resumo.texto,
+  });
+  assert.equal(read.ok, true, JSON.stringify(read));
+  assert.equal(harness.spoken.length, 3);
+  assert.match(harness.spoken.at(-1).text, /conceito/);
+
+  const after = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  assert.equal(after.history.length, before.history.length);
+  const study = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
+  assert.equal(study.currentCue.text, 'O exemplo mostra como aplicar esse conceito.');
+});
+
+test('leitura do resumo usa Piper compartilhado quando ele está ativo', async () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Resumo neural da aula.', startTime: 10, endTime: 12 }));
+  const summary = await harness.sendMessage({ type: 'SIA_GET_LESSON_SUMMARY' });
+  const read = await harness.sendMessage({
+    type: 'SIA_READ_LESSON_SUMMARY',
+    text: summary.resumo.texto,
+  });
+  assert.equal(read.ok, true, JSON.stringify(read));
+  assert.equal(harness.piperSpoken.length, 2);
+  assert.match(harness.piperSpoken.at(-1).text, /Resumo neural/);
+});

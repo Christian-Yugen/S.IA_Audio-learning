@@ -77,10 +77,11 @@ function baseStudyContext(overrides = {}) {
   };
 }
 
-function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null } = {}) {
+function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, summaryResponse = null, readSummaryResponse = null } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
     "history-item-template", "study-progress", "due-count", "bookmark-type", "bookmark-current", "clear-study",
+    "generate-summary", "read-summary", "summary-count", "summary-status", "summary-output", "lesson-summary",
     "study-feedback", "recall-question", "recall-answer", "reveal-recall", "recall-source",
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createElement(id)]));
@@ -134,6 +135,12 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
       async sendMessage(tabId, message) {
         sentMessages.push({ tabId, message });
         if (message.type === "SIA_GET_LEARNING_CONTEXT") return state.context;
+        if (message.type === "SIA_GET_LESSON_SUMMARY") return summaryResponse || {
+          ok: true,
+          resumo: { texto: "Resumo de teste.", trechos: [], totalFrases: 1, frasesSelecionadas: 1, limitado: false },
+          fonte: "historico-local",
+        };
+        if (message.type === "SIA_READ_LESSON_SUMMARY") return readSummaryResponse || { ok: true, reason: "summary-queued" };
         if (message.type === "SIA_CREATE_STUDY_BOOKMARK") return createResponse || { ok: true, duplicate: false };
         if (message.type === "SIA_REVIEW_STUDY_CARD") return reviewResponse || { ok: true };
         if (message.type === "SIA_CLEAR_STUDY") {
@@ -301,9 +308,54 @@ test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
   assert.match(html, /Ouça, guarde, lembre/);
   assert.match(html, /1 · AGORA/);
   assert.match(html, /Acompanhar a aula/);
-  assert.match(html, /2 · Guardar para aprender/);
-  assert.match(html, /3 · Responder para memorizar/);
-  assert.match(html, /4 · Linha do tempo da aula/);
+  assert.match(html, /2 · Resumo da aula/);
+  assert.match(html, /3 · Guardar para aprender/);
+  assert.match(html, /4 · Responder para memorizar/);
+  assert.match(html, /5 · Linha do tempo da aula/);
   assert.match(html, /Guardar este trecho/);
   assert.match(html, /Lembrei uma parte/);
+});
+
+test("sidepanel orienta a aguardar frases antes de gerar o resumo", async () => {
+  const context = baseStudyContext({ history: [] });
+  const harness = createHarness({ context });
+  await harness.flush();
+  assert.equal(harness.elements.get("#generate-summary").disabled, true);
+  assert.equal(harness.elements.get("#read-summary").disabled, true);
+  assert.match(harness.elements.get("#summary-status").textContent, /Aguarde a S·IA ler/);
+});
+
+test("sidepanel gera o resumo e só depois oferece sua leitura", async () => {
+  const context = baseStudyContext();
+  const harness = createHarness({
+    context,
+    summaryResponse: {
+      ok: true,
+      resumo: {
+        texto: "A aula apresenta uma ideia central e mostra como aplicá-la.",
+        trechos: [{ id: "history-1", texto: "A aula apresenta uma ideia central.", inicio: 12, fim: 16 }],
+        totalFrases: 4,
+        frasesSelecionadas: 1,
+        limitado: true,
+      },
+      fonte: "historico-local",
+    },
+  });
+  await harness.flush();
+  assert.equal(harness.elements.get("#read-summary").disabled, true);
+  harness.elements.get("#generate-summary").listener("click")();
+  await harness.flush();
+  assert.equal(harness.elements.get("#summary-output").hidden, false);
+  assert.equal(harness.elements.get("#lesson-summary").textContent, "A aula apresenta uma ideia central e mostra como aplicá-la.");
+  assert.equal(harness.elements.get("#read-summary").disabled, false);
+  assert.match(harness.elements.get("#summary-count").textContent, /1 de 4 frases usadas/);
+  assert.match(harness.elements.get("#summary-status").textContent, /pode ficar parcial/);
+
+  harness.elements.get("#read-summary").listener("click")();
+  await harness.flush();
+  assert.deepEqual(lastMessage(harness, "SIA_READ_LESSON_SUMMARY"), {
+    type: "SIA_READ_LESSON_SUMMARY",
+    text: "A aula apresenta uma ideia central e mostra como aplicá-la.",
+  });
+  assert.match(harness.elements.get("#summary-status").textContent, /enviado para a leitura/);
 });

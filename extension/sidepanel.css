@@ -273,3 +273,76 @@ textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+.summary-card {
+  border: 1px solid rgb(92 160 255 / 32%);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(145deg, rgb(92 160 255 / 8%), #151515);
+}
+
+.summary-description {
+  margin: 7px 0 11px;
+  color: #c8c8c8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.summary-actions button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.summary-actions button:first-child {
+  border-color: rgb(92 160 255 / 55%);
+  color: #9bc4ff;
+}
+
+.summary-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.summary-status {
+  min-height: 1.3em;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.summary-output {
+  margin-top: 11px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 14%);
+}
+
+.summary-output strong {
+  font-size: 10px;
+  letter-spacing: .2px;
+}
+
+.summary-output p {
+  margin: 7px 0;
+  color: #f1f1f1;
+  line-height: 1.55;
+}
+
+.summary-output small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.35;
+}

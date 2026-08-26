@@ -6,6 +6,7 @@ const {
   TYPES,
   RATINGS,
   questionForType,
+  summarizeHistory,
   createBookmark,
   createRecallCard,
   reviewCard,
@@ -119,4 +120,29 @@ test("calcula evolução sem confundir tempo assistido com domínio", () => {
     lapsos: 1,
     retencao: 0.5,
   });
+});
+
+test("gera resumo extrativo apenas com frases existentes e sinaliza limite", () => {
+  const entries = [
+    { id: "h-1", texto: "A aula apresenta o conceito de função.", inicio: 1, fim: 3 },
+    { id: "h-2", texto: "Uma função recebe uma entrada e produz uma saída.", inicio: 4, fim: 7 },
+    { id: "h-3", texto: "Uma função recebe uma entrada e produz uma saída.", inicio: 8, fim: 10 },
+    { id: "h-4", texto: "O exemplo mostra como aplicar a função em um problema.", inicio: 11, fim: 14 },
+  ];
+  const result = summarizeHistory(entries, { maxSentences: 2, maxChars: 240 });
+  const allowed = new Set(entries.map(entry => entry.texto));
+  assert.equal(result.totalFrases, 4);
+  assert.equal(result.frasesSelecionadas, 2);
+  assert.equal(result.limitado, true);
+  assert.match(result.texto, /função/);
+  assert.equal(new Set(result.trechos.map(entry => entry.texto)).size, result.trechos.length);
+  result.trechos.forEach(entry => assert.equal(allowed.has(entry.texto), true));
+});
+
+test("retorna resumo vazio quando ainda não há frases lidas", () => {
+  const result = summarizeHistory([]);
+  assert.equal(result.texto, "");
+  assert.equal(result.totalFrases, 0);
+  assert.equal(result.frasesSelecionadas, 0);
+  assert.equal(result.limitado, false);
 });

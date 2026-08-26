@@ -49,6 +49,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.33](releases/1.8.33.md) | Companion com marcação, cartões e revisão espaçada local. |
 | [S·IA 1.8.34](releases/1.8.34.md) | Companion autoexplicativo com orientação por etapas e estados claros. |
 | [S·IA 1.8.35](releases/1.8.35.md) | Explica a revisão como responder, mostrar a resposta e avaliar a própria lembrança. |
+| [S·IA 1.8.36](releases/1.8.36.md) | Resumo local sob demanda e leitura opcional pelo núcleo Browser/Piper. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

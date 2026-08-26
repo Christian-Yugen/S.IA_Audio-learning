@@ -649,6 +649,35 @@
         };
     }
 
+    function resumoAulaLocal() {
+        if (!MOTOR_APRENDIZAGEM?.summarizeHistory) {
+            return { ok: false, reason: "summary-engine-unavailable" };
+        }
+        const summary = MOTOR_APRENDIZAGEM.summarizeHistory(historicoFrases, {
+            maxSentences: 6,
+            maxChars: 1200,
+        });
+        return {
+            ok: true,
+            resumo: summary,
+            fonte: "historico-local",
+            titulo: document.title,
+            url: location.href,
+        };
+    }
+
+    function lerResumoLocal(texto) {
+        const valor = normalizarTexto(texto);
+        if (!valor || !extensaoAtiva || sinteseBloqueada) return false;
+        document.querySelector("video")?.pause?.();
+        interromperFala();
+        enfileirarFala(valor, {
+            resumoAula: true,
+            naoRegistrarHistorico: true,
+        });
+        return true;
+    }
+
     function repetirEntradaHistorico(id = "") {
         const entrada = id
             ? historicoFrases.find(item => item.id === id)
@@ -727,6 +756,7 @@
     }
 
     function calcularTaxaAntecipada(texto, contexto) {
+        if (contexto?.resumoAula === true) return velocidadeFala;
         if (comportamentoSincronia !== "accelerate_voice" || !MOTOR_SINCRONIA) {
             return velocidadeFala;
         }
@@ -836,7 +866,9 @@
 
             emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
-            void registrarFraseNoHistorico(registro);
+            if (registro.contexto?.naoRegistrarHistorico !== true) {
+                void registrarFraseNoHistorico(registro);
+            }
             registro.inicioRealEm = performance.now();
             erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
             previsaoFimFilaEm = Math.max(
@@ -971,7 +1003,9 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-neural-iniciada", registro.texto);
-            void registrarFraseNoHistorico(registro);
+            if (registro.contexto?.naoRegistrarHistorico !== true) {
+                void registrarFraseNoHistorico(registro);
+            }
             registro.inicioRealEm = performance.now();
             erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
             previsaoFimFilaEm = Math.max(
@@ -1639,6 +1673,21 @@
 
             if (mensagem?.type === "SIA_GET_STUDY_CONTEXT") {
                 responder(contextoAprendizagem());
+                return;
+            }
+
+            if (mensagem?.type === "SIA_GET_LESSON_SUMMARY") {
+                responder(resumoAulaLocal());
+                return;
+            }
+
+            if (mensagem?.type === "SIA_READ_LESSON_SUMMARY") {
+                const text = normalizarTexto(mensagem.text).slice(0, 4000);
+                const started = lerResumoLocal(text);
+                responder({
+                    ok: started,
+                    reason: started ? "summary-queued" : "summary-not-queued",
+                });
                 return;
             }
 

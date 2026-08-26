@@ -35,9 +35,27 @@
       <button id="replay-current" type="button" title="Ouvir novamente a frase atual">Ouvir esta frase novamente</button>
     </section>
 
+    <section class="summary-card" aria-labelledby="summary-heading">
+      <div class="section-heading">
+        <h1 id="summary-heading">2 · Resumo da aula</h1>
+        <span id="summary-count">Ainda não gerado</span>
+      </div>
+      <p class="summary-description">Peça um resumo curto usando somente as frases que a S·IA já leu nesta aula. Se a aula ainda não terminou, o resumo poderá ser parcial.</p>
+      <div class="summary-actions">
+        <button id="generate-summary" type="button">Gerar resumo da aula</button>
+        <button id="read-summary" type="button" disabled>Ouvir este resumo</button>
+      </div>
+      <p id="summary-status" class="summary-status" aria-live="polite">O resumo só será criado quando você pedir.</p>
+      <div id="summary-output" class="summary-output" hidden>
+        <strong>Resumo criado a partir desta aula:</strong>
+        <p id="lesson-summary"></p>
+        <small>Resumo local e extrativo: a S·IA reorganiza frases já lidas, mas não inventa informações.</small>
+      </div>
+    </section>
+
     <section class="study-card" aria-labelledby="study-heading">
       <div class="section-heading">
-        <h1 id="study-heading">2 · Guardar para aprender</h1>
+        <h1 id="study-heading">3 · Guardar para aprender</h1>
         <span id="study-progress">Nenhum cartão ainda</span>
       </div>
       <p class="study-description">Guarde um trecho quando ele trouxer uma ideia importante, um exemplo ou uma dúvida. O resultado será uma pergunta para você revisar depois.</p>
@@ -58,7 +76,7 @@
 
     <section class="study-card recall-card" aria-labelledby="recall-heading">
       <div class="section-heading">
-        <h1 id="recall-heading">3 · Responder para memorizar</h1>
+        <h1 id="recall-heading">4 · Responder para memorizar</h1>
         <span id="due-count">0 cartões agora</span>
       </div>
       <p class="recall-description"><strong>Faça assim:</strong> leia a pergunta, responda sem olhar, veja a resposta da aula e diga como você se saiu. Tentar lembrar antes de olhar ajuda a fixar o conteúdo.</p>
@@ -82,7 +100,7 @@
 
     <section aria-labelledby="timeline-heading">
       <div class="section-heading">
-        <h1 id="timeline-heading">4 · Linha do tempo da aula</h1>
+        <h1 id="timeline-heading">5 · Linha do tempo da aula</h1>
         <span id="history-count">0 frases</span>
       </div>
       <p class="timeline-description">Volte a qualquer frase, salve o que importa ou escreva uma nota para consultar depois.</p>
