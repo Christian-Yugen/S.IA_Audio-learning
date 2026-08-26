@@ -599,7 +599,9 @@ export class YoutubeAdapter {
     this.activeTemporalCount = temporalCues.length;
     let emitted = [];
     if (nativeTemporalCues.length) {
-      if (this.externalCuesAreFragmented) this.aggregator.reset();
+      // A existência de um snapshot externo fragmentado não invalida a faixa
+      // nativa. Preserve o buffer nativo entre polls para não reiniciar a frase
+      // a cada palavra quando as duas fontes coexistem.
       for (const cue of nativeTemporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
       emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
     } else if (externalTemporalCues.length) {
