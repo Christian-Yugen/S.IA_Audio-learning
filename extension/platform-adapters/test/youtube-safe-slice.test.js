@@ -981,6 +981,68 @@ test("adapter preserva frase nativa quando snapshot externo fragmentado já est�
   adapter.stop();
 });
 
+test("adapter usa cues futuras da TextTrack para emitir a sentença inteira de uma vez", () => {
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: [
+      { text: "Esta", startTime: 0.2, endTime: 0.45 },
+      { text: "é", startTime: 0.8, endTime: 1.05 },
+      { text: "uma", startTime: 1.4, endTime: 1.65 },
+      { text: "frase", startTime: 2.0, endTime: 2.25 },
+      { text: "longa.", startTime: 2.6, endTime: 2.95 },
+    ],
+    activeCues: [],
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const video = {
+    id: "video-native-lookahead",
+    currentTime: 0.25,
+    currentSrc: "youtube-video-native-lookahead",
+    duration: 8,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=nativelookahead" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  video.currentTime = 0.25;
+  track.activeCues = [track.cues[0]];
+  adapter.scan();
+  video.currentTime = 0.9;
+  track.activeCues = [track.cues[1]];
+  adapter.scan();
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "Esta é uma frase longa.");
+  assert.equal(emitted[0].cue.startTime, 0.2);
+  assert.equal(emitted[0].cue.endTime, 2.95);
+  adapter.stop();
+});
+
 test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => {
   const listeners = new Map();
   const track = {
