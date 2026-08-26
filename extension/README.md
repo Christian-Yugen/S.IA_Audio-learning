@@ -3,7 +3,7 @@
 > Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
 > sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.8.37-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.8.38-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
@@ -461,7 +461,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.37 corrige a leitura do resumo com o vídeo pausado: o usuário pode resumir e ouvir algumas frases já assistidas sem esperar o fim da aula. A versão 1.8.36 adiciona resumo local sob demanda pelo mesmo núcleo Browser/Piper. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.38 corrige a ativação do áudio neural: selecionar Piper não tenta abrir o `AudioContext` automaticamente; o áudio é liberado depois de um gesto real na página. A versão 1.8.37 corrige a leitura do resumo com o vídeo pausado: o usuário pode resumir e ouvir algumas frases já assistidas sem esperar o fim da aula. A versão 1.8.36 adiciona resumo local sob demanda pelo mesmo núcleo Browser/Piper. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

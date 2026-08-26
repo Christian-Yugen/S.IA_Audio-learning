@@ -51,6 +51,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.35](releases/1.8.35.md) | Explica a revisão como responder, mostrar a resposta e avaliar a própria lembrança. |
 | [S·IA 1.8.36](releases/1.8.36.md) | Resumo local sob demanda e leitura opcional pelo núcleo Browser/Piper. |
 | [S·IA 1.8.37](releases/1.8.37.md) | Permite ouvir o resumo mesmo com o vídeo já pausado. |
+| [S·IA 1.8.38](releases/1.8.38.md) | Evita iniciar o AudioContext sem gesto e mantém o desbloqueio recuperável. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

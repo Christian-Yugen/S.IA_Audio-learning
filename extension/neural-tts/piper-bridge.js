@@ -78,11 +78,11 @@ const READY_TIMEOUT_MS = 30000;
       } else {
         this.audioState = "awaiting-gesture";
         this.audioError = "";
-        // Inicializa o host neural e prepara o AudioContext em paralelo assim
-        // que o usuário escolhe o Piper. A primeira cue não precisa esperar
-        // essas duas etapas, sem alterar fila, geração ou fallback.
+        // O host neural pode ser aquecido sem reproduzir áudio. O AudioContext
+        // só deve ser criado/retomado após um gesto real na página; tentar
+        // primeAudio aqui ocorre fora da ativação do usuário e dispara a
+        // política de autoplay do Chrome.
         void this.warmUp();
-        void this.primeAudio();
       }
     }
 
@@ -350,6 +350,14 @@ const READY_TIMEOUT_MS = 30000;
               }, AUDIO_RESUME_TIMEOUT_MS);
             })
           ]);
+        } catch (error) {
+          const detail = String(error?.message || error || "");
+          if (/not.?allowed|audio.?context.*(gesture|interaja|bloqueado)|user.?gesture|bloqueado/i.test(`${error?.name || ""} ${detail}`)) {
+            this.audioState = "blocked";
+            this.audioError = "O Chrome ainda não liberou o áudio; clique na página da aula e tente novamente";
+            return this.audioContext;
+          }
+          throw error;
         } finally {
           if (resumeTimer) clearTimeout(resumeTimer);
         }

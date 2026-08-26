@@ -330,3 +330,11 @@ test("prepara o AudioContext antes da geração neural", async () => {
   assert.equal(result.ok, true);
   assert.equal(result.state, "running");
 });
+
+test("não tenta abrir o AudioContext automaticamente ao selecionar Piper", async () => {
+  const harness = createHarness({ audioBlocked: true });
+  harness.provider.setActive("piper-local");
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(harness.status().audioState, "awaiting-gesture");
+  assert.equal(harness.played.length, 0);
+});
