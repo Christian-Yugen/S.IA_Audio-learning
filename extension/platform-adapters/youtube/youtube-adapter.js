@@ -186,6 +186,23 @@ function externalCuesAreFragmented(cues) {
     && (adjacencyRatio >= 0.35 || overlapRatio >= 0.2);
 }
 
+function sequenceContinues(previous, current) {
+  const previousSequence = Number(previous?.sequenceId);
+  const currentSequence = Number(current?.sequenceId);
+  return Number.isInteger(previousSequence)
+    && Number.isInteger(currentSequence)
+    && currentSequence === previousSequence + 1;
+}
+
+function canContinueFragment(previous, current, span) {
+  const gap = current.startTime - previous.endTime;
+  const sequenceJoin = sequenceContinues(previous, current) && gap <= 2.5;
+  return gap >= -0.35
+    && (gap <= 1.1 || sequenceJoin)
+    && span <= 10
+    && !youtubeCaptionInternals.hasSentencePunctuation(previous.text);
+}
+
 function groupFragmentedCues(cues) {
   const groups = [];
   let group = null;
@@ -195,10 +212,7 @@ function groupFragmentedCues(cues) {
     } else {
       const gap = cue.startTime - group.endTime;
       const span = Math.max(cue.endTime, group.endTime) - group.startTime;
-      const canJoin = gap <= 1.1
-        && gap >= -0.35
-        && span <= 10
-        && !youtubeCaptionInternals.hasSentencePunctuation(group.text);
+      const canJoin = canContinueFragment(group, cue, span);
       if (!canJoin) {
         groups.push(group);
         group = { ...cue };
@@ -229,7 +243,7 @@ function isLikelyFragmentedNativeWindow(cues) {
   let adjacentPairs = 0;
   for (let index = 1; index < sample.length; index += 1) {
     const gap = sample[index].startTime - sample[index - 1].endTime;
-    if (gap <= 1.1 && gap >= -0.35) adjacentPairs += 1;
+    if ((gap <= 1.1 || (sequenceContinues(sample[index - 1], sample[index]) && gap <= 2.5)) && gap >= -0.35) adjacentPairs += 1;
   }
   return shortRatio >= 0.6
     && shortDurationRatio >= 0.6
@@ -252,7 +266,8 @@ function groupNativeFragmentedSentence(track, candidate) {
     const previous = cues[startIndex - 1];
     const current = cues[startIndex];
     const gap = current.startTime - previous.endTime;
-    if (gap > 1.1 || gap < -0.35 || youtubeCaptionInternals.hasSentencePunctuation(previous.text)) break;
+    const span = current.endTime - cues[startIndex].startTime;
+    if (!canContinueFragment(previous, current, span)) break;
     if (cueWordCount(previous) > 3 && cueWordCount(current) > 3) break;
     startIndex -= 1;
   }
@@ -264,7 +279,7 @@ function groupNativeFragmentedSentence(track, candidate) {
     const current = cues[index];
     const gap = current.startTime - previous.endTime;
     const span = current.endTime - cues[startIndex].startTime;
-    if (gap > 1.1 || gap < -0.35 || span > 10) break;
+    if (!canContinueFragment(previous, current, span)) break;
     text = youtubeCaptionInternals.mergeText(text, current.text);
     endIndex = index;
     if (youtubeCaptionInternals.hasSentencePunctuation(text)) break;

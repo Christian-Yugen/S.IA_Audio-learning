@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.30 é a correção atual para usar as cues futuras de uma sentença fragmentada como uma única unidade de fala, baseada na 1.8.22 funcional; a 1.8.22 permanece como baseline funcional e a 1.8.29 como rollback intermediário. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.31 é a correção atual para manter a sentença fragmentada unificada quando a continuação passa para a linha visual seguinte, baseada na 1.8.22 funcional; a 1.8.22 permanece como baseline funcional e a 1.8.30 como rollback intermediário. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

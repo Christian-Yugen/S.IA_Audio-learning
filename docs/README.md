@@ -44,6 +44,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.28](releases/1.8.28.md) | Remove o reset do agregador que apagava captions nativas fragmentadas. |
 | [S·IA 1.8.29](releases/1.8.29.md) | Amplia o buffer para não liberar frases fragmentadas após duas ou três palavras. |
 | [S·IA 1.8.30](releases/1.8.30.md) | Usa lookahead temporal para sintetizar a sentença fragmentada como uma unidade contínua. |
+| [S·IA 1.8.31](releases/1.8.31.md) | Mantém a sentença unificada quando a continuação começa na linha visual seguinte. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

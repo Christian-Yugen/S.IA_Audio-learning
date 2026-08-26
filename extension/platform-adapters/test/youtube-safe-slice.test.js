@@ -1043,6 +1043,67 @@ test("adapter usa cues futuras da TextTrack para emitir a sentença inteira de u
   adapter.stop();
 });
 
+test("adapter mantém prosódia quando a continuação começa na linha visual seguinte", () => {
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: [
+      { text: "A última palavra", startTime: 0.2, endTime: 0.5, sequenceId: "20" },
+      { text: "da primeira linha", startTime: 0.9, endTime: 1.2, sequenceId: "21" },
+      { text: "continua", startTime: 1.6, endTime: 1.9, sequenceId: "22" },
+      { text: "na linha", startTime: 3.4, endTime: 3.7, sequenceId: "23" },
+      { text: "seguinte.", startTime: 4.0, endTime: 4.3, sequenceId: "24" },
+    ],
+    activeCues: [],
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const video = {
+    id: "video-native-line-break",
+    currentTime: 0.25,
+    currentSrc: "youtube-video-native-line-break",
+    duration: 8,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=nativelinebreak" },
+    windowRef,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  video.currentTime = 0.25;
+  track.activeCues = [track.cues[0]];
+  adapter.scan();
+  video.currentTime = 3.45;
+  track.activeCues = [track.cues[3]];
+  adapter.scan();
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "A última palavra da primeira linha continua na linha seguinte.");
+  assert.equal(emitted[0].cue.endTime, 4.3);
+  adapter.stop();
+});
+
 test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => {
   const listeners = new Map();
   const track = {
