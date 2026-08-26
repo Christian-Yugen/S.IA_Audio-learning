@@ -581,6 +581,7 @@ test('resumo local usa frases lidas e sua leitura não polui o histórico', asyn
   assert.ok(summary.resumo.trechos.every(item => item.texto));
 
   const before = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  harness.video.paused = true;
   const read = await harness.sendMessage({
     type: 'SIA_READ_LESSON_SUMMARY',
     text: summary.resumo.texto,
@@ -600,6 +601,7 @@ test('leitura do resumo usa Piper compartilhado quando ele está ativo', async (
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   harness.input.push(cue({ text: 'Resumo neural da aula.', startTime: 10, endTime: 12 }));
   const summary = await harness.sendMessage({ type: 'SIA_GET_LESSON_SUMMARY' });
+  harness.video.paused = true;
   const read = await harness.sendMessage({
     type: 'SIA_READ_LESSON_SUMMARY',
     text: summary.resumo.texto,

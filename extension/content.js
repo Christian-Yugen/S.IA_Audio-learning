@@ -91,6 +91,7 @@
     let ultimoTextoConcluidoEm = 0;
     let legendaNeuralPrecarregada = null;
     let testeNeuralEmAndamento = false;
+    let textoLivreEmAndamento = false;
     let historicoFrases = [];
     const chaveHistorico = `sia_history_${location.pathname
         .replace(/[^a-z0-9]+/gi, "_")
@@ -671,6 +672,7 @@
         if (!valor || !extensaoAtiva || sinteseBloqueada) return false;
         document.querySelector("video")?.pause?.();
         interromperFala();
+        textoLivreEmAndamento = true;
         enfileirarFala(valor, {
             resumoAula: true,
             naoRegistrarHistorico: true,
@@ -899,6 +901,7 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-finalizada", registro.texto);
+            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -925,6 +928,7 @@
 
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
+            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1034,6 +1038,7 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-neural-finalizada", registro.texto);
+            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -1059,6 +1064,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-neural-erro", registro.texto);
+            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento?.error || "piper-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1258,6 +1264,7 @@
         previsaoFimFilaEm = 0;
         ultimaTaxaPlanejada = velocidadeFala;
         legendaNeuralPrecarregada = null;
+        textoLivreEmAndamento = false;
         atrasoFilaEstimado = 0;
         erroInicioFila = 0;
         ultimoTextoConcluido = "";
@@ -1298,7 +1305,7 @@
         ultimaPosicaoVideo = video.currentTime;
 
         if (video.paused || video.ended) {
-            if (!testeNeuralEmAndamento) interromperFala();
+            if (!testeNeuralEmAndamento && !textoLivreEmAndamento) interromperFala();
             textoCandidato = "";
             return;
         }
