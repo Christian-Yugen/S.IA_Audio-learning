@@ -13,45 +13,99 @@
         <strong class="logo">S<span>·</span>IA</strong>
         <p>COMPANION DE APRENDIZAGEM</p>
       </div>
-      <span class="local-badge">100% local</span>
+      <span class="local-badge" title="Suas marcações e respostas ficam neste dispositivo">Fica neste dispositivo</span>
     </header>
 
-    <section class="hero">
-      <span>AGORA</span>
-      <p id="current-sentence">Aguardando a primeira frase da aula…</p>
-      <button id="replay-current" type="button">↺ Repetir frase</button>
-      <small>Atalho: Alt + Shift + R</small>
+    <section class="guide-card" aria-labelledby="guide-heading">
+      <span class="eyebrow">COMO APRENDER COM A S·IA</span>
+      <h1 id="guide-heading">Ouça, guarde, lembre.</h1>
+      <p>O Companion transforma os pontos importantes da aula em pequenas revisões. Você não precisa estudar tudo de novo: escolha o que merece voltar à sua memória.</p>
+      <ol class="guide-steps">
+        <li><strong>1. Ouça</strong><span>Acompanhe a frase que está sendo lida.</span></li>
+        <li><strong>2. Guarde</strong><span>Salve um trecho importante para criar uma pergunta.</span></li>
+        <li><strong>3. Lembre</strong><span>Responda sem olhar e descubra o que já aprendeu.</span></li>
+      </ol>
     </section>
 
-    <nav aria-label="Filtros do histórico">
-      <button class="filter active" data-filter="all" type="button">Histórico</button>
-      <button class="filter" data-filter="favorites" type="button">★ Salvos</button>
+    <section class="hero" aria-labelledby="now-heading">
+      <span class="eyebrow">1 · AGORA</span>
+      <h1 id="now-heading">Acompanhar a aula</h1>
+      <p id="current-sentence">Aguardando a primeira frase da aula…</p>
+      <small>Este é o trecho que a S·IA está lendo neste momento.</small>
+      <button id="replay-current" type="button" title="Ouvir novamente a frase atual">Ouvir esta frase novamente</button>
+    </section>
+
+    <section class="study-card" aria-labelledby="study-heading">
+      <div class="section-heading">
+        <h1 id="study-heading">2 · Guardar para aprender</h1>
+        <span id="study-progress">Nenhum cartão ainda</span>
+      </div>
+      <p class="study-description">Guarde um trecho quando ele trouxer uma ideia importante, um exemplo ou uma dúvida. O resultado será uma pergunta para você revisar depois.</p>
+      <div class="study-actions">
+        <label class="sr-only" for="bookmark-type">Por que guardar este trecho?</label>
+        <select id="bookmark-type" aria-label="Por que guardar este trecho?">
+          <option value="important">É importante</option>
+          <option value="not-understood">Ainda não entendi</option>
+          <option value="example">É um exemplo</option>
+          <option value="apply">Quero aplicar</option>
+          <option value="concept">É um conceito</option>
+        </select>
+        <button id="bookmark-current" type="button" title="Guardar a frase atual como uma pergunta de revisão">Guardar este trecho</button>
+        <button id="clear-study" class="study-clear" type="button" title="Apagar marcações e cartões desta aula">Apagar estudo desta aula</button>
+      </div>
+      <small id="study-feedback" class="study-feedback" aria-live="polite">Aguarde uma frase da aula para começar.</small>
+    </section>
+
+    <section class="study-card recall-card" aria-labelledby="recall-heading">
+      <div class="section-heading">
+        <h1 id="recall-heading">3 · Testar minha memória</h1>
+        <span id="due-count">0 para revisar</span>
+      </div>
+      <p class="recall-description">Quando houver uma revisão, leia a pergunta e escreva o que você lembra antes de consultar o trecho original.</p>
+      <p id="recall-question" class="recall-question">Ainda não há cartão para revisar. Guarde um trecho acima e ele aparecerá aqui quando chegar a hora.</p>
+      <label class="sr-only" for="recall-answer">O que você lembra?</label>
+      <textarea id="recall-answer" rows="3" placeholder="Escreva com suas próprias palavras o que você lembra…"></textarea>
+      <button id="reveal-recall" type="button">Ver trecho original da aula</button>
+      <p id="recall-source" class="recall-source" hidden></p>
+      <div class="review-ratings" aria-label="Diga quanto você lembrou">
+        <button type="button" data-rating="forgot" title="O cartão voltará em breve para uma nova tentativa">Não lembrei</button>
+        <button type="button" data-rating="partial" title="O cartão voltará em breve para reforçar o ponto">Lembrei parcialmente</button>
+        <button type="button" data-rating="remembered" title="O cartão será espaçado para uma revisão mais distante">Eu lembrei</button>
+      </div>
+      <small class="review-outcome">Sua escolha define quando este cartão voltará: mais cedo se estiver difícil, mais tarde se você lembrou.</small>
+    </section>
+
+    <nav aria-label="Escolha o que ver no histórico">
+      <button class="filter active" data-filter="all" type="button">Todos os trechos</button>
+      <button class="filter" data-filter="favorites" type="button">Salvos</button>
     </nav>
 
-    <section>
+    <section aria-labelledby="timeline-heading">
       <div class="section-heading">
-        <h1>Trilha da aula</h1>
+        <h1 id="timeline-heading">4 · Linha do tempo da aula</h1>
         <span id="history-count">0 frases</span>
       </div>
+      <p class="timeline-description">Volte a qualquer frase, salve o que importa ou escreva uma nota para consultar depois.</p>
       <div class="history-tools">
-        <button id="export-saved" type="button">Exportar salvos</button>
-        <button id="clear-history" type="button">Limpar histórico</button>
+        <button id="export-saved" type="button">Exportar trechos salvos</button>
+        <button id="clear-history" type="button">Apagar histórico da aula</button>
       </div>
       <div id="history" class="history" aria-live="polite"></div>
     </section>
   </main>
   <template id="history-item-template">
     <article class="history-item">
-      <button class="time" type="button" title="Voltar e repetir"></button>
+      <button class="time" type="button" title="Voltar e ouvir a partir deste ponto"></button>
       <p></p>
       <div class="item-actions">
-        <button class="replay" type="button">Repetir</button>
+        <button class="replay" type="button">Ouvir novamente</button>
         <button class="favorite" type="button" aria-label="Salvar trecho">☆</button>
-        <button class="note" type="button">Nota</button>
+        <button class="note" type="button">Adicionar nota</button>
       </div>
       <small class="note-text"></small>
     </article>
   </template>
+  <script src="learning/learning-engine.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

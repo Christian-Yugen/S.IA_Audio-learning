@@ -46,6 +46,8 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.30](releases/1.8.30.md) | Usa lookahead temporal para sintetizar a sentença fragmentada como uma unidade contínua. |
 | [S·IA 1.8.31](releases/1.8.31.md) | Mantém a sentença unificada quando a continuação começa na linha visual seguinte. |
 | [S·IA 1.8.32](releases/1.8.32.md) | Usa sequência local para manter a continuidade mesmo sem ID nativo da cue. |
+| [S·IA 1.8.33](releases/1.8.33.md) | Companion com marcação, cartões e revisão espaçada local. |
+| [S·IA 1.8.34](releases/1.8.34.md) | Companion autoexplicativo com orientação por etapas e estados claros. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

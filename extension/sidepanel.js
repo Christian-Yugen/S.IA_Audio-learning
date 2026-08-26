@@ -8,11 +8,31 @@
     count: document.getElementById("history-count"),
     exportSaved: document.getElementById("export-saved"),
     clearHistory: document.getElementById("clear-history"),
+    clearStudy: document.getElementById("clear-study"),
     template: document.getElementById("history-item-template"),
-    filters: [...document.querySelectorAll(".filter")]
+    filters: [...document.querySelectorAll(".filter")],
+    studyProgress: document.getElementById("study-progress"),
+    dueCount: document.getElementById("due-count"),
+    bookmarkType: document.getElementById("bookmark-type"),
+    bookmarkCurrent: document.getElementById("bookmark-current"),
+    studyFeedback: document.getElementById("study-feedback"),
+    recallQuestion: document.getElementById("recall-question"),
+    recallAnswer: document.getElementById("recall-answer"),
+    revealRecall: document.getElementById("reveal-recall"),
+    recallSource: document.getElementById("recall-source"),
+    reviewRatings: [...document.querySelectorAll("[data-rating]")],
   };
   let entries = [];
+  let study = {
+    enabled: false,
+    currentCue: null,
+    bookmarks: [],
+    cards: [],
+    dueCards: [],
+    progress: null,
+  };
   let filter = "all";
+  let revealedCardId = "";
 
   function formatTime(seconds) {
     const value = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -38,12 +58,58 @@
     await send({ type: "SIA_REPLAY_LAST", id });
   }
 
+  async function replayStudyBookmark(id = "") {
+    await send({ type: "SIA_REPLAY_STUDY_BOOKMARK", bookmarkId: id });
+  }
+
   async function updateEntry(id, changes) {
     const result = await send({ type: "SIA_UPDATE_HISTORY_ENTRY", id, ...changes });
     if (!result?.ok) return;
     const index = entries.findIndex(item => item.id === id);
     if (index >= 0) entries[index] = result.entry;
     render();
+  }
+
+  function renderStudy() {
+    const progress = study.progress || {};
+    const due = Array.isArray(study.dueCards) ? study.dueCards : [];
+    const card = due[0] || null;
+    const start = Number(study.currentCue?.startTime);
+    const end = Number(study.currentCue?.endTime);
+    const hasCue = Boolean(
+      study.currentCue?.text
+      && Number.isFinite(start)
+      && Number.isFinite(end)
+      && end > start
+    );
+
+    ui.studyProgress.textContent = progress.total
+      ? `${Number(progress.revisados || 0)} de ${Number(progress.total || 0)} revisados`
+      : "Nenhum cartão ainda";
+    ui.dueCount.textContent = due.length
+      ? `${due.length} ${due.length === 1 ? "cartão para revisar" : "cartões para revisar"}`
+      : "Nada para revisar";
+    ui.bookmarkCurrent.disabled = !hasCue;
+    ui.clearStudy.disabled = !study.enabled || (!study.bookmarks.length && !study.cards.length);
+    if (!hasCue && !study.bookmarks.length) {
+      ui.studyFeedback.textContent = "Aguarde uma frase da aula para começar.";
+    } else if (!hasCue) {
+      ui.studyFeedback.textContent = "A marcação aparece quando a S·IA estiver lendo uma frase segura.";
+    }
+
+    ui.recallQuestion.textContent = card?.pergunta
+      || (study.cards.length
+        ? "Tudo revisado por enquanto. Os cartões voltarão quando chegar a hora."
+        : "Ainda não há cartão para revisar. Guarde um trecho acima e ele aparecerá aqui quando chegar a hora.");
+    ui.recallAnswer.disabled = !card;
+    ui.revealRecall.disabled = !card;
+    ui.reviewRatings.forEach(button => {
+      button.disabled = !card;
+    });
+
+    const revealed = Boolean(card && revealedCardId === card.id);
+    ui.recallSource.hidden = !revealed;
+    ui.recallSource.textContent = revealed ? card.texto : "";
   }
 
   function render() {
@@ -54,13 +120,14 @@
     ui.current.textContent = current?.texto || "Aguardando a primeira frase da aula…";
     ui.count.textContent = `${visible.length} ${visible.length === 1 ? "frase" : "frases"}`;
     ui.history.replaceChildren();
+    renderStudy();
 
     if (!visible.length) {
       const empty = document.createElement("p");
       empty.className = "empty";
       empty.textContent = filter === "favorites"
-        ? "Seus trechos importantes aparecerão aqui."
-        : "O histórico será construído enquanto a S·IA lê a aula.";
+        ? "Você ainda não salvou nenhum trecho. Use a estrela ao lado de uma frase para guardá-la aqui."
+        : "As frases aparecerão aqui enquanto a S·IA lê. Depois, você poderá voltar, salvar ou adicionar uma nota.";
       ui.history.append(empty);
       return;
     }
@@ -89,14 +156,90 @@
   async function refresh() {
     const context = await send({ type: "SIA_GET_LEARNING_CONTEXT" });
     if (!context?.ok) {
-      ui.current.textContent = "Abra uma aula do Coursera ou da Udemy para usar o Companion.";
+      study = {
+        enabled: false,
+        currentCue: null,
+        bookmarks: [],
+        cards: [],
+        dueCards: [],
+        progress: null,
+      };
+      revealedCardId = "";
+      ui.current.textContent = "Abra uma aula compatível para acompanhar e revisar a leitura.";
+      ui.bookmarkCurrent.disabled = true;
+      ui.clearStudy.disabled = true;
+      ui.recallAnswer.disabled = true;
+      ui.revealRecall.disabled = true;
+      ui.reviewRatings.forEach(button => { button.disabled = true; });
+      ui.studyFeedback.textContent = "Abra uma aula compatível para guardar trechos de estudo.";
+      ui.recallQuestion.textContent = "O estudo começa quando você abrir uma aula compatível.";
       return;
     }
     entries = Array.isArray(context.history) ? context.history : [];
+    study = context.study || study;
     render();
   }
 
+  async function markCurrent() {
+    const result = await send({
+      type: "SIA_CREATE_STUDY_BOOKMARK",
+      bookmarkType: ui.bookmarkType.value,
+    });
+    if (!result?.ok) {
+      ui.studyFeedback.textContent = result?.reason === "no-temporal-cue"
+        ? "Ainda não há uma frase segura para guardar. Aguarde a próxima leitura."
+        : "Não foi possível guardar este trecho agora. Tente novamente na próxima frase.";
+      return;
+    }
+    const feedback = result.duplicate
+      ? "Este trecho já está guardado. Ele voltará como pergunta na revisão."
+      : "Trecho guardado. Ele virou uma pergunta para você revisar depois.";
+    await refresh();
+    ui.studyFeedback.textContent = feedback;
+  }
+
+  async function reviewCurrent(rating) {
+    const card = study.dueCards?.[0];
+    if (!card) return;
+    const answer = ui.recallAnswer.value.trim();
+    if (rating !== "forgot" && !answer) {
+      ui.studyFeedback.textContent = "Escreva primeiro o que você lembra. É assim que a revisão fortalece a memória.";
+      ui.recallAnswer.focus();
+      return;
+    }
+    const result = await send({
+      type: "SIA_REVIEW_STUDY_CARD",
+      cardId: card.id,
+      rating,
+      answer,
+    });
+    if (!result?.ok) {
+      ui.studyFeedback.textContent = "Não foi possível registrar esta revisão.";
+      return;
+    }
+    revealedCardId = "";
+    ui.recallAnswer.value = "";
+    const feedback = rating === "remembered"
+      ? "Você lembrou. Este cartão voltará mais tarde para confirmar o aprendizado."
+      : rating === "partial"
+        ? "Você lembrou uma parte. Este cartão voltará em breve para reforçar o ponto."
+        : "Tudo bem não lembrar. Este cartão voltará em breve para uma nova tentativa.";
+    await refresh();
+    ui.studyFeedback.textContent = feedback;
+  }
+
   ui.replayCurrent.addEventListener("click", () => replay());
+  ui.bookmarkCurrent.addEventListener("click", () => void markCurrent());
+  ui.revealRecall.addEventListener("click", () => {
+    const card = study.dueCards?.[0];
+    if (!card) return;
+    revealedCardId = revealedCardId === card.id ? "" : card.id;
+    ui.recallSource.hidden = revealedCardId !== card.id;
+    ui.recallSource.textContent = revealedCardId === card.id ? card.texto : "";
+  });
+  ui.reviewRatings.forEach(button => {
+    button.addEventListener("click", () => void reviewCurrent(button.dataset.rating));
+  });
   ui.exportSaved.addEventListener("click", () => {
     const saved = entries.filter(item => item.favorito);
     if (!saved.length) {
@@ -123,6 +266,18 @@
     link.download = `sia-trechos-${new Date().toISOString().slice(0, 10)}.md`;
     link.click();
     URL.revokeObjectURL(url);
+  });
+  ui.clearStudy.addEventListener("click", async () => {
+    if (!confirm("Apagar todas as marcações e cartões desta aula? O histórico de fala será preservado.")) {
+      return;
+    }
+    const result = await send({ type: "SIA_CLEAR_STUDY" });
+    if (result?.ok) {
+      revealedCardId = "";
+      ui.recallAnswer.value = "";
+      await refresh();
+      ui.studyFeedback.textContent = "Estudo local apagado para esta aula.";
+    }
   });
   ui.clearHistory.addEventListener("click", async () => {
     if (!confirm("Remover o histórico desta aula? Os trechos salvos também serão apagados.")) {

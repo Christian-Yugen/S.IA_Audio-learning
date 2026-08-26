@@ -18,6 +18,8 @@ Todo o processamento de voz ocorre localmente no navegador, usando a voz nativa 
 
 As preferências de voz, idioma, velocidade, tom, volume, sincronização e interface, os perfis configurados por curso e o histórico recente de frases são armazenados localmente com `chrome.storage.local`. A escolha de plataforma fixada para um domínio também usa `chrome.storage.local`. Uma escolha limitada à aba usa `chrome.storage.session` e é removida quando a aba deixa de existir.
 
+O Companion inclui um MVP opcional de aprendizagem ativa. Quando o usuário cria uma marcação, a extensão guarda localmente somente o trecho temporal seguro da legenda, a URL/título identificadores da aula, o intervalo confirmado, o tipo de marcação, a pergunta e os metadados de revisão do cartão. A resposta digitada pelo estudante e a última avaliação também ficam em `chrome.storage.local`; não são transmitidas, sincronizadas com servidor ou usadas para diagnosticar capacidade. O fluxo pode ser apagado pelo controle de limpeza do estudo no Companion.
+
 Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
 
 ## Compartilhamento e transmissão

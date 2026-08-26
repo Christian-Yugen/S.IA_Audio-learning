@@ -17,6 +17,7 @@ FILES = (
     "sidepanel.html",
     "sidepanel.css",
     "sidepanel.js",
+    "learning/learning-engine.js",
     "service-worker.js",
     "platform-selection.js",
     "platform-selection-bootstrap.js",

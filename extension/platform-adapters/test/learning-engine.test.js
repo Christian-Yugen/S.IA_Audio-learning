@@ -67,8 +67,12 @@ test("cria cartão de recuperação vinculado ao timestamp", () => {
 
 test("primeira lembrança agenda revisão para o dia seguinte", () => {
   const card = createRecallCard(bookmark(), { now: NOW, id: "card-1" });
-  const reviewed = reviewCard(card, RATINGS.REMEMBERED, { now: NOW });
+  const reviewed = reviewCard(card, RATINGS.REMEMBERED, {
+    now: NOW,
+    answer: "Uma resposta lembrada pelo estudante.",
+  });
   assert.equal(reviewed.ultimaAvaliacao, RATINGS.REMEMBERED);
+  assert.equal(reviewed.ultimaResposta, "Uma resposta lembrada pelo estudante.");
   assert.equal(reviewed.repeticoes, 1);
   assert.equal(reviewed.intervaloDias, 1);
   assert.equal(reviewed.proximaRevisaoEm, NOW + DAY);

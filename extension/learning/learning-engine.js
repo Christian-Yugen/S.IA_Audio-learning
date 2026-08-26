@@ -116,6 +116,7 @@
       proximaRevisaoEm: timestamp,
       ultimaRevisaoEm: 0,
       ultimaAvaliacao: "",
+      ultimaResposta: "",
       intervaloDias: 0,
       facilidade: 2.5,
       repeticoes: 0,
@@ -128,7 +129,7 @@
     return Math.trunc(timestamp + Math.max(1, days) * MS_PER_DAY);
   }
 
-  function reviewCard(card, rating, { now = Date.now() } = {}) {
+  function reviewCard(card, rating, { now = Date.now(), answer = "" } = {}) {
     if (!card?.id) return null;
     const safe = safeRating(rating);
     const timestamp = Math.trunc(finiteNumber(now, Date.now()));
@@ -163,6 +164,7 @@
       proximaRevisaoEm: addDays(timestamp, intervalDays),
       ultimaRevisaoEm: timestamp,
       ultimaAvaliacao: safe,
+      ultimaResposta: normalizeText(answer).slice(0, 2000),
       intervaloDias: intervalDays,
       facilidade: Number(ease.toFixed(2)),
       repeticoes: repetitions,
