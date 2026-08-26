@@ -35,21 +35,22 @@
       <button id="replay-current" type="button" title="Ouvir novamente a frase atual">Ouvir esta frase novamente</button>
     </section>
 
-    <section class="summary-card" aria-labelledby="summary-heading">
+    <section class="transcript-card" aria-labelledby="transcript-heading">
       <div class="section-heading">
-        <h1 id="summary-heading">2 · Resumo da aula</h1>
-        <span id="summary-count">Ainda não gerado</span>
+        <h1 id="transcript-heading">2 · Todas as falas da aula</h1>
+        <span id="transcript-count">Ainda não montado</span>
       </div>
-      <p class="summary-description">Peça um resumo curto usando somente as frases que a S·IA já leu nesta aula. Se a aula ainda não terminou, o resumo poderá ser parcial.</p>
-      <div class="summary-actions">
-        <button id="generate-summary" type="button">Gerar resumo da aula</button>
-        <button id="read-summary" type="button" disabled>Ouvir este resumo</button>
+      <p class="transcript-description">Reúna em um único texto todas as frases que a S·IA já leu nesta aula. Você não precisa esperar o fim: o arquivo pode ficar incompleto até novas frases serem lidas.</p>
+      <div class="transcript-actions">
+        <button id="generate-transcript" type="button">Montar arquivo completo</button>
+        <button id="read-transcript" type="button" disabled>Ouvir todas as falas</button>
+        <button id="download-transcript" type="button" disabled>Salvar arquivo da aula</button>
       </div>
-      <p id="summary-status" class="summary-status" aria-live="polite">O resumo só será criado quando você pedir.</p>
-      <div id="summary-output" class="summary-output" hidden>
-        <strong>Resumo criado a partir desta aula:</strong>
-        <p id="lesson-summary"></p>
-        <small>Resumo local e extrativo: a S·IA reorganiza frases já lidas, mas não inventa informações.</small>
+      <p id="transcript-status" class="transcript-status" aria-live="polite">O arquivo só será montado quando você pedir.</p>
+      <div id="transcript-output" class="transcript-output" hidden>
+        <strong>Arquivo completo criado a partir desta aula:</strong>
+        <p id="lesson-transcript"></p>
+        <small>Este texto reúne as falas que a S·IA iniciou. Não é um resumo e não inventa informações.</small>
       </div>
     </section>
 

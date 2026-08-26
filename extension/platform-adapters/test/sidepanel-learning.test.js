@@ -77,11 +77,11 @@ function baseStudyContext(overrides = {}) {
   };
 }
 
-function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, summaryResponse = null, readSummaryResponse = null } = {}) {
+function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, transcriptResponse = null, readTranscriptResponse = null } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
     "history-item-template", "study-progress", "due-count", "bookmark-type", "bookmark-current", "clear-study",
-    "generate-summary", "read-summary", "summary-count", "summary-status", "summary-output", "lesson-summary",
+    "generate-transcript", "read-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
     "study-feedback", "recall-question", "recall-answer", "reveal-recall", "recall-source",
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createElement(id)]));
@@ -120,7 +120,7 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
     console,
     document: documentRef,
     URL: browserUrl,
-    Blob: class Blob { constructor(parts, options) { this.parts = parts; this.options = options; } },
+    Blob: class Blob { constructor(parts, options) { this.parts = parts; this.options = options; state.lastBlob = this; } },
     setInterval(callback) { intervals.push(callback); return intervals.length; },
     clearInterval() {},
     alert(message) { state.alert = message; },
@@ -135,12 +135,12 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
       async sendMessage(tabId, message) {
         sentMessages.push({ tabId, message });
         if (message.type === "SIA_GET_LEARNING_CONTEXT") return state.context;
-        if (message.type === "SIA_GET_LESSON_SUMMARY") return summaryResponse || {
+        if (message.type === "SIA_GET_LESSON_TRANSCRIPT") return transcriptResponse || {
           ok: true,
-          resumo: { texto: "Resumo de teste.", trechos: [], totalFrases: 1, frasesSelecionadas: 1, limitado: false },
+          transcricao: { texto: "Fala de teste.", trechos: [], totalFrases: 1, caracteres: 14 },
           fonte: "historico-local",
         };
-        if (message.type === "SIA_READ_LESSON_SUMMARY") return readSummaryResponse || { ok: true, reason: "summary-queued" };
+        if (message.type === "SIA_READ_LESSON_TRANSCRIPT") return readTranscriptResponse || { ok: true, reason: "transcript-queued", partes: 1 };
         if (message.type === "SIA_CREATE_STUDY_BOOKMARK") return createResponse || { ok: true, duplicate: false };
         if (message.type === "SIA_REVIEW_STUDY_CARD") return reviewResponse || { ok: true };
         if (message.type === "SIA_CLEAR_STUDY") {
@@ -308,7 +308,7 @@ test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
   assert.match(html, /Ouça, guarde, lembre/);
   assert.match(html, /1 · AGORA/);
   assert.match(html, /Acompanhar a aula/);
-  assert.match(html, /2 · Resumo da aula/);
+  assert.match(html, /2 · Todas as falas da aula/);
   assert.match(html, /3 · Guardar para aprender/);
   assert.match(html, /4 · Responder para memorizar/);
   assert.match(html, /5 · Linha do tempo da aula/);
@@ -316,46 +316,64 @@ test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
   assert.match(html, /Lembrei uma parte/);
 });
 
-test("sidepanel orienta a aguardar frases antes de gerar o resumo", async () => {
+test("sidepanel orienta a aguardar frases antes de montar o arquivo", async () => {
   const context = baseStudyContext({ history: [] });
   const harness = createHarness({ context });
   await harness.flush();
-  assert.equal(harness.elements.get("#generate-summary").disabled, true);
-  assert.equal(harness.elements.get("#read-summary").disabled, true);
-  assert.match(harness.elements.get("#summary-status").textContent, /Aguarde a S·IA ler/);
+  assert.equal(harness.elements.get("#generate-transcript").disabled, true);
+  assert.equal(harness.elements.get("#read-transcript").disabled, true);
+  assert.match(harness.elements.get("#transcript-status").textContent, /Aguarde a S·IA ler/);
 });
 
-test("sidepanel gera o resumo e só depois oferece sua leitura", async () => {
+test("sidepanel monta todas as falas e só depois oferece sua leitura", async () => {
   const context = baseStudyContext();
   const harness = createHarness({
     context,
-    summaryResponse: {
+    transcriptResponse: {
       ok: true,
-      resumo: {
-        texto: "A aula apresenta uma ideia central e mostra como aplicá-la.",
-        trechos: [{ id: "history-1", texto: "A aula apresenta uma ideia central.", inicio: 12, fim: 16 }],
-        totalFrases: 4,
-        frasesSelecionadas: 1,
-        limitado: true,
+      transcricao: {
+        texto: "A primeira fala da aula.\n\nA segunda fala da aula.",
+        trechos: [
+          { id: "history-1", texto: "A primeira fala da aula.", inicio: 12, fim: 16 },
+          { id: "history-2", texto: "A segunda fala da aula.", inicio: 17, fim: 21 },
+        ],
+        totalFrases: 2,
+        caracteres: 51,
       },
       fonte: "historico-local",
     },
   });
   await harness.flush();
-  assert.equal(harness.elements.get("#read-summary").disabled, true);
-  harness.elements.get("#generate-summary").listener("click")();
+  assert.equal(harness.elements.get("#read-transcript").disabled, true);
+  harness.elements.get("#generate-transcript").listener("click")();
   await harness.flush();
-  assert.equal(harness.elements.get("#summary-output").hidden, false);
-  assert.equal(harness.elements.get("#lesson-summary").textContent, "A aula apresenta uma ideia central e mostra como aplicá-la.");
-  assert.equal(harness.elements.get("#read-summary").disabled, false);
-  assert.match(harness.elements.get("#summary-count").textContent, /1 de 4 frases usadas/);
-  assert.match(harness.elements.get("#summary-status").textContent, /pode ficar parcial/);
+  assert.equal(harness.elements.get("#transcript-output").hidden, false);
+  assert.equal(harness.elements.get("#lesson-transcript").textContent, "A primeira fala da aula.\n\nA segunda fala da aula.");
+  assert.equal(harness.elements.get("#read-transcript").disabled, false);
+  assert.match(harness.elements.get("#transcript-count").textContent, /2 frases reunidas/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /Arquivo completo/);
 
-  harness.elements.get("#read-summary").listener("click")();
+  harness.elements.get("#read-transcript").listener("click")();
   await harness.flush();
-  assert.deepEqual(lastMessage(harness, "SIA_READ_LESSON_SUMMARY"), {
-    type: "SIA_READ_LESSON_SUMMARY",
-    text: "A aula apresenta uma ideia central e mostra como aplicá-la.",
+  assert.deepEqual(lastMessage(harness, "SIA_READ_LESSON_TRANSCRIPT"), {
+    type: "SIA_READ_LESSON_TRANSCRIPT",
+    text: "A primeira fala da aula.\n\nA segunda fala da aula.",
   });
-  assert.match(harness.elements.get("#summary-status").textContent, /enviado para a leitura/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /Todas as falas foram enviadas/);
+});
+
+test("sidepanel salva todas as falas em um único arquivo local", async () => {
+  const harness = createHarness({ context: baseStudyContext() });
+  await harness.flush();
+  harness.elements.get("#generate-transcript").listener("click")();
+  await harness.flush();
+  harness.elements.get("#download-transcript").listener("click")();
+
+  const link = harness.createdLinks.at(-1);
+  assert.equal(link.download, "sia-aula-falas.txt");
+  assert.equal(harness.state.lastBlob.options.type, "text/plain;charset=utf-8");
+  const content = harness.state.lastBlob.parts.join("");
+  assert.match(content, /AULA: Aula/);
+  assert.match(content, /Fala de teste\./);
+  assert.match(harness.elements.get("#transcript-status").textContent, /salvo no dispositivo/);
 });

@@ -274,27 +274,27 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-.summary-card {
+.transcript-card {
   border: 1px solid rgb(92 160 255 / 32%);
   border-radius: 12px;
   padding: 12px;
   background: linear-gradient(145deg, rgb(92 160 255 / 8%), #151515);
 }
 
-.summary-description {
+.transcript-description {
   margin: 7px 0 11px;
   color: #c8c8c8;
   font-size: 11px;
   line-height: 1.5;
 }
 
-.summary-actions {
+.transcript-actions {
   display: flex;
   gap: 7px;
   flex-wrap: wrap;
 }
 
-.summary-actions button {
+.transcript-actions button {
   min-height: 32px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -304,17 +304,17 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
-.summary-actions button:first-child {
+.transcript-actions button:first-child {
   border-color: rgb(92 160 255 / 55%);
   color: #9bc4ff;
 }
 
-.summary-actions button:disabled {
+.transcript-actions button:disabled {
   cursor: not-allowed;
   opacity: .45;
 }
 
-.summary-status {
+.transcript-status {
   min-height: 1.3em;
   margin: 9px 0 0;
   color: var(--muted);
@@ -322,7 +322,7 @@ textarea:focus-visible {
   line-height: 1.4;
 }
 
-.summary-output {
+.transcript-output {
   margin-top: 11px;
   padding: 10px;
   border: 1px solid var(--border);
@@ -330,18 +330,21 @@ textarea:focus-visible {
   background: rgb(0 0 0 / 14%);
 }
 
-.summary-output strong {
+.transcript-output strong {
   font-size: 10px;
   letter-spacing: .2px;
 }
 
-.summary-output p {
+.transcript-output p {
+  max-height: 240px;
+  overflow: auto;
   margin: 7px 0;
   color: #f1f1f1;
   line-height: 1.55;
+  white-space: pre-wrap;
 }
 
-.summary-output small {
+.transcript-output small {
   display: block;
   color: var(--muted);
   line-height: 1.35;

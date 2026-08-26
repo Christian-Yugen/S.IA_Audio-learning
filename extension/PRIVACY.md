@@ -18,13 +18,15 @@ Todo o processamento de voz ocorre localmente no navegador, usando a voz nativa 
 
 As preferências de voz, idioma, velocidade, tom, volume, sincronização e interface, os perfis configurados por curso e o histórico recente de frases são armazenados localmente com `chrome.storage.local`. A escolha de plataforma fixada para um domínio também usa `chrome.storage.local`. Uma escolha limitada à aba usa `chrome.storage.session` e é removida quando a aba deixa de existir.
 
-O Companion inclui um MVP opcional de aprendizagem ativa e um resumo sob demanda. Quando o usuário cria uma marcação, a extensão guarda localmente somente o trecho temporal seguro da legenda, a URL/título identificadores da aula, o intervalo confirmado, o tipo de marcação, a pergunta e os metadados de revisão do cartão. A resposta digitada pelo estudante e a última avaliação também ficam em `chrome.storage.local`; não são transmitidas, sincronizadas com servidor ou usadas para diagnosticar capacidade. Quando o usuário pede um resumo, a extensão seleciona localmente frases já lidas e mantém o texto resultante apenas no contexto do painel; ele não é enviado nem apresentado como transcrição completa. O estudo pode ser apagado pelo controle de limpeza no Companion.
+O Companion inclui um MVP opcional de aprendizagem ativa. Quando o usuário cria uma marcação, a extensão guarda localmente somente o trecho temporal seguro da legenda, a URL/título e identificadores da aula, o intervalo confirmado, o tipo de marcação, a pergunta e os metadados de revisão do cartão. A resposta digitada pelo estudante e a última avaliação também ficam em `chrome.storage.local`; não são transmitidas, sincronizadas com servidor ou usadas para diagnosticar capacidade.
 
-Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
+Quando o usuário solicita **todas as falas da aula**, a extensão reúne localmente as frases que a S·IA iniciou e guarda essa transcrição integral em uma chave própria do `chrome.storage.local`. O texto pode ser mostrado no Companion, lido pelo mesmo núcleo Browser/Piper ou baixado pelo usuário em um único arquivo `.txt`. Esse arquivo é criado no dispositivo no momento do download; não é enviado para servidor. A transcrição continua limitada ao histórico que a extensão conseguiu capturar e informa quando o limite local de segurança foi atingido. Ela não deve ser confundida com uma transcrição oficial fornecida pela plataforma.
+
+Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. **Limpar histórico** apaga o histórico recente e a transcrição integral da aula; **Limpar estudo** apaga somente marcações e cartões. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
 
 ## Compartilhamento e transmissão
 
-A S·IA não envia legendas, histórico de navegação, preferências, resumos ou dados de voz para servidores externos. O acesso same-origin do YouTube serve apenas para recuperar as captions do vídeo ativado e não é uma chamada de inferência ou um serviço de terceiros da S·IA. A extensão não vende nem compartilha dados pessoais.
+A S·IA não envia legendas, histórico de navegação, preferências, transcrições, respostas, arquivos de aula ou dados de voz para servidores externos. O acesso same-origin do YouTube serve apenas para recuperar as captions do vídeo ativado e não é uma chamada de inferência ou um serviço de terceiros da S·IA. A extensão não vende nem compartilha dados pessoais.
 
 ## Permissões
 

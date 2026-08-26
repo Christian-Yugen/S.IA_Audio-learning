@@ -17,7 +17,8 @@
         toleranciaTaxaAdaptativa: 0.15,
         pesoCalibracaoVoz: 0.2,
         janelaDeduplicacaoConcluidaMs: 5000,
-        maximoHistoricoFrases: 60
+        maximoHistoricoFrases: 60,
+        maximoTranscricaoFrases: 10000
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
     const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
@@ -93,9 +94,12 @@
     let testeNeuralEmAndamento = false;
     let textoLivreEmAndamento = false;
     let historicoFrases = [];
+    let transcricaoFrases = [];
+    let transcricaoCortada = false;
     const chaveHistorico = `sia_history_${location.pathname
         .replace(/[^a-z0-9]+/gi, "_")
         .slice(0, 120)}`;
+    const chaveTranscricao = `${chaveHistorico}_transcript`;
     const chaveEstudo = `sia_learning_${PLATAFORMA_APRENDIZAGEM_ID}_${(
         new URL(location.href).searchParams.get("v") || location.pathname
     ).replace(/[^a-z0-9]+/gi, "_").slice(0, 140)}`;
@@ -583,7 +587,15 @@
 
         historicoFrases.push(entrada);
         historicoFrases = historicoFrases.slice(-CONFIG.maximoHistoricoFrases);
-        await salvarStorageLocalSeguro(chaveHistorico, historicoFrases);
+        transcricaoFrases.push({ ...entrada });
+        if (transcricaoFrases.length > CONFIG.maximoTranscricaoFrases) {
+            transcricaoFrases = transcricaoFrases.slice(-CONFIG.maximoTranscricaoFrases);
+            transcricaoCortada = true;
+        }
+        await Promise.all([
+            salvarStorageLocalSeguro(chaveHistorico, historicoFrases),
+            salvarStorageLocalSeguro(chaveTranscricao, transcricaoFrases),
+        ]);
     }
 
     async function criarMarcacaoEstudo({ type, note } = {}) {
@@ -650,34 +662,59 @@
         };
     }
 
-    function resumoAulaLocal() {
-        if (!MOTOR_APRENDIZAGEM?.summarizeHistory) {
-            return { ok: false, reason: "summary-engine-unavailable" };
+    function transcricaoAulaLocal() {
+        if (!MOTOR_APRENDIZAGEM?.createTranscript) {
+            return { ok: false, reason: "transcript-engine-unavailable" };
         }
-        const summary = MOTOR_APRENDIZAGEM.summarizeHistory(historicoFrases, {
-            maxSentences: 6,
-            maxChars: 1200,
-        });
+        const transcricao = MOTOR_APRENDIZAGEM.createTranscript(transcricaoFrases);
         return {
             ok: true,
-            resumo: summary,
-            fonte: "historico-local",
+            transcricao,
+            parcial: transcricaoCortada,
+            fonte: "historico-local-integral",
             titulo: document.title,
             url: location.href,
         };
     }
 
-    function lerResumoLocal(texto) {
-        const valor = normalizarTexto(texto);
-        if (!valor || !extensaoAtiva || sinteseBloqueada) return false;
+    function dividirTextoLivre(texto, maximoCaracteres = 420) {
+        const palavras = normalizarTexto(texto).split(" ").filter(Boolean);
+        const partes = [];
+        let atual = "";
+        for (const palavra of palavras) {
+            const proximo = atual ? `${atual} ${palavra}` : palavra;
+            if (atual && proximo.length > maximoCaracteres) {
+                partes.push(atual);
+                atual = palavra;
+            } else {
+                atual = proximo;
+            }
+        }
+        if (atual) partes.push(atual);
+        return partes;
+    }
+
+    function lerTranscricaoLocal(texto) {
+        const partes = dividirTextoLivre(texto);
+        if (!partes.length || !extensaoAtiva || sinteseBloqueada) return { ok: false, partes: 0 };
         document.querySelector("video")?.pause?.();
         interromperFala();
         textoLivreEmAndamento = true;
-        enfileirarFala(valor, {
-            resumoAula: true,
-            naoRegistrarHistorico: true,
-        });
-        return true;
+        let indice = 0;
+        const enfileirarProximaParte = () => {
+            const parte = partes[indice++];
+            if (!parte) {
+                textoLivreEmAndamento = false;
+                return;
+            }
+            enfileirarFala(parte, {
+                textoLivre: true,
+                naoRegistrarHistorico: true,
+                textoLivreAoFinalizar: enfileirarProximaParte,
+            });
+        };
+        enfileirarProximaParte();
+        return { ok: true, partes: partes.length };
     }
 
     function repetirEntradaHistorico(id = "") {
@@ -758,7 +795,7 @@
     }
 
     function calcularTaxaAntecipada(texto, contexto) {
-        if (contexto?.resumoAula === true) return velocidadeFala;
+        if (contexto?.textoLivre === true || contexto?.resumoAula === true) return velocidadeFala;
         if (comportamentoSincronia !== "accelerate_voice" || !MOTOR_SINCRONIA) {
             return velocidadeFala;
         }
@@ -901,7 +938,13 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-finalizada", registro.texto);
-            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
+            if (registro.contexto?.textoLivre === true) {
+                if (typeof registro.contexto.textoLivreAoFinalizar === "function") {
+                    registro.contexto.textoLivreAoFinalizar();
+                } else {
+                    textoLivreEmAndamento = false;
+                }
+            }
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -928,7 +971,7 @@
 
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
-            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
+            if (registro.contexto?.textoLivre === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1038,7 +1081,13 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-neural-finalizada", registro.texto);
-            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
+            if (registro.contexto?.textoLivre === true) {
+                if (typeof registro.contexto.textoLivreAoFinalizar === "function") {
+                    registro.contexto.textoLivreAoFinalizar();
+                } else {
+                    textoLivreEmAndamento = false;
+                }
+            }
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -1064,7 +1113,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-neural-erro", registro.texto);
-            if (registro.contexto?.resumoAula === true) textoLivreEmAndamento = false;
+            if (registro.contexto?.textoLivre === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento?.error || "piper-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1683,17 +1732,18 @@
                 return;
             }
 
-            if (mensagem?.type === "SIA_GET_LESSON_SUMMARY") {
-                responder(resumoAulaLocal());
+            if (mensagem?.type === "SIA_GET_LESSON_TRANSCRIPT") {
+                responder(transcricaoAulaLocal());
                 return;
             }
 
-            if (mensagem?.type === "SIA_READ_LESSON_SUMMARY") {
-                const text = normalizarTexto(mensagem.text).slice(0, 4000);
-                const started = lerResumoLocal(text);
+            if (mensagem?.type === "SIA_READ_LESSON_TRANSCRIPT") {
+                const text = normalizarTexto(mensagem.text).slice(0, 200000);
+                const result = lerTranscricaoLocal(text);
                 responder({
-                    ok: started,
-                    reason: started ? "summary-queued" : "summary-not-queued",
+                    ok: result.ok,
+                    partes: result.partes,
+                    reason: result.ok ? "transcript-queued" : "transcript-not-queued",
                 });
                 return;
             }
@@ -1752,8 +1802,15 @@
 
             if (mensagem?.type === "SIA_CLEAR_HISTORY") {
                 historicoFrases = [];
-                void removerStorageLocalSeguro(chaveHistorico);
-                responder({ ok: true });
+                transcricaoFrases = [];
+                transcricaoCortada = false;
+                void Promise.all([
+                    removerStorageLocalSeguro(chaveHistorico),
+                    removerStorageLocalSeguro(chaveTranscricao),
+                ]).then(([historicoRemovido, transcricaoRemovida]) => {
+                    responder({ ok: historicoRemovido && transcricaoRemovida });
+                });
+                return true;
             }
         });
     }
@@ -1762,11 +1819,16 @@
         conectarConfiguracoes();
         conectarEntradaDeCaption();
         estadoAprendizagemPronto = carregarEstadoAprendizagem();
-        chrome.storage.local.get(chaveHistorico, resultado => {
+        chrome.storage.local.get([chaveHistorico, chaveTranscricao], resultado => {
             const salvo = resultado[chaveHistorico];
             historicoFrases = Array.isArray(salvo)
                 ? salvo.slice(-CONFIG.maximoHistoricoFrases)
                 : [];
+            const salvoTranscricao = resultado[chaveTranscricao];
+            transcricaoFrases = Array.isArray(salvoTranscricao)
+                ? salvoTranscricao.slice(-CONFIG.maximoTranscricaoFrases)
+                : historicoFrases.map(item => ({ ...item }));
+            transcricaoCortada = transcricaoFrases.length >= CONFIG.maximoTranscricaoFrases;
         });
         if (!PLATAFORMA_EXTERNA) {
             setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);

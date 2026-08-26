@@ -9,12 +9,13 @@
     exportSaved: document.getElementById("export-saved"),
     clearHistory: document.getElementById("clear-history"),
     clearStudy: document.getElementById("clear-study"),
-    generateSummary: document.getElementById("generate-summary"),
-    readSummary: document.getElementById("read-summary"),
-    summaryCount: document.getElementById("summary-count"),
-    summaryStatus: document.getElementById("summary-status"),
-    summaryOutput: document.getElementById("summary-output"),
-    lessonSummary: document.getElementById("lesson-summary"),
+    generateTranscript: document.getElementById("generate-transcript"),
+    readTranscript: document.getElementById("read-transcript"),
+    downloadTranscript: document.getElementById("download-transcript"),
+    transcriptCount: document.getElementById("transcript-count"),
+    transcriptStatus: document.getElementById("transcript-status"),
+    transcriptOutput: document.getElementById("transcript-output"),
+    lessonTranscript: document.getElementById("lesson-transcript"),
     template: document.getElementById("history-item-template"),
     filters: [...document.querySelectorAll(".filter")],
     studyProgress: document.getElementById("study-progress"),
@@ -39,7 +40,7 @@
   };
   let filter = "all";
   let revealedCardId = "";
-  let summary = null;
+  let transcript = null;
 
   function formatTime(seconds) {
     const value = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -119,27 +120,27 @@
     ui.recallSource.textContent = revealed ? card.texto : "";
   }
 
-  function renderSummary() {
-    const data = summary?.resumo;
+  function renderTranscript() {
+    const data = transcript?.transcricao;
     const text = data?.texto || "";
-    const selected = Number(data?.frasesSelecionadas || 0);
     const total = Number(data?.totalFrases || 0);
     const hasText = Boolean(text);
-    ui.summaryOutput.hidden = !hasText;
-    ui.lessonSummary.textContent = text;
-    ui.generateSummary.disabled = !entries.length;
-    ui.readSummary.disabled = !hasText;
-    ui.summaryCount.textContent = hasText
-      ? `${selected} de ${total} frases usadas`
-      : "Ainda não gerado";
+    ui.transcriptOutput.hidden = !hasText;
+    ui.lessonTranscript.textContent = text;
+    ui.generateTranscript.disabled = !entries.length;
+    ui.readTranscript.disabled = !hasText;
+    ui.downloadTranscript.disabled = !hasText;
+    ui.transcriptCount.textContent = hasText
+      ? `${total} ${total === 1 ? "frase reunida" : "frases reunidas"}${transcript.parcial ? " · arquivo parcial" : ""}`
+      : "Ainda não montado";
     if (!hasText) {
-      ui.summaryStatus.textContent = entries.length
-        ? "Clique em “Gerar resumo da aula” quando quiser revisar o que já foi lido."
-        : "Aguarde a S·IA ler algumas frases antes de pedir o resumo.";
-    } else if (data.limitado) {
-      ui.summaryStatus.textContent = `Resumo curto feito com ${selected} frases de ${total}. Ele pode ficar parcial.`;
+      ui.transcriptStatus.textContent = entries.length
+        ? "Clique em “Montar arquivo completo” quando quiser guardar tudo o que já foi lido."
+        : "Aguarde a S·IA ler algumas frases antes de montar o arquivo.";
+    } else if (transcript.parcial) {
+      ui.transcriptStatus.textContent = `Arquivo local com ${total} ${total === 1 ? "frase lida" : "frases lidas"}; o limite de segurança foi atingido.`;
     } else {
-      ui.summaryStatus.textContent = `Resumo feito com as ${selected} frases lidas nesta aula.`;
+      ui.transcriptStatus.textContent = `Arquivo completo com ${total} ${total === 1 ? "frase lida" : "frases lidas"}.`;
     }
   }
 
@@ -151,7 +152,7 @@
     ui.current.textContent = current?.texto || "Aguardando a primeira frase da aula…";
     ui.count.textContent = `${visible.length} ${visible.length === 1 ? "frase" : "frases"}`;
     ui.history.replaceChildren();
-    renderSummary();
+    renderTranscript();
     renderStudy();
 
     if (!visible.length) {
@@ -200,13 +201,14 @@
       ui.current.textContent = "Abra uma aula compatível para acompanhar e revisar a leitura.";
       ui.bookmarkCurrent.disabled = true;
       ui.clearStudy.disabled = true;
-      ui.generateSummary.disabled = true;
-      ui.readSummary.disabled = true;
+      ui.generateTranscript.disabled = true;
+      ui.readTranscript.disabled = true;
+      ui.downloadTranscript.disabled = true;
       ui.recallAnswer.disabled = true;
       ui.revealRecall.disabled = true;
       ui.reviewRatings.forEach(button => { button.disabled = true; });
-      summary = null;
-      renderSummary();
+      transcript = null;
+      renderTranscript();
       ui.studyFeedback.textContent = "Abra uma aula compatível para guardar trechos de estudo.";
       ui.recallQuestion.textContent = "O estudo começa quando você abrir uma aula compatível.";
       return;
@@ -234,30 +236,58 @@
     ui.studyFeedback.textContent = feedback;
   }
 
-  async function generateSummary() {
-    ui.generateSummary.disabled = true;
-    ui.summaryStatus.textContent = "Organizando as frases que a S·IA já leu…";
-    const result = await send({ type: "SIA_GET_LESSON_SUMMARY" });
-    ui.generateSummary.disabled = false;
+  async function generateTranscript() {
+    ui.generateTranscript.disabled = true;
+    ui.transcriptStatus.textContent = "Reunindo todas as frases que a S·IA já leu…";
+    const result = await send({ type: "SIA_GET_LESSON_TRANSCRIPT" });
+    ui.generateTranscript.disabled = false;
     if (!result?.ok) {
-      summary = null;
-      renderSummary();
-      ui.summaryStatus.textContent = "Não foi possível criar o resumo nesta aula.";
+      transcript = null;
+      renderTranscript();
+      ui.transcriptStatus.textContent = "Não foi possível montar o arquivo desta aula.";
       return;
     }
-    summary = result;
-    renderSummary();
+    transcript = result;
+    renderTranscript();
   }
 
-  async function readSummary() {
-    const text = summary?.resumo?.texto || "";
+  async function readTranscript() {
+    const text = transcript?.transcricao?.texto || "";
     if (!text) return;
-    ui.readSummary.disabled = true;
-    const result = await send({ type: "SIA_READ_LESSON_SUMMARY", text });
-    ui.readSummary.disabled = false;
-    ui.summaryStatus.textContent = result?.ok
-      ? "O resumo foi enviado para a leitura. A aula foi pausada para você ouvir."
-      : "Não foi possível iniciar a leitura do resumo.";
+    ui.readTranscript.disabled = true;
+    const result = await send({ type: "SIA_READ_LESSON_TRANSCRIPT", text });
+    ui.readTranscript.disabled = false;
+    ui.transcriptStatus.textContent = result?.ok
+      ? "Todas as falas foram enviadas para a leitura. A aula foi pausada para você ouvir."
+      : "Não foi possível iniciar a leitura das falas.";
+  }
+
+  function downloadTranscriptFile() {
+    const data = transcript?.transcricao;
+    if (!data?.texto) return;
+    const titulo = String(transcript.titulo || "Aula").trim();
+    const conteudo = [
+      `AULA: ${titulo || "Aula"}`,
+      `URL: ${transcript.url || ""}`,
+      `FRASES REUNIDAS: ${Number(data.totalFrases || 0)}`,
+      "",
+      data.texto,
+      "",
+    ].join("\\n");
+    const nomeBase = (titulo || "aula")
+      .normalize("NFD")
+      .toLocaleLowerCase()
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "aula";
+    const url = URL.createObjectURL(new Blob([conteudo], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sia-${nomeBase}-falas.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+    ui.transcriptStatus.textContent = "Arquivo completo salvo no dispositivo.";
   }
 
   async function reviewCurrent(rating) {
@@ -291,8 +321,9 @@
   }
 
   ui.replayCurrent.addEventListener("click", () => replay());
-  ui.generateSummary.addEventListener("click", () => void generateSummary());
-  ui.readSummary.addEventListener("click", () => void readSummary());
+  ui.generateTranscript.addEventListener("click", () => void generateTranscript());
+  ui.readTranscript.addEventListener("click", () => void readTranscript());
+  ui.downloadTranscript.addEventListener("click", downloadTranscriptFile);
   ui.bookmarkCurrent.addEventListener("click", () => void markCurrent());
   ui.revealRecall.addEventListener("click", () => {
     const card = study.dueCards?.[0];
@@ -350,6 +381,7 @@
     const result = await send({ type: "SIA_CLEAR_HISTORY" });
     if (result?.ok) {
       entries = [];
+      transcript = null;
       render();
     }
   });

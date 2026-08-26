@@ -6,7 +6,7 @@ const {
   TYPES,
   RATINGS,
   questionForType,
-  summarizeHistory,
+  createTranscript,
   createBookmark,
   createRecallCard,
   reviewCard,
@@ -122,27 +122,24 @@ test("calcula evolução sem confundir tempo assistido com domínio", () => {
   });
 });
 
-test("gera resumo extrativo apenas com frases existentes e sinaliza limite", () => {
+test("reúne todas as falas em ordem temporal e mantém a origem de cada trecho", () => {
   const entries = [
-    { id: "h-1", texto: "A aula apresenta o conceito de função.", inicio: 1, fim: 3 },
-    { id: "h-2", texto: "Uma função recebe uma entrada e produz uma saída.", inicio: 4, fim: 7 },
-    { id: "h-3", texto: "Uma função recebe uma entrada e produz uma saída.", inicio: 8, fim: 10 },
-    { id: "h-4", texto: "O exemplo mostra como aplicar a função em um problema.", inicio: 11, fim: 14 },
+    { id: "h-2", texto: "Segunda fala.", inicio: 4, fim: 7 },
+    { id: "h-1", texto: "Primeira fala.", inicio: 1, fim: 3 },
+    { id: "h-2", texto: "Segunda fala repetida.", inicio: 4, fim: 7 },
+    { id: "h-3", texto: "Terceira fala.", inicio: 8, fim: 10 },
   ];
-  const result = summarizeHistory(entries, { maxSentences: 2, maxChars: 240 });
-  const allowed = new Set(entries.map(entry => entry.texto));
-  assert.equal(result.totalFrases, 4);
-  assert.equal(result.frasesSelecionadas, 2);
-  assert.equal(result.limitado, true);
-  assert.match(result.texto, /função/);
-  assert.equal(new Set(result.trechos.map(entry => entry.texto)).size, result.trechos.length);
-  result.trechos.forEach(entry => assert.equal(allowed.has(entry.texto), true));
+  const result = createTranscript(entries);
+  assert.equal(result.totalFrases, 3);
+  assert.equal(result.texto, "Primeira fala.\\n\\nSegunda fala.\\n\\nTerceira fala.");
+  assert.deepEqual(result.trechos.map(entry => entry.id), ["h-1", "h-2", "h-3"]);
+  assert.equal(result.caracteres, result.trechos.reduce((total, entry) => total + entry.texto.length, 0));
 });
 
-test("retorna resumo vazio quando ainda não há frases lidas", () => {
-  const result = summarizeHistory([]);
+test("retorna arquivo integral vazio quando ainda não há falas", () => {
+  const result = createTranscript([]);
   assert.equal(result.texto, "");
   assert.equal(result.totalFrases, 0);
-  assert.equal(result.frasesSelecionadas, 0);
-  assert.equal(result.limitado, false);
+  assert.equal(result.caracteres, 0);
+  assert.deepEqual(result.trechos, []);
 });

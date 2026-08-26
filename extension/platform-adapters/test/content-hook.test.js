@@ -566,25 +566,25 @@ test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async (
   assert.equal(harness.spoken.length, 0);
 });
 
-test('resumo local usa frases lidas e sua leitura não polui o histórico', async () => {
+test('transcrição integral usa todas as falas e sua leitura não polui o histórico', async () => {
   const harness = createHarness();
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   harness.input.push(cue({ text: 'A aula apresenta o conceito principal.', startTime: 10, endTime: 12 }));
   harness.spoken[0].onend?.();
   harness.input.push(cue({ text: 'O exemplo mostra como aplicar esse conceito.', startTime: 10.1, endTime: 15 }));
 
-  const summary = await harness.sendMessage({ type: 'SIA_GET_LESSON_SUMMARY' });
-  assert.equal(summary.ok, true, JSON.stringify(summary));
-  assert.equal(summary.fonte, 'historico-local');
-  assert.equal(summary.resumo.totalFrases, 2);
-  assert.ok(summary.resumo.texto.length > 0);
-  assert.ok(summary.resumo.trechos.every(item => item.texto));
+  const transcript = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(transcript.ok, true, JSON.stringify(transcript));
+  assert.equal(transcript.fonte, 'historico-local-integral');
+  assert.equal(transcript.transcricao.totalFrases, 2);
+  assert.ok(transcript.transcricao.texto.length > 0);
+  assert.ok(transcript.transcricao.trechos.every(item => item.texto));
 
   const before = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
   harness.video.paused = true;
   const read = await harness.sendMessage({
-    type: 'SIA_READ_LESSON_SUMMARY',
-    text: summary.resumo.texto,
+    type: 'SIA_READ_LESSON_TRANSCRIPT',
+    text: transcript.transcricao.texto,
   });
   assert.equal(read.ok, true, JSON.stringify(read));
   assert.equal(harness.spoken.length, 3);
@@ -596,17 +596,31 @@ test('resumo local usa frases lidas e sua leitura não polui o histórico', asyn
   assert.equal(study.currentCue.text, 'O exemplo mostra como aplicar esse conceito.');
 });
 
-test('leitura do resumo usa Piper compartilhado quando ele está ativo', async () => {
+test('leitura da transcrição usa Piper compartilhado quando ele está ativo', async () => {
   const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
-  harness.input.push(cue({ text: 'Resumo neural da aula.', startTime: 10, endTime: 12 }));
-  const summary = await harness.sendMessage({ type: 'SIA_GET_LESSON_SUMMARY' });
+  harness.input.push(cue({ text: 'Fala neural da aula.', startTime: 10, endTime: 12 }));
+  const transcript = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
   harness.video.paused = true;
   const read = await harness.sendMessage({
-    type: 'SIA_READ_LESSON_SUMMARY',
-    text: summary.resumo.texto,
+    type: 'SIA_READ_LESSON_TRANSCRIPT',
+    text: transcript.transcricao.texto,
   });
   assert.equal(read.ok, true, JSON.stringify(read));
   assert.equal(harness.piperSpoken.length, 2);
-  assert.match(harness.piperSpoken.at(-1).text, /Resumo neural/);
+  assert.match(harness.piperSpoken.at(-1).text, /Fala neural/);
+});
+
+test('limpar histórico remove também a transcrição integral local', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Fala que será apagada.', startTime: 10, endTime: 12 }));
+  const before = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(before.transcricao.totalFrases, 1);
+
+  const cleared = await harness.sendMessage({ type: 'SIA_CLEAR_HISTORY' });
+  assert.equal(cleared.ok, true, JSON.stringify(cleared));
+  const after = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(after.transcricao.totalFrases, 0);
+  assert.equal(after.transcricao.texto, '');
 });
