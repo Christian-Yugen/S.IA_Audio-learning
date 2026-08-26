@@ -230,7 +230,7 @@ test("sidepanel exige resposta para lembrei e envia resposta quando preenchida",
   harness.ratings[0].listener("click")();
   await harness.flush();
   assert.equal(messagesOf(harness, "SIA_REVIEW_STUDY_CARD").length, 0);
-  assert.match(harness.elements.get("#study-feedback").textContent, /Escreva primeiro/);
+  assert.match(harness.elements.get("#study-feedback").textContent, /Antes de escolher/);
   harness.elements.get("#recall-answer").value = "Minha resposta local";
   harness.ratings[0].listener("click")();
   await harness.flush();
@@ -240,7 +240,7 @@ test("sidepanel exige resposta para lembrei e envia resposta quando preenchida",
     rating: "remembered",
     answer: "Minha resposta local",
   });
-  assert.match(harness.elements.get("#study-feedback").textContent, /Você lembrou/);
+  assert.match(harness.elements.get("#study-feedback").textContent, /Você marcou que lembrou/);
 });
 
 test("sidepanel permite esqueci sem resposta e preserva replay, atualização e exportação", async () => {
@@ -302,8 +302,8 @@ test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
   assert.match(html, /1 · AGORA/);
   assert.match(html, /Acompanhar a aula/);
   assert.match(html, /2 · Guardar para aprender/);
-  assert.match(html, /3 · Testar minha memória/);
+  assert.match(html, /3 · Responder para memorizar/);
   assert.match(html, /4 · Linha do tempo da aula/);
   assert.match(html, /Guardar este trecho/);
-  assert.match(html, /Lembrei parcialmente/);
+  assert.match(html, /Lembrei uma parte/);
 });

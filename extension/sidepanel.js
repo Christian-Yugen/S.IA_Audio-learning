@@ -87,8 +87,8 @@
       ? `${Number(progress.revisados || 0)} de ${Number(progress.total || 0)} revisados`
       : "Nenhum cartão ainda";
     ui.dueCount.textContent = due.length
-      ? `${due.length} ${due.length === 1 ? "cartão para revisar" : "cartões para revisar"}`
-      : "Nada para revisar";
+      ? `${due.length} ${due.length === 1 ? "cartão agora" : "cartões agora"}`
+      : "0 cartões agora";
     ui.bookmarkCurrent.disabled = !hasCue;
     ui.clearStudy.disabled = !study.enabled || (!study.bookmarks.length && !study.cards.length);
     if (!hasCue && !study.bookmarks.length) {
@@ -99,8 +99,8 @@
 
     ui.recallQuestion.textContent = card?.pergunta
       || (study.cards.length
-        ? "Tudo revisado por enquanto. Os cartões voltarão quando chegar a hora."
-        : "Ainda não há cartão para revisar. Guarde um trecho acima e ele aparecerá aqui quando chegar a hora.");
+        ? "Você já respondeu tudo por enquanto. Os cartões voltarão no momento certo."
+        : "Ainda não há nada para responder. Guarde um trecho acima e a pergunta aparecerá aqui.");
     ui.recallAnswer.disabled = !card;
     ui.revealRecall.disabled = !card;
     ui.reviewRatings.forEach(button => {
@@ -203,7 +203,7 @@
     if (!card) return;
     const answer = ui.recallAnswer.value.trim();
     if (rating !== "forgot" && !answer) {
-      ui.studyFeedback.textContent = "Escreva primeiro o que você lembra. É assim que a revisão fortalece a memória.";
+      ui.studyFeedback.textContent = "Antes de escolher, escreva o que você lembra. É assim que a revisão fortalece a memória.";
       ui.recallAnswer.focus();
       return;
     }
@@ -220,10 +220,10 @@
     revealedCardId = "";
     ui.recallAnswer.value = "";
     const feedback = rating === "remembered"
-      ? "Você lembrou. Este cartão voltará mais tarde para confirmar o aprendizado."
+      ? "Você marcou que lembrou. Este cartão voltará mais tarde para confirmar o aprendizado."
       : rating === "partial"
-        ? "Você lembrou uma parte. Este cartão voltará em breve para reforçar o ponto."
-        : "Tudo bem não lembrar. Este cartão voltará em breve para uma nova tentativa.";
+        ? "Você marcou que lembrou uma parte. Este cartão voltará em breve para reforçar o ponto."
+        : "Você marcou que não lembrou. Tudo bem: este cartão voltará em breve para uma nova tentativa.";
     await refresh();
     ui.studyFeedback.textContent = feedback;
   }
