@@ -46,13 +46,14 @@ function validTimedCue(cue) {
     && Number(cue.endTime) > Number(cue.startTime);
 }
 
-function snapshotCue(cue) {
+function snapshotCue(cue, fallbackSequenceId = null) {
   if (!validTimedCue(cue)) return null;
+  const sequenceId = cue.sequenceId || cue.id || fallbackSequenceId;
   return {
     text: normalizeText(cue.text),
     startTime: Number(cue.startTime),
     endTime: Number(cue.endTime),
-    sequenceId: cue.sequenceId ?? cue.id ?? null,
+    sequenceId,
   };
 }
 
@@ -253,7 +254,7 @@ function isLikelyFragmentedNativeWindow(cues) {
 
 function groupNativeFragmentedSentence(track, candidate) {
   const cues = allCues(track)
-    .map(snapshotCue)
+    .map((cue, index) => snapshotCue(cue, index))
     .filter(Boolean)
     .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
   if (cues.length < 2) return null;

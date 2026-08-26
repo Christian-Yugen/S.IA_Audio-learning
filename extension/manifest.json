@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.8.31",
-  "version_name": "1.8.31 · YouTube continuidade entre linhas",
+  "version": "1.8.32",
+  "version_name": "1.8.32 · YouTube continuidade entre linhas nativa",
   "description": "Lê e sincroniza legendas de cursos no Coursera, Udemy e YouTube com ativação segura por plataforma.",
   "minimum_chrome_version": "114",
   "permissions": ["activeTab", "storage", "sidePanel", "offscreen", "scripting"],
