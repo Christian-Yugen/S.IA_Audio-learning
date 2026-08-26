@@ -444,7 +444,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.26 é a correção atual para estabilizar o timing do YouTube, impedir alternância entre cues sobrepostas e limpar bloqueios transitórios, sobre a base funcional 1.8.22 documentada em `docs/releases/1.8.22.md`; a 1.8.25 permanece disponível para rollback imediato. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.32 é a correção atual para manter a sentença fragmentada unificada quando a continuação passa para a linha visual seguinte mesmo sem ID nativo da cue, baseada na 1.8.22 funcional; a 1.8.22 permanece como baseline funcional e a 1.8.31 como rollback intermediário. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

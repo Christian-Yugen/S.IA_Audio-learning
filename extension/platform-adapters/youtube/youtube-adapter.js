@@ -46,13 +46,14 @@ function validTimedCue(cue) {
     && Number(cue.endTime) > Number(cue.startTime);
 }
 
-function snapshotCue(cue) {
+function snapshotCue(cue, fallbackSequenceId = null) {
   if (!validTimedCue(cue)) return null;
+  const sequenceId = cue.sequenceId || cue.id || fallbackSequenceId;
   return {
     text: normalizeText(cue.text),
     startTime: Number(cue.startTime),
     endTime: Number(cue.endTime),
-    sequenceId: cue.sequenceId ?? cue.id ?? null,
+    sequenceId,
   };
 }
 
@@ -186,6 +187,23 @@ function externalCuesAreFragmented(cues) {
     && (adjacencyRatio >= 0.35 || overlapRatio >= 0.2);
 }
 
+function sequenceContinues(previous, current) {
+  const previousSequence = Number(previous?.sequenceId);
+  const currentSequence = Number(current?.sequenceId);
+  return Number.isInteger(previousSequence)
+    && Number.isInteger(currentSequence)
+    && currentSequence === previousSequence + 1;
+}
+
+function canContinueFragment(previous, current, span) {
+  const gap = current.startTime - previous.endTime;
+  const sequenceJoin = sequenceContinues(previous, current) && gap <= 2.5;
+  return gap >= -0.35
+    && (gap <= 1.1 || sequenceJoin)
+    && span <= 10
+    && !youtubeCaptionInternals.hasSentencePunctuation(previous.text);
+}
+
 function groupFragmentedCues(cues) {
   const groups = [];
   let group = null;
@@ -195,10 +213,7 @@ function groupFragmentedCues(cues) {
     } else {
       const gap = cue.startTime - group.endTime;
       const span = Math.max(cue.endTime, group.endTime) - group.startTime;
-      const canJoin = gap <= 0.65
-        && gap >= -0.35
-        && span <= 8
-        && !youtubeCaptionInternals.hasSentencePunctuation(group.text);
+      const canJoin = canContinueFragment(group, cue, span);
       if (!canJoin) {
         groups.push(group);
         group = { ...cue };
@@ -218,6 +233,68 @@ function groupFragmentedCues(cues) {
   }
   if (group) groups.push(group);
   return groups;
+}
+
+function isLikelyFragmentedNativeWindow(cues) {
+  if (!Array.isArray(cues) || cues.length < 2) return false;
+  const sample = cues.slice(0, 12);
+  const shortRatio = sample.filter(cue => cueWordCount(cue) <= 3).length / sample.length;
+  const shortDurationRatio = sample.filter(cue => cue.endTime - cue.startTime <= 1.4).length / sample.length;
+  const unfinishedRatio = sample.filter(cue => !youtubeCaptionInternals.hasSentencePunctuation(cue.text)).length / sample.length;
+  let adjacentPairs = 0;
+  for (let index = 1; index < sample.length; index += 1) {
+    const gap = sample[index].startTime - sample[index - 1].endTime;
+    if ((gap <= 1.1 || (sequenceContinues(sample[index - 1], sample[index]) && gap <= 2.5)) && gap >= -0.35) adjacentPairs += 1;
+  }
+  return shortRatio >= 0.6
+    && shortDurationRatio >= 0.6
+    && unfinishedRatio >= 0.6
+    && adjacentPairs / Math.max(1, sample.length - 1) >= 0.5;
+}
+
+function groupNativeFragmentedSentence(track, candidate) {
+  const cues = allCues(track)
+    .map((cue, index) => snapshotCue(cue, index))
+    .filter(Boolean)
+    .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
+  if (cues.length < 2) return null;
+  const candidateKey = temporalCueKey(candidate);
+  const candidateIndex = cues.findIndex(cue => temporalCueKey(cue) === candidateKey);
+  if (candidateIndex < 0) return null;
+
+  let startIndex = candidateIndex;
+  while (startIndex > 0) {
+    const previous = cues[startIndex - 1];
+    const current = cues[startIndex];
+    const gap = current.startTime - previous.endTime;
+    const span = current.endTime - cues[startIndex].startTime;
+    if (!canContinueFragment(previous, current, span)) break;
+    if (cueWordCount(previous) > 3 && cueWordCount(current) > 3) break;
+    startIndex -= 1;
+  }
+
+  let text = cues[startIndex].text;
+  let endIndex = startIndex;
+  for (let index = startIndex + 1; index < cues.length && index < startIndex + 12; index += 1) {
+    const previous = cues[index - 1];
+    const current = cues[index];
+    const gap = current.startTime - previous.endTime;
+    const span = current.endTime - cues[startIndex].startTime;
+    if (!canContinueFragment(previous, current, span)) break;
+    text = youtubeCaptionInternals.mergeText(text, current.text);
+    endIndex = index;
+    if (youtubeCaptionInternals.hasSentencePunctuation(text)) break;
+  }
+
+  const groupedCues = cues.slice(startIndex, endIndex + 1);
+  if (endIndex <= startIndex || !youtubeCaptionInternals.hasSentencePunctuation(text)) return null;
+  if (!isLikelyFragmentedNativeWindow(groupedCues)) return null;
+  return {
+    ...cues[startIndex],
+    text,
+    endTime: cues[endIndex].endTime,
+    sequenceId: cues[endIndex].sequenceId || cues[startIndex].sequenceId,
+  };
 }
 
 export class YoutubeAdapter {
@@ -477,10 +554,11 @@ export class YoutubeAdapter {
       for (const candidate of candidates) {
         const cue = snapshotCue(candidate);
         if (!cue) continue;
-        const key = temporalCueKey(cue);
+        const groupedCue = groupNativeFragmentedSentence(track, cue) || cue;
+        const key = temporalCueKey(groupedCue);
         if (seen.has(key)) continue;
         seen.add(key);
-        result.push(cue);
+        result.push(groupedCue);
       }
     }
     result.sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
@@ -599,7 +677,9 @@ export class YoutubeAdapter {
     this.activeTemporalCount = temporalCues.length;
     let emitted = [];
     if (nativeTemporalCues.length) {
-      if (this.externalCuesAreFragmented) this.aggregator.reset();
+      // A existência de um snapshot externo fragmentado não invalida a faixa
+      // nativa. Preserve o buffer nativo entre polls para não reiniciar a frase
+      // a cada palavra quando as duas fontes coexistem.
       for (const cue of nativeTemporalCues) emitted = emitted.concat(this.aggregator.push(cue, this.now()));
       emitted = emitted.concat(this.aggregator.flushDue(this.now(), false));
     } else if (externalTemporalCues.length) {

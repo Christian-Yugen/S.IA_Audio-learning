@@ -44,7 +44,7 @@ function createElement(id, value = "") {
   return element;
 }
 
-function createHarness({ statusResponse = null, requestedPlatform = "off" } = {}) {
+function createHarness({ statusResponse = null, requestedPlatform = "off", applyResponse = null } = {}) {
   const elements = new Map();
   const ids = [
     "toggle-power", "toggle-compact", "summary-voice", "summary-speed", "summary-audio", "summary-sync",
@@ -124,7 +124,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off" } = {}
           return { ok: true, requested: requestedPlatform, compatible: requestedPlatform === "youtube", source: "test", hostKey: "youtube.com" };
         }
         if (message.target === "sia-platform-selection-apply") {
-          return { ok: true, active: true, platformId: "youtube" };
+          return applyResponse || { ok: true, active: true, platformId: "youtube" };
         }
         return { ok: true };
       },
@@ -190,6 +190,23 @@ test("popup não mostra conexão genérica quando YouTube não tem legenda tempo
   const label = harness.connectionStatusSpan.textContent;
   assert.match(label, /legenda temporal indisponível/);
   assert.doesNotMatch(label, /Conectada/);
+});
+
+test("popup recarrega a aba quando YouTube já estava injetado", async () => {
+  const harness = createHarness({
+    requestedPlatform: "youtube",
+    applyResponse: { ok: true, alreadyActive: true, platformId: "youtube" },
+  });
+  await harness.domReady();
+  await new Promise(resolve => setImmediate(resolve));
+  const select = harness.elements.get("#select-platform");
+  const apply = harness.elements.get("#apply-platform");
+  select.value = "youtube";
+  select.listener("change")();
+  apply.listener("click")();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(harness.runtimeMessages.at(-1).target, "sia-platform-selection-apply");
+  assert.deepEqual(harness.reloads, [17]);
 });
 
 test("popup mantém YouTube após updateConnectionStatus e aplica na aba", async () => {
