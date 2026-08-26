@@ -195,9 +195,9 @@ function groupFragmentedCues(cues) {
     } else {
       const gap = cue.startTime - group.endTime;
       const span = Math.max(cue.endTime, group.endTime) - group.startTime;
-      const canJoin = gap <= 0.65
+      const canJoin = gap <= 1.1
         && gap >= -0.35
-        && span <= 8
+        && span <= 10
         && !youtubeCaptionInternals.hasSentencePunctuation(group.text);
       if (!canJoin) {
         groups.push(group);

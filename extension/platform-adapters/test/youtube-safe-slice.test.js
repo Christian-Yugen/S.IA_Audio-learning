@@ -275,7 +275,7 @@ test("adapter libera cue temporal estável sem pontuação depois do tempo máxi
   });
   adapter.start();
   assert.equal(events.some(event => event.type === "SIA_CAPTION_CHANGED"), false);
-  now = 3000;
+  now = 8000;
   adapter.scan();
   const emitted = events.find(event => event.type === "SIA_CAPTION_CHANGED");
   assert.equal(Boolean(emitted), true);
@@ -777,6 +777,135 @@ test("adapter preserva buffer de TextTrack fragmentado durante intervalo e fala 
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].cue.text, "A SIA lê legendas.");
   assert.equal(emitted[0].cue.source, SOURCES.AGGREGATED);
+  adapter.stop();
+});
+
+test("adapter mantém frase quando a lacuna entre palavras supera a estabilidade atual", () => {
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: [
+      { text: "A", startTime: 0.2, endTime: 0.4, sequenceId: "0" },
+      { text: "SIA", startTime: 1.1, endTime: 1.3, sequenceId: "1" },
+      { text: "lê", startTime: 1.8, endTime: 2.0, sequenceId: "2" },
+      { text: "legendas.", startTime: 2.5, endTime: 2.8, sequenceId: "3" },
+    ],
+    activeCues: [],
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const video = {
+    id: "video-native-word-gap",
+    currentTime: 0.3,
+    currentSrc: "youtube-video-native-word-gap",
+    duration: 6,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  let nowMs = 0;
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=nativewordgap" },
+    windowRef,
+    now: () => nowMs,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  for (const [currentTime, activeCues] of [
+    [0.3, [track.cues[0]]],
+    [0.8, []],
+    [1.1, [track.cues[1]]],
+    [1.8, [track.cues[2]]],
+    [2.5, [track.cues[3]]],
+  ]) {
+    video.currentTime = currentTime;
+    nowMs = Math.round(currentTime * 1000);
+    track.activeCues = activeCues;
+    adapter.scan();
+  }
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "A SIA lê legendas.");
+  adapter.stop();
+});
+
+test("adapter não divide sentença longa em grupos pelo limite curto de retenção", () => {
+  const words = ["Esta", "é", "uma", "frase", "longa", "com", "muitas", "palavras."];
+  const track = {
+    kind: "captions",
+    label: "Português (Brasil)",
+    mode: "hidden",
+    cues: words.map((text, index) => ({
+      text,
+      startTime: 0.2 + index * 0.85,
+      endTime: 0.45 + index * 0.85,
+      sequenceId: String(index),
+    })),
+    activeCues: [],
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const video = {
+    id: "video-native-long-fragment",
+    currentTime: 0.25,
+    currentSrc: "youtube-video-native-long-fragment",
+    duration: 10,
+    paused: false,
+    ended: false,
+    textTracks: [track],
+    addEventListener() {},
+    removeEventListener() {},
+    closest() { return { id: "movie_player" }; },
+  };
+  const documentRef = {
+    documentElement: {},
+    querySelector(selector) { return /(^|\\s)video(?:[.#:\\s]|$)/.test(selector) ? video : null; },
+    querySelectorAll(selector) { return selector === "video" ? [video] : []; },
+  };
+  const windowRef = {
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout() { return 1; },
+    clearTimeout() {},
+    MutationObserver: undefined,
+  };
+  let nowMs = 0;
+  const events = [];
+  const adapter = createYoutubeAdapter({
+    documentRef,
+    locationRef: { href: "https://www.youtube.com/watch?v=nativelongfragment" },
+    windowRef,
+    now: () => nowMs,
+    emit: event => events.push(event),
+  });
+  adapter.start();
+  for (const cue of track.cues) {
+    video.currentTime = cue.startTime + 0.05;
+    nowMs = Math.round(video.currentTime * 1000);
+    track.activeCues = [cue];
+    adapter.scan();
+  }
+  const emitted = events.filter(event => event.type === "SIA_CAPTION_CHANGED");
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].cue.text, "Esta é uma frase longa com muitas palavras.");
   adapter.stop();
 });
 

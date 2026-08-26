@@ -1,8 +1,8 @@
 const DEFAULTS = Object.freeze({
-  stabilityMs: 420,
-  maxHoldMs: 1800,
-  maxGapSeconds: 0.65,
-  maxCueSpanSeconds: 8,
+  stabilityMs: 900,
+  maxHoldMs: 7000,
+  maxGapSeconds: 1.1,
+  maxCueSpanSeconds: 10,
   maxEmittedFingerprints: 80,
 });
 
