@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "config": "/tmp/sia-phase1-batch-config.json",
+  "jobCount": 2,
+  "completedCount": 2,
+  "failed": false,
+  "results": [
+    {
+      "id": "P01-htdemucs",
+      "status": "passed",
+      "returnCode": 0,
+      "wallSeconds": 34.09231716800423,
+      "command": [
+        "node",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/runners/demucs-web/run-separation.mjs",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/corpus/working/P01.wav",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/htdemucs_embedded.onnx",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs"
+      ],
+      "commandDisplay": "node /tmp/sia-platform-guard-work/experimental/audio-separation-lab/runners/demucs-web/run-separation.mjs /tmp/sia-platform-guard-work/experimental/audio-separation-lab/corpus/working/P01.wav /tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/htdemucs_embedded.onnx /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs",
+      "stdoutLog": "/tmp/sia-phase1-batch-results/001-P01-htdemucs.stdout.log",
+      "stderrLog": "/tmp/sia-phase1-batch-results/001-P01-htdemucs.stderr.log"
+    },
+    {
+      "id": "P01-spleeter",
+      "status": "passed",
+      "returnCode": 0,
+      "wallSeconds": 3.5070641819984303,
+      "command": [
+        "node",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/runners/demucs-web/run-spleeter.mjs",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/corpus/working/P01.wav",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/vocals.fp16.onnx",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/accompaniment.fp16.onnx",
+        "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-spleeter"
+      ],
+      "commandDisplay": "node /tmp/sia-platform-guard-work/experimental/audio-separation-lab/runners/demucs-web/run-spleeter.mjs /tmp/sia-platform-guard-work/experimental/audio-separation-lab/corpus/working/P01.wav /tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/vocals.fp16.onnx /tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/accompaniment.fp16.onnx /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-spleeter",
+      "stdoutLog": "/tmp/sia-phase1-batch-results/002-P01-spleeter.stdout.log",
+      "stderrLog": "/tmp/sia-phase1-batch-results/002-P01-spleeter.stderr.log"
+    }
+  ]
+}
