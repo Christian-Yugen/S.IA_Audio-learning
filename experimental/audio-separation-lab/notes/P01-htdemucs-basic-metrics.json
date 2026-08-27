@@ -1,0 +1,53 @@
+{
+  "directory": "experimental/audio-separation-lab/results/P01-htdemucs-cpu",
+  "stems": [
+    {
+      "file": "bass.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 2645998,
+      "durationSeconds": 29.99997732426304,
+      "rms": 0.00019407524063026781,
+      "rmsDbfs": -74.24059733381182,
+      "peak": 0.00341796875,
+      "peakDbfs": -49.32463824579073,
+      "clippedSamples": 0
+    },
+    {
+      "file": "drums.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 2645998,
+      "durationSeconds": 29.99997732426304,
+      "rms": 0.000107085860024135,
+      "rmsDbfs": -79.40535742162768,
+      "peak": 0.008453369140625,
+      "peakDbfs": -41.459403317905384,
+      "clippedSamples": 0
+    },
+    {
+      "file": "other.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 2645998,
+      "durationSeconds": 29.99997732426304,
+      "rms": 0.00034069675940921496,
+      "rmsDbfs": -69.35263994545426,
+      "peak": 0.021270751953125,
+      "peakDbfs": -33.44434313723417,
+      "clippedSamples": 0
+    },
+    {
+      "file": "vocals.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 2645998,
+      "durationSeconds": 29.99997732426304,
+      "rms": 0.027599395878565688,
+      "rmsDbfs": -31.182008481504894,
+      "peak": 0.303009033203125,
+      "peakDbfs": -10.370888485281036,
+      "clippedSamples": 0
+    }
+  ]
+}

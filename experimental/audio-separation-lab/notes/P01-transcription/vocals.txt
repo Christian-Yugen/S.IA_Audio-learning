@@ -1,0 +1,41 @@
+Starting Speech-to-Text conversion...
+Audio file size (5.0MB) exceeds limit (5MB), downsampling audio file...
+Source audio bitrate: 1411 kbps
+Bitrate exceeds 128 kbps, downsampling...
+Downsampled audio saved to: experimental/audio-separation-lab/results/P01-htdemucs-cpu/.vocals_chunks_20260827_171957/downsampled_20260827_171957.mp3
+Downsampled audio file size is 0.46 MB.
+Downsampled audio file size is within 5MB target, skipping chunking.
+Transcribing audio file: experimental/audio-separation-lab/results/P01-htdemucs-cpu/.vocals_chunks_20260827_171957/downsampled_20260827_171957.mp3, file size: 0.46 MB
+Transcription may take some time depending on file size and audio length...
+Transcription completed successfully!
+
+TRANSCRIPTION RESULT:
+Total Duration: 30.0 seconds
+Language: eng
+Timestamped segments:
+[00:00.1 - 00:05.0] Nearly all the visions of the future that we have been shown, from H.G.
+[00:05.0 - 00:08.2] Wells onwards, have been essentially static.
+[00:08.2 - 00:18.3] They show a society that is in most cases far in advance of ours in science, in
+[00:18.3 - 00:21.4] technology, and in political organization.
+[00:21.4 - 00:25.4] The last might not be difficult.
+Complete transcription result saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs-cpu/vocals_transcription_20260827_171959.json
+Plain text transcription saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs-cpu/vocals_transcription_20260827_171959.txt
+[2J[H[3Jmanus-speech-to-text experimental/audio-separation-lab/results/P01-htdemucs-cpu/vocals.wav
+Starting Speech-to-Text conversion...
+Audio file size (5.0MB) exceeds limit (5MB), downsampling audio file...
+Source audio bitrate: 1411 kbps
+Bitrate exceeds 128 kbps, downsampling...
+Downsampled audio file size is 0.46 MB.
+Downsampled audio file size is within 5MB target, skipping chunking.
+Transcribing audio file: experimental/audio-separation-lab/results/P01-htdemucs-cpu/.vocals_chunks_20260827_171957/downsampled_20260827_171957.mp3, file size: 0.46 MB
+Transcription may take some time depending on file size and audio length...
+
+Snippet of transcribed content:
+[00:00.1 - 00:05.0] Nearly all the visions of the future that we have been shown, from H.G.
+[00:05.0 - 00:08.2] Wells onwards, have been essentially static.
+[00:08.2 - 00:18.3] They show a society that is in most cases far in advance of ours in science, in
+[00:18.3 - 00:21.4] technology, and in political organization.
+[00:21.4 - 00:25.4] The last might not be difficult.
+
+Completed transcription, JSON saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs-cpu/vocals_transcription_20260827_171959.json
+Plain text transcription saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P01-htdemucs-cpu/vocals_transcription_20260827_171959.txt

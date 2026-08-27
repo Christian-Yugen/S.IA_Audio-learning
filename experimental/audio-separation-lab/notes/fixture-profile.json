@@ -1,0 +1,17 @@
+{
+  "command": [
+    "ffprobe",
+    "-v",
+    "error",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=nw=1",
+    "fixtures/g7-udemy/test.webm"
+  ],
+  "returnCode": 0,
+  "wallSeconds": 0.15796547300124075,
+  "maxResidentSetKb": 53980,
+  "stdout": "duration=6.000000\n",
+  "stderr": ""
+}

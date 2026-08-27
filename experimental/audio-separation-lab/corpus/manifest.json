@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "description": "Manifesto local e anonimizado para o laboratório de separação de áudio da S·IA.",
+  "privacy": {
+    "rawFilesTrackedByGit": false,
+    "externalUploadAllowed": false,
+    "consentRequired": true
+  },
+  "samples": [
+    {
+      "id": "P01",
+      "path": "experimental/audio-separation-lab/corpus/raw/public-lecture-hawking30s.ogg",
+      "sourceType": "public-domain-lecture",
+      "scenario": "clean-speech",
+      "language": "en-US",
+      "authorization": "public-domain",
+      "durationExpectedSeconds": 30,
+      "sha256": "9b0716e49a140055b35e4f498b9473662a85e47c7b89088a7ea78c598458a9b0",
+      "attribution": "Courtesy; William J. Clinton Presidential Library",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:White_House_Millennium_Lecture_Series_-_-2_-_Stephen_Hawking30s.ogg",
+      "isSmokeTestOnly": true,
+      "notes": "Palestra real de 30 segundos. Serve para validar o pipeline; não representa fala em música ou ambiente complexo."
+    }
+  ]
+}
