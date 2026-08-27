@@ -265,7 +265,7 @@ S.IA_Audio-learning/
 | `content.js` | Detectar legendas, controlar fala, vídeo, histórico e Recall |
 | `sync-engine.js` | Regras puras de tempo, pontuação e deduplicação |
 | `popup.*` | Configuração rápida e status da aula |
-| `sidepanel.*` | Histórico, favoritos, notas, arquivo integral da aula, exportação e estudo ativo |
+| `sidepanel.*` | Histórico, favoritos, notas, registro da legenda lida, exportação e estudo ativo |
 | `learning/learning-engine.js` | Marcações temporais, cartões, avaliações, due cards e métricas locais |
 | `service-worker.js` | Atalhos e comunicação com a aba ativa |
 | `manifest.json` | Permissões e componentes da extensão |
@@ -461,7 +461,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.39 substitui o resumo seletivo por um arquivo integral local: reúne todas as falas que a S·IA iniciou, permite visualizá-las, salvá-las em um único `.txt` e pedir sua leitura pelo mesmo núcleo Browser/Piper. A versão 1.8.38 corrige a ativação do áudio neural: selecionar Piper não tenta abrir o `AudioContext` automaticamente; o áudio é liberado depois de um gesto real na página. A versão 1.8.37 corrige a leitura do conteúdo integral com o vídeo pausado. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.40 corrige a apresentação do recurso: ele é identificado como **registro local da legenda lida**, não como resumo, interpretação ou análise da aula. O Companion mostra o texto que a S·IA iniciou, permite ouvi-lo novamente e salvá-lo em um arquivo `.txt`. A versão 1.8.39 fornece a base de armazenamento local separado para esse registro. A versão 1.8.38 corrige a ativação do áudio neural: selecionar Piper não tenta abrir o `AudioContext` automaticamente; o áudio é liberado depois de um gesto real na página. A versão 1.8.37 corrige a leitura do conteúdo com o vídeo pausado. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

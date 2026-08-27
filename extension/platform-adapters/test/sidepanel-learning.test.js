@@ -308,7 +308,7 @@ test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
   assert.match(html, /Ouça, guarde, lembre/);
   assert.match(html, /1 · AGORA/);
   assert.match(html, /Acompanhar a aula/);
-  assert.match(html, /2 · Todas as falas da aula/);
+  assert.match(html, /2 · Legenda lida da aula/);
   assert.match(html, /3 · Guardar para aprender/);
   assert.match(html, /4 · Responder para memorizar/);
   assert.match(html, /5 · Linha do tempo da aula/);
@@ -350,8 +350,8 @@ test("sidepanel monta todas as falas e só depois oferece sua leitura", async ()
   assert.equal(harness.elements.get("#transcript-output").hidden, false);
   assert.equal(harness.elements.get("#lesson-transcript").textContent, "A primeira fala da aula.\n\nA segunda fala da aula.");
   assert.equal(harness.elements.get("#read-transcript").disabled, false);
-  assert.match(harness.elements.get("#transcript-count").textContent, /2 frases reunidas/);
-  assert.match(harness.elements.get("#transcript-status").textContent, /Arquivo completo/);
+  assert.match(harness.elements.get("#transcript-count").textContent, /2 frases lidas/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /2 frases lidas exibidas/);
 
   harness.elements.get("#read-transcript").listener("click")();
   await harness.flush();
@@ -359,7 +359,7 @@ test("sidepanel monta todas as falas e só depois oferece sua leitura", async ()
     type: "SIA_READ_LESSON_TRANSCRIPT",
     text: "A primeira fala da aula.\n\nA segunda fala da aula.",
   });
-  assert.match(harness.elements.get("#transcript-status").textContent, /Todas as falas foram enviadas/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /enviadas para a leitura/);
 });
 
 test("sidepanel salva todas as falas em um único arquivo local", async () => {
@@ -370,10 +370,10 @@ test("sidepanel salva todas as falas em um único arquivo local", async () => {
   harness.elements.get("#download-transcript").listener("click")();
 
   const link = harness.createdLinks.at(-1);
-  assert.equal(link.download, "sia-aula-falas.txt");
+  assert.equal(link.download, "sia-aula-legenda-lida.txt");
   assert.equal(harness.state.lastBlob.options.type, "text/plain;charset=utf-8");
   const content = harness.state.lastBlob.parts.join("");
   assert.match(content, /AULA: Aula/);
   assert.match(content, /Fala de teste\./);
-  assert.match(harness.elements.get("#transcript-status").textContent, /salvo no dispositivo/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /salva no dispositivo/);
 });

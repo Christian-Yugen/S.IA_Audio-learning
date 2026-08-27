@@ -37,20 +37,20 @@
 
     <section class="transcript-card" aria-labelledby="transcript-heading">
       <div class="section-heading">
-        <h1 id="transcript-heading">2 · Todas as falas da aula</h1>
+        <h1 id="transcript-heading">2 · Legenda lida da aula</h1>
         <span id="transcript-count">Ainda não montado</span>
       </div>
-      <p class="transcript-description">Reúna em um único texto todas as frases que a S·IA já leu nesta aula. Você não precisa esperar o fim: o arquivo pode ficar incompleto até novas frases serem lidas.</p>
+      <p class="transcript-description">Aqui ficam as legendas que a S·IA realmente leu. Você pode reunir o texto até agora, ouvir novamente ou salvar uma cópia no seu dispositivo.</p>
       <div class="transcript-actions">
-        <button id="generate-transcript" type="button">Montar arquivo completo</button>
-        <button id="read-transcript" type="button" disabled>Ouvir todas as falas</button>
-        <button id="download-transcript" type="button" disabled>Salvar arquivo da aula</button>
+        <button id="generate-transcript" type="button">Mostrar legenda lida</button>
+        <button id="read-transcript" type="button" disabled>Ouvir legenda novamente</button>
+        <button id="download-transcript" type="button" disabled>Salvar legenda em arquivo</button>
       </div>
-      <p id="transcript-status" class="transcript-status" aria-live="polite">O arquivo só será montado quando você pedir.</p>
+      <p id="transcript-status" class="transcript-status" aria-live="polite">A legenda aparecerá depois que a S·IA ler algumas frases.</p>
       <div id="transcript-output" class="transcript-output" hidden>
-        <strong>Arquivo completo criado a partir desta aula:</strong>
+        <strong>Legenda lida até este momento:</strong>
         <p id="lesson-transcript"></p>
-        <small>Este texto reúne as falas que a S·IA iniciou. Não é um resumo e não inventa informações.</small>
+        <small>Este é um registro local das legendas que a S·IA iniciou. Ele não resume, interpreta ou acrescenta informações.</small>
       </div>
     </section>
 

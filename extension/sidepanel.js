@@ -131,16 +131,16 @@
     ui.readTranscript.disabled = !hasText;
     ui.downloadTranscript.disabled = !hasText;
     ui.transcriptCount.textContent = hasText
-      ? `${total} ${total === 1 ? "frase reunida" : "frases reunidas"}${transcript.parcial ? " · arquivo parcial" : ""}`
-      : "Ainda não montado";
+      ? `${total} ${total === 1 ? "frase lida" : "frases lidas"}${transcript.parcial ? " · registro limitado" : ""}`
+      : "Ainda não exibida";
     if (!hasText) {
       ui.transcriptStatus.textContent = entries.length
-        ? "Clique em “Montar arquivo completo” quando quiser guardar tudo o que já foi lido."
-        : "Aguarde a S·IA ler algumas frases antes de montar o arquivo.";
+        ? "Clique em “Mostrar legenda lida” para ver o texto que a S·IA já leu."
+        : "Aguarde a S·IA ler algumas frases antes de mostrar a legenda.";
     } else if (transcript.parcial) {
-      ui.transcriptStatus.textContent = `Arquivo local com ${total} ${total === 1 ? "frase lida" : "frases lidas"}; o limite de segurança foi atingido.`;
+      ui.transcriptStatus.textContent = `Registro local com ${total} ${total === 1 ? "frase lida" : "frases lidas"}; o limite de segurança foi atingido.`;
     } else {
-      ui.transcriptStatus.textContent = `Arquivo completo com ${total} ${total === 1 ? "frase lida" : "frases lidas"}.`;
+      ui.transcriptStatus.textContent = `${total} ${total === 1 ? "frase lida" : "frases lidas"} exibidas.`;
     }
   }
 
@@ -238,13 +238,13 @@
 
   async function generateTranscript() {
     ui.generateTranscript.disabled = true;
-    ui.transcriptStatus.textContent = "Reunindo todas as frases que a S·IA já leu…";
+    ui.transcriptStatus.textContent = "Mostrando as legendas que a S·IA já leu…";
     const result = await send({ type: "SIA_GET_LESSON_TRANSCRIPT" });
     ui.generateTranscript.disabled = false;
     if (!result?.ok) {
       transcript = null;
       renderTranscript();
-      ui.transcriptStatus.textContent = "Não foi possível montar o arquivo desta aula.";
+      ui.transcriptStatus.textContent = "Não foi possível mostrar a legenda lida desta aula.";
       return;
     }
     transcript = result;
@@ -269,7 +269,7 @@
     const conteudo = [
       `AULA: ${titulo || "Aula"}`,
       `URL: ${transcript.url || ""}`,
-      `FRASES REUNIDAS: ${Number(data.totalFrases || 0)}`,
+      `FRASES DA LEGENDA LIDA: ${Number(data.totalFrases || 0)}`,
       "",
       data.texto,
       "",
@@ -284,10 +284,10 @@
     const url = URL.createObjectURL(new Blob([conteudo], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `sia-${nomeBase}-falas.txt`;
+    link.download = `sia-${nomeBase}-legenda-lida.txt`;
     link.click();
     URL.revokeObjectURL(url);
-    ui.transcriptStatus.textContent = "Arquivo completo salvo no dispositivo.";
+    ui.transcriptStatus.textContent = "Legenda lida salva no dispositivo.";
   }
 
   async function reviewCurrent(rating) {
