@@ -59,3 +59,19 @@ O primeiro caminho técnico — ingestão, normalização, inferência HT-Demucs
 A transcrição auxiliar do acompanhamento (`drums + bass + other`) ainda reconheceu fala em vários intervalos. Portanto, nesta amostra de fala limpa, a separação não produziu um acompanhamento silencioso em relação à voz: houve vazamento suficiente para manter inteligibilidade parcial. Esse é um alerta importante para o Modo Imersão, pois simplesmente reproduzir o acompanhamento pode deixar a voz do professor audível junto da S·IA.
 
 O resultado não permite concluir que o modelo falhará em música ou ambiente, porque a amostra não contém esses elementos. A próxima rodada precisa comparar a redução da voz em áudio realmente misturado e avaliar se o vazamento é mascarado pelo ambiente sem destruir seus sons.
+
+## Segunda execução com medição corrigida
+
+O executor do laboratório passou a calcular a contagem esperada de segmentos antes da execução e a registrar o SHA-256 do modelo. A repetição produziu seis segmentos, com progresso de 1/6 até 6/6, eliminando a inconsistência de apresentação observada na primeira execução.
+
+| Campo | Segunda execução |
+|---|---:|
+| Hash SHA-256 do modelo | `e5e425c17683f163a472462eb5f5a4ffcd11c31858d57fbd0833b012d8b88077` |
+| Carga do modelo | 0,850 s |
+| Separação | 28,087 s |
+| Tempo total | 28,937 s |
+| Fator de tempo real | 0,936× |
+| Pico de RSS registrado | 2.859.936 KB, aproximadamente 2,73 GiB |
+| Segmentos esperados/processados | 6 / 6 |
+
+A variação de tempo entre as duas execuções é esperada em uma medição de CPU compartilhada. O valor de referência para o planejamento será mantido como faixa, não como número único. O risco de memória permanece alto.
