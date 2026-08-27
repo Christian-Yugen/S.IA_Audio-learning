@@ -1,6 +1,6 @@
 # Política de privacidade da S·IA
 
-Última atualização: 25 de agosto de 2026.
+Última atualização: 27 de agosto de 2026.
 
 ## Propósito
 
@@ -20,7 +20,7 @@ As preferências de voz, idioma, velocidade, tom, volume, sincronização e inte
 
 O Companion inclui um MVP opcional de aprendizagem ativa. Quando o usuário cria uma marcação, a extensão guarda localmente somente o trecho temporal seguro da legenda, a URL/título e identificadores da aula, o intervalo confirmado, o tipo de marcação, a pergunta e os metadados de revisão do cartão. A resposta digitada pelo estudante e a última avaliação também ficam em `chrome.storage.local`; não são transmitidas, sincronizadas com servidor ou usadas para diagnosticar capacidade.
 
-Quando o usuário solicita a **legenda lida da aula**, a extensão reúne localmente as frases que a S·IA iniciou e guarda esse registro em uma chave própria do `chrome.storage.local`. O texto pode ser mostrado no Companion, lido novamente pelo mesmo núcleo Browser/Piper ou baixado pelo usuário em um único arquivo `.txt`. Esse arquivo é criado no dispositivo no momento do download; não é enviado para servidor. O registro é limitado ao texto que a extensão conseguiu capturar e informa quando o limite local de segurança foi atingido. Ele não resume, interpreta ou corrige a aula e não deve ser confundido com uma transcrição oficial fornecida pela plataforma.
+Quando o usuário solicita a **legenda lida da aula**, a extensão reúne localmente as frases que a S·IA iniciou e guarda esse registro em uma chave própria do `chrome.storage.local`. O texto pode ser mostrado no Companion, baixado pelo usuário em um único arquivo `.txt` ou usado para voltar o vídeo ao primeiro trecho temporal registrado e rever, no próprio vídeo, o intervalo capturado com a leitura normal da S·IA. Esse arquivo é criado no dispositivo no momento do download; não é enviado para servidor. O registro é limitado ao texto e aos tempos que a extensão conseguiu capturar e informa quando o limite local de segurança foi atingido. Ele não resume, interpreta ou corrige a aula e não deve ser confundido com uma transcrição oficial fornecida pela plataforma.
 
 Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. **Limpar histórico** apaga o histórico recente e o registro da legenda lida; **Limpar estudo** apaga somente marcações e cartões. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
 

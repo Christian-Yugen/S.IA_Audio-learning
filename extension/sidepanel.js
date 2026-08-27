@@ -10,7 +10,7 @@
     clearHistory: document.getElementById("clear-history"),
     clearStudy: document.getElementById("clear-study"),
     generateTranscript: document.getElementById("generate-transcript"),
-    readTranscript: document.getElementById("read-transcript"),
+    replayTranscript: document.getElementById("replay-transcript"),
     downloadTranscript: document.getElementById("download-transcript"),
     transcriptCount: document.getElementById("transcript-count"),
     transcriptStatus: document.getElementById("transcript-status"),
@@ -120,15 +120,24 @@
     ui.recallSource.textContent = revealed ? card.texto : "";
   }
 
+  function transcriptHasSafeTiming() {
+    return (transcript?.transcricao?.trechos || []).some(item => {
+      const inicio = Number(item?.inicio);
+      const fim = Number(item?.fim);
+      return Number.isFinite(inicio) && Number.isFinite(fim) && fim > inicio;
+    });
+  }
+
   function renderTranscript() {
     const data = transcript?.transcricao;
     const text = data?.texto || "";
     const total = Number(data?.totalFrases || 0);
     const hasText = Boolean(text);
+    const hasReplayTiming = transcriptHasSafeTiming();
     ui.transcriptOutput.hidden = !hasText;
     ui.lessonTranscript.textContent = text;
     ui.generateTranscript.disabled = !entries.length;
-    ui.readTranscript.disabled = !hasText;
+    ui.replayTranscript.disabled = !hasReplayTiming;
     ui.downloadTranscript.disabled = !hasText;
     ui.transcriptCount.textContent = hasText
       ? `${total} ${total === 1 ? "frase lida" : "frases lidas"}${transcript.parcial ? " · registro limitado" : ""}`
@@ -139,8 +148,10 @@
         : "Aguarde a S·IA ler algumas frases antes de mostrar a legenda.";
     } else if (transcript.parcial) {
       ui.transcriptStatus.textContent = `Registro local com ${total} ${total === 1 ? "frase lida" : "frases lidas"}; o limite de segurança foi atingido.`;
+    } else if (!hasReplayTiming) {
+      ui.transcriptStatus.textContent = `${total} ${total === 1 ? "frase lida" : "frases lidas"} exibidas, mas sem intervalo temporal seguro para rever no vídeo.`;
     } else {
-      ui.transcriptStatus.textContent = `${total} ${total === 1 ? "frase lida" : "frases lidas"} exibidas.`;
+      ui.transcriptStatus.textContent = `${total} ${total === 1 ? "frase lida" : "frases lidas"} exibidas. Você pode rever no vídeo o intervalo registrado.`;
     }
   }
 
@@ -202,7 +213,7 @@
       ui.bookmarkCurrent.disabled = true;
       ui.clearStudy.disabled = true;
       ui.generateTranscript.disabled = true;
-      ui.readTranscript.disabled = true;
+      ui.replayTranscript.disabled = true;
       ui.downloadTranscript.disabled = true;
       ui.recallAnswer.disabled = true;
       ui.revealRecall.disabled = true;
@@ -251,15 +262,16 @@
     renderTranscript();
   }
 
-  async function readTranscript() {
-    const text = transcript?.transcricao?.texto || "";
-    if (!text) return;
-    ui.readTranscript.disabled = true;
-    const result = await send({ type: "SIA_READ_LESSON_TRANSCRIPT", text });
-    ui.readTranscript.disabled = false;
+  async function replayTranscript() {
+    if (!transcriptHasSafeTiming()) return;
+    ui.replayTranscript.disabled = true;
+    const result = await send({ type: "SIA_REPLAY_LESSON_TRANSCRIPT" });
+    ui.replayTranscript.disabled = false;
     ui.transcriptStatus.textContent = result?.ok
-      ? "Todas as falas foram enviadas para a leitura. A aula foi pausada para você ouvir."
-      : "Não foi possível iniciar a leitura das falas.";
+      ? "O vídeo voltou ao primeiro trecho registrado. A S·IA acompanhará as legendas e pausará ao fim do intervalo capturado."
+      : result?.reason === "transcript-timing-unavailable"
+        ? "Não há um intervalo temporal seguro para rever este registro."
+        : "Não foi possível iniciar a revisão no vídeo desta aula.";
   }
 
   function downloadTranscriptFile() {
@@ -322,7 +334,7 @@
 
   ui.replayCurrent.addEventListener("click", () => replay());
   ui.generateTranscript.addEventListener("click", () => void generateTranscript());
-  ui.readTranscript.addEventListener("click", () => void readTranscript());
+  ui.replayTranscript.addEventListener("click", () => void replayTranscript());
   ui.downloadTranscript.addEventListener("click", downloadTranscriptFile);
   ui.bookmarkCurrent.addEventListener("click", () => void markCurrent());
   ui.revealRecall.addEventListener("click", () => {

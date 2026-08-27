@@ -77,11 +77,11 @@ function baseStudyContext(overrides = {}) {
   };
 }
 
-function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, transcriptResponse = null, readTranscriptResponse = null } = {}) {
+function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, transcriptResponse = null, replayTranscriptResponse = null } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
     "history-item-template", "study-progress", "due-count", "bookmark-type", "bookmark-current", "clear-study",
-    "generate-transcript", "read-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
+    "generate-transcript", "replay-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
     "study-feedback", "recall-question", "recall-answer", "reveal-recall", "recall-source",
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createElement(id)]));
@@ -140,7 +140,7 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
           transcricao: { texto: "Fala de teste.", trechos: [], totalFrases: 1, caracteres: 14 },
           fonte: "historico-local",
         };
-        if (message.type === "SIA_READ_LESSON_TRANSCRIPT") return readTranscriptResponse || { ok: true, reason: "transcript-queued", partes: 1 };
+        if (message.type === "SIA_REPLAY_LESSON_TRANSCRIPT") return replayTranscriptResponse || { ok: true, reason: "transcript-replay-started", inicio: 11.95, fim: 21, totalFrases: 2 };
         if (message.type === "SIA_CREATE_STUDY_BOOKMARK") return createResponse || { ok: true, duplicate: false };
         if (message.type === "SIA_REVIEW_STUDY_CARD") return reviewResponse || { ok: true };
         if (message.type === "SIA_CLEAR_STUDY") {
@@ -321,11 +321,11 @@ test("sidepanel orienta a aguardar frases antes de montar o arquivo", async () =
   const harness = createHarness({ context });
   await harness.flush();
   assert.equal(harness.elements.get("#generate-transcript").disabled, true);
-  assert.equal(harness.elements.get("#read-transcript").disabled, true);
+  assert.equal(harness.elements.get("#replay-transcript").disabled, true);
   assert.match(harness.elements.get("#transcript-status").textContent, /Aguarde a S·IA ler/);
 });
 
-test("sidepanel monta todas as falas e só depois oferece sua leitura", async () => {
+test("sidepanel monta todas as falas e só depois oferece a revisão no vídeo", async () => {
   const context = baseStudyContext();
   const harness = createHarness({
     context,
@@ -344,22 +344,21 @@ test("sidepanel monta todas as falas e só depois oferece sua leitura", async ()
     },
   });
   await harness.flush();
-  assert.equal(harness.elements.get("#read-transcript").disabled, true);
+  assert.equal(harness.elements.get("#replay-transcript").disabled, true);
   harness.elements.get("#generate-transcript").listener("click")();
   await harness.flush();
   assert.equal(harness.elements.get("#transcript-output").hidden, false);
   assert.equal(harness.elements.get("#lesson-transcript").textContent, "A primeira fala da aula.\n\nA segunda fala da aula.");
-  assert.equal(harness.elements.get("#read-transcript").disabled, false);
+  assert.equal(harness.elements.get("#replay-transcript").disabled, false);
   assert.match(harness.elements.get("#transcript-count").textContent, /2 frases lidas/);
   assert.match(harness.elements.get("#transcript-status").textContent, /2 frases lidas exibidas/);
 
-  harness.elements.get("#read-transcript").listener("click")();
+  harness.elements.get("#replay-transcript").listener("click")();
   await harness.flush();
-  assert.deepEqual(lastMessage(harness, "SIA_READ_LESSON_TRANSCRIPT"), {
-    type: "SIA_READ_LESSON_TRANSCRIPT",
-    text: "A primeira fala da aula.\n\nA segunda fala da aula.",
+  assert.deepEqual(lastMessage(harness, "SIA_REPLAY_LESSON_TRANSCRIPT"), {
+    type: "SIA_REPLAY_LESSON_TRANSCRIPT",
   });
-  assert.match(harness.elements.get("#transcript-status").textContent, /enviadas para a leitura/);
+  assert.match(harness.elements.get("#transcript-status").textContent, /voltou ao primeiro trecho registrado/);
 });
 
 test("sidepanel salva todas as falas em um único arquivo local", async () => {

@@ -42,6 +42,9 @@ function createHarness({
     playbackRate: 1,
     paused,
     ended: false,
+    duration: 120,
+    playCalls: 0,
+    pauseCalls: 0,
     textTracks: textTrack ? [textTrack] : [],
     closest() {
       return null;
@@ -52,6 +55,16 @@ function createHarness({
     },
     removeEventListener(name, listener) {
       listeners.get(name)?.delete(listener);
+    },
+    play() {
+      this.paused = false;
+      this.playCalls += 1;
+      return Promise.resolve();
+    },
+    pause() {
+      this.paused = true;
+      this.pauseCalls += 1;
+      this.dispatch("pause");
     },
     dispatch(name) {
       for (const listener of listeners.get(name) || []) listener();
@@ -566,7 +579,7 @@ test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async (
   assert.equal(harness.spoken.length, 0);
 });
 
-test('transcrição integral usa todas as falas e sua leitura não polui o histórico', async () => {
+test('revisão da legenda volta ao vídeo, usa o intervalo registrado e não cria fala livre', async () => {
   const harness = createHarness();
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   harness.input.push(cue({ text: 'A aula apresenta o conceito principal.', startTime: 10, endTime: 12 }));
@@ -575,40 +588,50 @@ test('transcrição integral usa todas as falas e sua leitura não polui o hist�
 
   const transcript = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
   assert.equal(transcript.ok, true, JSON.stringify(transcript));
-  assert.equal(transcript.fonte, 'historico-local-integral');
   assert.equal(transcript.transcricao.totalFrases, 2);
-  assert.ok(transcript.transcricao.texto.length > 0);
   assert.ok(transcript.transcricao.trechos.every(item => item.texto));
 
   const before = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
-  harness.video.paused = true;
-  const read = await harness.sendMessage({
-    type: 'SIA_READ_LESSON_TRANSCRIPT',
-    text: transcript.transcricao.texto,
-  });
-  assert.equal(read.ok, true, JSON.stringify(read));
-  assert.equal(harness.spoken.length, 3);
-  assert.match(harness.spoken.at(-1).text, /conceito/);
+  const spokenBefore = harness.spoken.length;
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, true, JSON.stringify(replay));
+  assert.equal(replay.inicio, 9.95);
+  assert.equal(replay.fim, 15);
+  assert.equal(harness.video.currentTime, 9.95);
+  assert.equal(harness.video.playCalls, 1);
+  assert.equal(harness.video.paused, false);
+  assert.equal(harness.spoken.length, spokenBefore);
+
+  harness.video.currentTime = 15.36;
+  harness.video.dispatch('timeupdate');
+  assert.equal(harness.video.paused, true);
+  assert.equal(harness.video.pauseCalls, 1);
+  assert.equal(harness.video.currentTime, 15.35);
+  assert.equal(harness.spoken.length, spokenBefore);
 
   const after = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
   assert.equal(after.history.length, before.history.length);
-  const study = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
-  assert.equal(study.currentCue.text, 'O exemplo mostra como aplicar esse conceito.');
 });
 
-test('leitura da transcrição usa Piper compartilhado quando ele está ativo', async () => {
+test('revisão contextual preserva a única fila Piper e não sintetiza a transcrição isoladamente', async () => {
   const harness = createHarness({ piperActive: true });
   harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
   harness.input.push(cue({ text: 'Fala neural da aula.', startTime: 10, endTime: 12 }));
-  const transcript = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
-  harness.video.paused = true;
-  const read = await harness.sendMessage({
-    type: 'SIA_READ_LESSON_TRANSCRIPT',
-    text: transcript.transcricao.texto,
-  });
-  assert.equal(read.ok, true, JSON.stringify(read));
-  assert.equal(harness.piperSpoken.length, 2);
-  assert.match(harness.piperSpoken.at(-1).text, /Fala neural/);
+  const spokenBefore = harness.piperSpoken.length;
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, true, JSON.stringify(replay));
+  assert.equal(harness.piperSpoken.length, spokenBefore);
+  assert.equal(harness.video.playCalls, 1);
+});
+
+test('revisão contextual recusa registro sem intervalo temporal seguro', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Legenda sem fim confirmado.', startTime: 10, endTime: 0 }));
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, false, JSON.stringify(replay));
+  assert.equal(replay.reason, 'transcript-timing-unavailable');
+  assert.equal(harness.video.playCalls, 0);
 });
 
 test('limpar histórico remove também a transcrição integral local', async () => {

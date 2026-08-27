@@ -92,10 +92,10 @@
     let ultimoTextoConcluidoEm = 0;
     let legendaNeuralPrecarregada = null;
     let testeNeuralEmAndamento = false;
-    let textoLivreEmAndamento = false;
     let historicoFrases = [];
     let transcricaoFrases = [];
     let transcricaoCortada = false;
+    let replayTranscricaoAtivo = null;
     const chaveHistorico = `sia_history_${location.pathname
         .replace(/[^a-z0-9]+/gi, "_")
         .slice(0, 120)}`;
@@ -677,44 +677,128 @@
         };
     }
 
-    function dividirTextoLivre(texto, maximoCaracteres = 420) {
-        const palavras = normalizarTexto(texto).split(" ").filter(Boolean);
-        const partes = [];
-        let atual = "";
-        for (const palavra of palavras) {
-            const proximo = atual ? `${atual} ${palavra}` : palavra;
-            if (atual && proximo.length > maximoCaracteres) {
-                partes.push(atual);
-                atual = palavra;
-            } else {
-                atual = proximo;
-            }
-        }
-        if (atual) partes.push(atual);
-        return partes;
+    function obterTrechosTemporaisSegurosDaTranscricao() {
+        if (!MOTOR_APRENDIZAGEM?.createTranscript) return [];
+        const entradasSeguras = (Array.isArray(transcricaoFrases) ? transcricaoFrases : [])
+            .filter(entrada => {
+                const texto = normalizarTexto(entrada?.texto ?? entrada?.text);
+                const inicio = Number(entrada?.inicio);
+                const fim = Number(entrada?.fim);
+                return Boolean(texto)
+                    && Number.isFinite(inicio)
+                    && Number.isFinite(fim)
+                    && fim > inicio;
+            });
+        return MOTOR_APRENDIZAGEM.createTranscript(entradasSeguras).trechos || [];
     }
 
-    function lerTranscricaoLocal(texto) {
-        const partes = dividirTextoLivre(texto);
-        if (!partes.length || !extensaoAtiva || sinteseBloqueada) return { ok: false, partes: 0 };
-        document.querySelector("video")?.pause?.();
+    function cancelarReplayTranscricao() {
+        const replay = replayTranscricaoAtivo;
+        if (!replay) return false;
+        replayTranscricaoAtivo = null;
+        for (const [evento, listener] of Object.entries(replay.listeners || {})) {
+            replay.video.removeEventListener?.(evento, listener);
+        }
+        return true;
+    }
+
+    function repetirTranscricaoNoVideo() {
+        const video = document.querySelector("video");
+        const trechos = obterTrechosTemporaisSegurosDaTranscricao();
+        const primeiro = trechos[0];
+        const ultimo = trechos.at(-1);
+        const inicio = Number(primeiro?.inicio);
+        const fim = Number(ultimo?.fim);
+        if (!video) return { ok: false, reason: "video-not-found" };
+        if (
+            !primeiro
+            || !ultimo
+            || !Number.isFinite(inicio)
+            || !Number.isFinite(fim)
+            || fim <= inicio
+        ) {
+            return { ok: false, reason: "transcript-timing-unavailable" };
+        }
+
         interromperFala();
-        textoLivreEmAndamento = true;
-        let indice = 0;
-        const enfileirarProximaParte = () => {
-            const parte = partes[indice++];
-            if (!parte) {
-                textoLivreEmAndamento = false;
+        ultimoTextoDetectado = "";
+        textoCandidato = "";
+        cueEstudoAtual = null;
+        coberturaLegendaAte = 0;
+        const inicioRevisao = Math.max(0, inicio - 0.05);
+        const replay = {
+            video,
+            inicioRevisao,
+            limite: fim + 0.35,
+            ignorarBuscaInicial: true,
+            listeners: {},
+        };
+        const finalizarNoLimite = () => {
+            if (replayTranscricaoAtivo !== replay) return;
+            cancelarReplayTranscricao();
+            if (Number.isFinite(replay.video.duration) && replay.video.duration > 0) {
+                replay.video.currentTime = Math.min(replay.limite, replay.video.duration);
+            }
+            replay.video.pause?.();
+            interromperFala();
+        };
+        replay.listeners.timeupdate = () => {
+            if (Number(replay.video.currentTime) >= replay.limite) finalizarNoLimite();
+        };
+        replay.listeners.pause = () => {
+            if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+        };
+        replay.listeners.ended = () => {
+            if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+        };
+        replay.listeners.emptied = () => {
+            if (replayTranscricaoAtivo === replay) {
+                cancelarReplayTranscricao();
+                interromperFala();
+            }
+        };
+        replay.listeners.seeking = () => {
+            if (replayTranscricaoAtivo !== replay) return;
+            if (
+                replay.ignorarBuscaInicial
+                && Math.abs(Number(replay.video.currentTime) - replay.inicioRevisao) < 0.2
+            ) {
+                replay.ignorarBuscaInicial = false;
                 return;
             }
-            enfileirarFala(parte, {
-                textoLivre: true,
-                naoRegistrarHistorico: true,
-                textoLivreAoFinalizar: enfileirarProximaParte,
-            });
+            cancelarReplayTranscricao();
+            interromperFala();
+            ultimoTextoDetectado = "";
+            textoCandidato = "";
         };
-        enfileirarProximaParte();
-        return { ok: true, partes: partes.length };
+        replayTranscricaoAtivo = replay;
+        for (const [evento, listener] of Object.entries(replay.listeners)) {
+            replay.video.addEventListener?.(evento, listener);
+        }
+        try {
+            replay.video.currentTime = inicioRevisao;
+        } catch {
+            cancelarReplayTranscricao();
+            return { ok: false, reason: "video-seek-failed" };
+        }
+        try {
+            const promessaPlay = replay.video.play?.();
+            if (promessaPlay && typeof promessaPlay.catch === "function") {
+                promessaPlay.catch(() => {
+                    if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+                });
+            }
+        } catch {
+            cancelarReplayTranscricao();
+            return { ok: false, reason: "video-play-failed" };
+        }
+        return {
+            ok: true,
+            reason: "transcript-replay-started",
+            inicio: inicioRevisao,
+            fim,
+            totalFrases: trechos.length,
+        };
     }
 
     function repetirEntradaHistorico(id = "") {
@@ -795,7 +879,6 @@
     }
 
     function calcularTaxaAntecipada(texto, contexto) {
-        if (contexto?.textoLivre === true || contexto?.resumoAula === true) return velocidadeFala;
         if (comportamentoSincronia !== "accelerate_voice" || !MOTOR_SINCRONIA) {
             return velocidadeFala;
         }
@@ -938,13 +1021,6 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-finalizada", registro.texto);
-            if (registro.contexto?.textoLivre === true) {
-                if (typeof registro.contexto.textoLivreAoFinalizar === "function") {
-                    registro.contexto.textoLivreAoFinalizar();
-                } else {
-                    textoLivreEmAndamento = false;
-                }
-            }
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -971,7 +1047,6 @@
 
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
-            if (registro.contexto?.textoLivre === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento.error || "speech-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1081,13 +1156,6 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             registrarDiagnostico("fala-neural-finalizada", registro.texto);
-            if (registro.contexto?.textoLivre === true) {
-                if (typeof registro.contexto.textoLivreAoFinalizar === "function") {
-                    registro.contexto.textoLivreAoFinalizar();
-                } else {
-                    textoLivreEmAndamento = false;
-                }
-            }
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
             if (registro.inicioRealEm && registro.duracaoTaxaUm > 0) {
@@ -1113,7 +1181,6 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-neural-erro", registro.texto);
-            if (registro.contexto?.textoLivre === true) textoLivreEmAndamento = false;
             ultimoErroSintese = evento?.error || "piper-error";
             if (falaAtual === registro) falaAtual = null;
             if (falaEnfileirada === registro) falaEnfileirada = null;
@@ -1168,9 +1235,12 @@
     }
 
     function falar(texto, contexto = {}) {
+        const contextoFala = replayTranscricaoAtivo
+            ? { ...contexto, naoRegistrarHistorico: true, replayTranscricao: true }
+            : contexto;
         let valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
-        const usarPiper = contexto?.nativeOnly !== true
+        const usarPiper = contextoFala?.nativeOnly !== true
             && globalThis.SiaPiperVoice?.isActive?.() === true;
         if (!usarPiper && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
             ultimoErroSintese = "synthesis-unavailable";
@@ -1210,23 +1280,23 @@
 
         if (valor === textoEmFala || valor === falaEnfileirada?.texto) return;
 
-        if (MOTOR_APRENDIZAGEM && Number.isFinite(Number(contexto?.inicioCue)) && Number.isFinite(Number(contexto?.fimCue))) {
+        if (MOTOR_APRENDIZAGEM && Number.isFinite(Number(contextoFala?.inicioCue)) && Number.isFinite(Number(contextoFala?.fimCue))) {
             cueEstudoAtual = {
                 text: valor,
-                startTime: Number(contexto.inicioCue),
-                endTime: Number(contexto.fimCue),
+                startTime: Number(contextoFala.inicioCue),
+                endTime: Number(contextoFala.fimCue),
                 platformId: PLATAFORMA_APRENDIZAGEM_ID,
                 videoId: videoIdParaEstudo(),
             };
         }
 
         if (falaEnfileirada) {
-            legendaReserva = { texto: valor, contexto };
+            legendaReserva = { texto: valor, contexto: contextoFala };
             registrarDiagnostico("reserva-atualizada", valor);
             return;
         }
 
-        enfileirarFala(valor, contexto);
+        enfileirarFala(valor, contextoFala);
     }
 
     function processarCueExterna(cue) {
@@ -1302,6 +1372,7 @@
     }
 
     function interromperFala() {
+        cancelarReplayTranscricao();
         geracaoDaFala++;
         falaAtual = null;
         falaEnfileirada = null;
@@ -1313,7 +1384,6 @@
         previsaoFimFilaEm = 0;
         ultimaTaxaPlanejada = velocidadeFala;
         legendaNeuralPrecarregada = null;
-        textoLivreEmAndamento = false;
         atrasoFilaEstimado = 0;
         erroInicioFila = 0;
         ultimoTextoConcluido = "";
@@ -1354,7 +1424,7 @@
         ultimaPosicaoVideo = video.currentTime;
 
         if (video.paused || video.ended) {
-            if (!testeNeuralEmAndamento && !textoLivreEmAndamento) interromperFala();
+            if (!testeNeuralEmAndamento) interromperFala();
             textoCandidato = "";
             return;
         }
@@ -1737,14 +1807,8 @@
                 return;
             }
 
-            if (mensagem?.type === "SIA_READ_LESSON_TRANSCRIPT") {
-                const text = normalizarTexto(mensagem.text).slice(0, 200000);
-                const result = lerTranscricaoLocal(text);
-                responder({
-                    ok: result.ok,
-                    partes: result.partes,
-                    reason: result.ok ? "transcript-queued" : "transcript-not-queued",
-                });
+            if (mensagem?.type === "SIA_REPLAY_LESSON_TRANSCRIPT") {
+                responder(repetirTranscricaoNoVideo());
                 return;
             }
 
@@ -1834,6 +1898,7 @@
             setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
         }
         addEventListener("pagehide", () => {
+            cancelarReplayTranscricao();
             removerEntradaDeCaption();
             interromperFala();
         }, { once: true });
