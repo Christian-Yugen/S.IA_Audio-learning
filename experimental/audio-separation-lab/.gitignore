@@ -23,3 +23,4 @@ models/**/*.ort
 models/**/*.bin
 models/**/*.safetensors
 models/**/*.tar.bz2
+runners/**/node_modules/

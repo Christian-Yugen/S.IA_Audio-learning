@@ -1,0 +1,12 @@
+{
+  "name": "sia-audio-separation-lab-runners",
+  "private": true,
+  "type": "module",
+  "description": "Runners offline isolados para benchmarks de separação de áudio da S·IA.",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "onnxruntime-node": "1.29.0"
+  }
+}
