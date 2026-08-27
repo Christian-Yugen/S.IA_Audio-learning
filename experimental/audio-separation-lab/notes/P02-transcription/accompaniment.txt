@@ -1,0 +1,19 @@
+Starting Speech-to-Text conversion...
+Transcribing audio file: experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment.wav, file size: 1.84 MB
+Transcription may take some time depending on file size and audio length...
+Transcription completed successfully!
+
+TRANSCRIPTION RESULT:
+Total Duration: 10.9 seconds
+Language: eng
+Text content:
+
+Complete transcription result saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment_transcription_20260827_174118.json
+Plain text transcription saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment_transcription_20260827_174118.txt
+[2J[H[3Jmanus-speech-to-text experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment.wav
+Starting Speech-to-Text conversion...
+Transcribing audio file: experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment.wav, file size: 1.84 MB
+Transcription may take some time depending on file size and audio length...
+
+Completed transcription, JSON saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment_transcription_20260827_174118.json
+Plain text transcription saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/accompaniment_transcription_20260827_174118.txt

@@ -1,0 +1,70 @@
+{
+  "modelPath": "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/accompaniment.fp16.onnx",
+  "inputNames": [
+    "x"
+  ],
+  "outputNames": [
+    "y"
+  ],
+  "inputMetadata": [
+    {
+      "name": "x",
+      "isTensor": true,
+      "type": "float32",
+      "shape": [
+        2,
+        "num_splits",
+        512,
+        1024
+      ]
+    }
+  ],
+  "outputMetadata": [
+    {
+      "name": "y",
+      "isTensor": true,
+      "type": "float32",
+      "shape": [
+        2,
+        "Transposey_dim_1",
+        512,
+        1024
+      ]
+    }
+  ]
+}
+{
+  "modelPath": "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/models/spleeter-sherpa/sherpa-onnx-spleeter-2stems-fp16/vocals.fp16.onnx",
+  "inputNames": [
+    "x"
+  ],
+  "outputNames": [
+    "y"
+  ],
+  "inputMetadata": [
+    {
+      "name": "x",
+      "isTensor": true,
+      "type": "float32",
+      "shape": [
+        2,
+        "num_splits",
+        512,
+        1024
+      ]
+    }
+  ],
+  "outputMetadata": [
+    {
+      "name": "y",
+      "isTensor": true,
+      "type": "float32",
+      "shape": [
+        2,
+        "Transposey_dim_1",
+        512,
+        1024
+      ]
+    }
+  ]
+}

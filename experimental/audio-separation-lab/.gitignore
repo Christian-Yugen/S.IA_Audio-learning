@@ -16,3 +16,10 @@ models/*.safetensors
 
 # Artefatos temporários
 __pycache__/
+
+*.tar.bz2
+models/**/*.onnx
+models/**/*.ort
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.tar.bz2

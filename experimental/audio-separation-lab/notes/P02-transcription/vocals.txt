@@ -1,0 +1,22 @@
+Starting Speech-to-Text conversion...
+Transcribing audio file: experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals.wav, file size: 1.84 MB
+Transcription may take some time depending on file size and audio length...
+Transcription completed successfully!
+
+TRANSCRIPTION RESULT:
+Total Duration: 10.9 seconds
+Language: eng
+Timestamped segments:
+[00:02.5 - 00:09.1] It always seems like time stands still when I'm with you
+Complete transcription result saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals_transcription_20260827_174116.json
+Plain text transcription saved to: /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals_transcription_20260827_174116.txt
+[2J[H[3Jmanus-speech-to-text experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals.wav
+Starting Speech-to-Text conversion...
+Transcribing audio file: experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals.wav, file size: 1.84 MB
+Transcription may take some time depending on file size and audio length...
+
+Snippet of transcribed content:
+[00:02.5 - 00:09.1] It always seems like time stands still when I'm with you
+
+Completed transcription, JSON saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals_transcription_20260827_174116.json
+Plain text transcription saved to /tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu/vocals_transcription_20260827_174116.txt

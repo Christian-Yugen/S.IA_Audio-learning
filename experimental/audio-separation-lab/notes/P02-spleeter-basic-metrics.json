@@ -1,0 +1,29 @@
+{
+  "directory": "experimental/audio-separation-lab/results/P02-spleeter-cpu",
+  "stems": [
+    {
+      "file": "accompaniment.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 963072,
+      "durationSeconds": 10.919183673469387,
+      "rms": 0.9714900796119169,
+      "rmsDbfs": -0.2512325969463563,
+      "peak": 0.999969482421875,
+      "peakDbfs": -0.00026507636037961915,
+      "clippedSamples": 891061
+    },
+    {
+      "file": "vocals.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 963072,
+      "durationSeconds": 10.919183673469387,
+      "rms": 0.7048793926783161,
+      "rmsDbfs": -3.037703719041578,
+      "peak": 0.999969482421875,
+      "peakDbfs": -0.00026507636037961915,
+      "clippedSamples": 436595
+    }
+  ]
+}
