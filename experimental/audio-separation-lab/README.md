@@ -52,3 +52,17 @@ O laboratório só poderá recomendar o avanço se a avaliação auditiva confir
 ## Próximo passo
 
 Adicionar as primeiras amostras autorizadas em `corpus/raw/` e preencher `corpus/manifest.json`. Depois será executado o script de inspeção para verificar duração, canais, taxa de amostragem, codec, hash e aderência ao intervalo de 30–90 segundos. A seleção definitiva dos modelos ocorrerá somente após essa inspeção e a auditoria de licença dos pesos.
+
+## Execução em lote
+
+Quando houver amostras autorizadas e comandos de modelo definidos, o laboratório poderá executar os jobs sequencialmente para limitar a memória concorrente:
+
+```bash
+python3 experimental/audio-separation-lab/scripts/run_batch.py \
+  notes/batch-config.local.json \
+  --output results/batch-YYYYMMDD
+```
+
+Cada job deve declarar um `id` e um `command` como lista de strings. O executor salva stdout e stderr separados, mede o tempo de parede, registra código de saída e cria `batch-results.json`. Por padrão, uma falha é registrada e os jobs seguintes continuam; use `--stop-on-error` somente quando a dependência entre jobs exigir interrupção.
+
+O arquivo de configuração local pode conter caminhos absolutos para pesos e mídia, mas não deve ser versionado se contiver nomes pessoais, credenciais ou caminhos privados. A pasta de resultados permanece ignorada pelo Git.
