@@ -180,6 +180,12 @@
       const item = ui.template.content.firstElementChild.cloneNode(true);
       item.querySelector(".time").textContent = formatTime(entry.inicio);
       item.querySelector("p").textContent = entry.texto;
+      if (entry.traduzido && entry.textoOriginal) {
+        const original = document.createElement("small");
+        original.className = "original-text";
+        original.textContent = entry.textoOriginal;
+        item.querySelector("p").after(original);
+      }
       item.querySelector(".note-text").textContent = entry.nota || "";
       const favorite = item.querySelector(".favorite");
       favorite.textContent = entry.favorito ? "★" : "☆";

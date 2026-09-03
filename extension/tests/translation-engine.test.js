@@ -22,12 +22,14 @@ test("traduz inglês para português e reutiliza o cache", async () => {
   const first = await engine.translate("Hello world.", { sourceLanguage: "en-US", targetLanguage: "pt-BR" });
   const second = await engine.translate("Hello world.", { sourceLanguage: "en", targetLanguage: "pt" });
   assert.equal(first.text, "Olá, mundo.");
+  assert.equal(engine.getStatus().state, "ready");
   assert.equal(second.cached, true);
   assert.equal(calls, 1);
 });
 
 test("não chama o tradutor quando origem e destino são equivalentes", async () => {
   const engine = create({ translatorApi: null });
+  assert.equal(engine.getStatus().state, "unavailable");
   const result = await engine.translate("Já está em português.", { sourceLanguage: "pt-BR", targetLanguage: "pt" });
   assert.equal(result.translated, false);
   assert.equal(result.text, "Já está em português.");

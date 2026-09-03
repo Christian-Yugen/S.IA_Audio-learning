@@ -15,6 +15,8 @@
     const translators = new Map();
     const cache = new Map();
     let queue = Promise.resolve();
+    let state = translatorApi?.availability && translatorApi?.create ? "idle" : "unavailable";
+    let lastError = "";
 
     async function getTranslator(sourceLanguage, targetLanguage) {
       if (!translatorApi?.availability || !translatorApi?.create) {
@@ -24,10 +26,14 @@
       const target = normalizeLanguage(targetLanguage);
       const key = `${source}:${target}`;
       if (translators.has(key)) return translators.get(key);
+      state = "checking";
       const availability = await translatorApi.availability({ sourceLanguage: source, targetLanguage: target });
       if (availability === "unavailable") throw new Error("language-pair-unavailable");
+      state = availability === "downloadable" ? "downloading" : "loading";
       const translator = await translatorApi.create({ sourceLanguage: source, targetLanguage: target });
       translators.set(key, translator);
+      state = "ready";
+      lastError = "";
       return translator;
     }
 
@@ -56,7 +62,15 @@
         return result;
       });
       queue = operation.catch(() => undefined);
-      return operation;
+      return operation.catch(error => {
+        state = "error";
+        lastError = String(error?.message || error);
+        throw error;
+      });
+    }
+
+    function getStatus() {
+      return Object.freeze({ state, ready: state === "ready", error: lastError });
     }
 
     function dispose() {
@@ -65,7 +79,7 @@
       cache.clear();
     }
 
-    return Object.freeze({ translate, dispose });
+    return Object.freeze({ translate, getStatus, dispose });
   }
 
   return Object.freeze({ create, normalizeLanguage });

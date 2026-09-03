@@ -385,6 +385,12 @@
         setStatus("S·IA desativada", "unavailable");
       } else if (!status.syncEngineReady) {
         setStatus("Motor de sincronia indisponível nesta aula", "paused");
+      } else if (settings.sia_translate_en_pt && status.translationState === "downloading") {
+        setStatus("Baixando tradutor local inglês → português…", "checking");
+      } else if (settings.sia_translate_en_pt && status.translationState === "unavailable") {
+        setStatus("Tradução local requer Chrome 138 ou mais recente", "paused");
+      } else if (settings.sia_translate_en_pt && status.translationError) {
+        setStatus("Tradução indisponível · lendo a legenda original", "paused");
       } else if (status.speechError) {
         const errors = {
           "not-allowed": "Voz bloqueada pelo navegador",
