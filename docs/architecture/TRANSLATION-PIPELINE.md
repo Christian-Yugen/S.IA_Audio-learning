@@ -23,7 +23,9 @@ A funcionalidade é opt-in e mantém compatibilidade degradada:
 
 - adaptadores não traduzem nem controlam áudio;
 - `sync-engine.js` permanece inalterado;
-- traduções são serializadas para preservar ordem;
+- a fila de fala continua responsável pela ordem de reprodução;
+- o tradutor é aquecido ao ativar a opção e até quatro cues futuras são pré-traduzidas;
+- requisições independentes podem executar sem bloqueio global e pedidos iguais compartilham a mesma Promise;
 - cache em memória evita trabalho repetido e é limitado a 300 entradas;
 - histórico conserva texto traduzido e original;
 - nenhum texto é enviado a serviço externo.

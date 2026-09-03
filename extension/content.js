@@ -30,6 +30,8 @@
     let traducaoInglesAtiva = false;
     let geracaoTraducao = 0;
     let ultimoErroTraducao = "";
+    let ultimaPreTraducaoEm = 0;
+    let filaEntregaTraducao = Promise.resolve();
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -1307,6 +1309,28 @@
         enfileirarFala(valor, contextoFala);
     }
 
+    function precacheTraducoesFuturas(video, fimAtual = 0) {
+        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO?.prime || !video?.textTracks) return;
+        const agora = performance.now();
+        if (agora - ultimaPreTraducaoEm < 400) return;
+        ultimaPreTraducaoEm = agora;
+        for (const track of video.textTracks) {
+            if (track.kind !== "subtitles" && track.kind !== "captions") continue;
+            const inicio = Number(fimAtual) || Number(video.currentTime) || 0;
+            const futuras = [...(track.cues || [])]
+                .filter(cue => Number(cue.startTime) >= inicio - 0.04)
+                .sort((a, b) => Number(a.startTime) - Number(b.startTime))
+                .slice(0, 4);
+            futuras.forEach(cue => {
+                const texto = normalizarTexto(cue.text);
+                if (textoValidoDeLegenda(texto)) {
+                    MOTOR_TRADUCAO.prime(texto, { sourceLanguage: "en", targetLanguage: "pt-BR" });
+                }
+            });
+            if (futuras.length) return;
+        }
+    }
+
     function falar(texto, contexto = {}) {
         if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
             falarAgora(texto, contexto);
@@ -1314,10 +1338,12 @@
         }
         const geracao = geracaoTraducao;
         const originalText = normalizarTexto(texto);
-        void MOTOR_TRADUCAO.translate(originalText, {
+        const traducao = MOTOR_TRADUCAO.translate(originalText, {
             sourceLanguage: "en",
             targetLanguage: "pt-BR"
-        }).then(resultado => {
+        });
+        filaEntregaTraducao = filaEntregaTraducao.catch(() => {}).then(() => traducao);
+        void filaEntregaTraducao.then(resultado => {
             if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
             ultimoErroTraducao = "";
             falarAgora(resultado.text, {
@@ -1354,6 +1380,7 @@
         const video = document.querySelector("video");
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
+        precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
         if (video.currentTime > Number(cue.endTime) + 0.35) return false;
         if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
@@ -1459,6 +1486,7 @@
             textoCandidato = "";
         }
         ultimaPosicaoVideo = video.currentTime;
+        precacheTraducoesFuturas(video, coberturaLegendaAte || video.currentTime);
 
         if (video.paused || video.ended) {
             if (!testeNeuralEmAndamento) interromperFala();
@@ -1581,6 +1609,11 @@
                 traducaoInglesAtiva = Boolean(valor);
                 geracaoTraducao++;
                 ultimoErroTraducao = "";
+                ultimaPreTraducaoEm = 0;
+                if (traducaoInglesAtiva) {
+                    void MOTOR_TRADUCAO?.prepare?.({ sourceLanguage: "en", targetLanguage: "pt-BR" });
+                    precacheTraducoesFuturas(document.querySelector("video"));
+                }
                 break;
         }
     }
