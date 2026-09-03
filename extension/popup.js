@@ -10,6 +10,7 @@
     sia_volume: 100,
     sia_sync: "accelerate_voice",
     sia_voice_engine: "browser",
+    sia_translate_en_pt: false,
     sia_compact: false
   });
 
@@ -26,6 +27,7 @@
       engine: document.getElementById("select-engine"),
       voice: document.getElementById("select-voice"),
       lang: document.getElementById("select-lang"),
+      translateEnglish: document.getElementById("translate-english"),
       speed: document.getElementById("input-speed"),
       speedLabel: document.getElementById("label-speed"),
       pitch: document.getElementById("input-pitch"),
@@ -227,6 +229,7 @@
 
     function render() {
       ui.lang.value = settings.sia_lang;
+      if (ui.translateEnglish) ui.translateEnglish.checked = Boolean(settings.sia_translate_en_pt);
       if (ui.engine) ui.engine.value = settings.sia_voice_engine;
       ui.voice.disabled = settings.sia_voice_engine === "piper-local";
       ui.speed.value = settings.sia_speed;
@@ -590,6 +593,10 @@
       ]);
       renderSummary();
       showSavedFeedback();
+    });
+    ui.translateEnglish?.addEventListener("change", () => {
+      settings.sia_translate_en_pt = ui.translateEnglish.checked;
+      void saveAndSend("sia_translate_en_pt", settings.sia_translate_en_pt);
     });
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);

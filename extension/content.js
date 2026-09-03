@@ -22,10 +22,14 @@
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
     const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
+    const MOTOR_TRADUCAO = globalThis.SiaTranslationEngine?.create?.() || null;
     const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
     const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
     const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
+    let traducaoInglesAtiva = false;
+    let geracaoTraducao = 0;
+    let ultimoErroTraducao = "";
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -563,6 +567,10 @@
         return {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             texto: registro.texto,
+            textoOriginal: normalizarTexto(registro.contexto?.originalText),
+            traduzido: registro.contexto?.translated === true,
+            idiomaOrigem: String(registro.contexto?.sourceLanguage || ""),
+            idiomaDestino: String(registro.contexto?.targetLanguage || ""),
             inicio: Number.isFinite(inicio) ? inicio : Number(video?.currentTime) || 0,
             fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
             url: location.href,
@@ -1234,7 +1242,7 @@
         speechSynthesis.speak(registro.utterance);
     }
 
-    function falar(texto, contexto = {}) {
+    function falarAgora(texto, contexto = {}) {
         const contextoFala = replayTranscricaoAtivo
             ? { ...contexto, naoRegistrarHistorico: true, replayTranscricao: true }
             : contexto;
@@ -1297,6 +1305,34 @@
         }
 
         enfileirarFala(valor, contextoFala);
+    }
+
+    function falar(texto, contexto = {}) {
+        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
+            falarAgora(texto, contexto);
+            return;
+        }
+        const geracao = geracaoTraducao;
+        const originalText = normalizarTexto(texto);
+        void MOTOR_TRADUCAO.translate(originalText, {
+            sourceLanguage: "en",
+            targetLanguage: "pt-BR"
+        }).then(resultado => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            ultimoErroTraducao = "";
+            falarAgora(resultado.text, {
+                ...contexto,
+                originalText: resultado.originalText,
+                translated: resultado.translated,
+                sourceLanguage: resultado.sourceLanguage,
+                targetLanguage: resultado.targetLanguage
+            });
+        }).catch(error => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            ultimoErroTraducao = String(error?.message || error || "translation-failed");
+            registrarDiagnostico("traducao-indisponivel", originalText);
+            falarAgora(originalText, { ...contexto, translationFallback: true });
+        });
     }
 
     function processarCueExterna(cue) {
@@ -1374,6 +1410,7 @@
     function interromperFala() {
         cancelarReplayTranscricao();
         geracaoDaFala++;
+        geracaoTraducao++;
         falaAtual = null;
         falaEnfileirada = null;
         textoEmFala = "";
@@ -1540,6 +1577,11 @@
                 globalThis.SiaPiperVoice?.setActive?.(nextEngine);
                 break;
             }
+            case "sia_translate_en_pt":
+                traducaoInglesAtiva = Boolean(valor);
+                geracaoTraducao++;
+                ultimoErroTraducao = "";
+                break;
         }
     }
 
@@ -1552,7 +1594,8 @@
             "sia_pitch",
             "sia_volume",
             "sia_sync",
-            "sia_voice_engine"
+            "sia_voice_engine",
+            "sia_translate_en_pt"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
@@ -1777,6 +1820,9 @@
                     voiceEngineState: globalThis.SiaPiperVoiceStatus?.().state || "unavailable",
                     audioState: globalThis.SiaPiperVoiceStatus?.().audioState || "unknown",
                     audioError: globalThis.SiaPiperVoiceStatus?.().audioError || "",
+                    translationEnabled: traducaoInglesAtiva,
+                    translationReady: Boolean(MOTOR_TRADUCAO),
+                    translationError: ultimoErroTraducao,
                     syncEngineReady: Boolean(MOTOR_SINCRONIA),
                     platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
                     platformActive: plataformaAtiva,
