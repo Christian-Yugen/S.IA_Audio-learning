@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SIA Audio Separation Experiment Result",
+  "type": "object",
+  "required": ["sampleId", "modelId", "run", "input", "performance", "quality", "licenseReview"],
+  "properties": {
+    "sampleId": {"type": "string", "minLength": 1},
+    "modelId": {"type": "string", "minLength": 1},
+    "run": {
+      "type": "object",
+      "required": ["timestampUtc", "command", "configHash"],
+      "properties": {
+        "timestampUtc": {"type": "string", "format": "date-time"},
+        "command": {"type": "string"},
+        "configHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "backend": {"type": "string"},
+        "hostProfile": {"type": "string"}
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["sha256", "durationSeconds", "sampleRate", "channels"],
+      "properties": {
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "durationSeconds": {"type": "number", "exclusiveMinimum": 0},
+        "sampleRate": {"type": "integer", "minimum": 8000},
+        "channels": {"type": "integer", "minimum": 1}
+      }
+    },
+    "performance": {
+      "type": "object",
+      "required": ["loadSeconds", "separationSeconds", "realtimeFactor", "peakMemoryMb"],
+      "properties": {
+        "loadSeconds": {"type": "number", "minimum": 0},
+        "separationSeconds": {"type": "number", "minimum": 0},
+        "realtimeFactor": {"type": "number", "minimum": 0},
+        "peakMemoryMb": {"type": "number", "minimum": 0},
+        "gpuUsed": {"type": "boolean"},
+        "failed": {"type": "boolean"},
+        "failureReason": {"type": "string"}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "required": ["voiceSuppression", "ambiencePreservation", "artifactSeverity", "siaClarity", "usable"],
+      "properties": {
+        "voiceSuppression": {"type": "number", "minimum": 1, "maximum": 5},
+        "ambiencePreservation": {"type": "number", "minimum": 1, "maximum": 5},
+        "artifactSeverity": {"type": "number", "minimum": 1, "maximum": 5},
+        "siaClarity": {"type": "number", "minimum": 1, "maximum": 5},
+        "usable": {"type": "boolean"},
+        "dominantArtifact": {"type": "string"},
+        "listenerNotes": {"type": "string"}
+      }
+    },
+    "licenseReview": {
+      "type": "object",
+      "required": ["code", "weights", "conversion", "runtime", "status"],
+      "properties": {
+        "code": {"type": "string"},
+        "weights": {"type": "string"},
+        "conversion": {"type": "string"},
+        "runtime": {"type": "string"},
+        "status": {"enum": ["pending", "lab-only", "approved-for-review", "approved"]},
+        "evidence": {"type": "array", "items": {"type": "string", "format": "uri"}}
+      }
+    }
+  }
+}

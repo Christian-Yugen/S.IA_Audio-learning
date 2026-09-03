@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "selectionPolicy": "Nenhum modelo entra na extensão antes da auditoria separada de código, pesos, conversão e dependências.",
+  "candidates": [
+    {
+      "id": "htdemucs-onnx",
+      "family": "HT-Demucs",
+      "role": "primary-source-separation",
+      "stemsExpected": ["vocals", "drums", "bass", "other"],
+      "runtimeTargets": ["python-offline", "onnx-wasm", "onnx-webgpu"],
+      "status": "audit-pending",
+      "officialSources": [
+        "https://github.com/facebookresearch/demucs",
+        "https://github.com/timcsy/demucs-web"
+      ],
+      "licenseChecks": [
+        "repository-license",
+        "pretrained-weight-license",
+        "onnx-conversion-license",
+        "training-data-and-distribution-notice"
+      ],
+      "risks": [
+        "music-oriented training domain",
+        "voice leakage in lectures",
+        "high memory and latency"
+      ]
+    },
+    {
+      "id": "lightweight-separator-baseline",
+      "family": "lightweight-source-separation",
+      "role": "speed-baseline",
+      "stemsExpected": ["vocals", "accompaniment"],
+      "runtimeTargets": ["python-offline"],
+      "status": "candidate-to-select",
+      "officialSources": [],
+      "licenseChecks": [
+        "repository-license",
+        "pretrained-weight-license",
+        "runtime-license"
+      ],
+      "risks": [
+        "lower separation quality",
+        "unknown suitability until selected"
+      ]
+    },
+    {
+      "id": "deepfilternet",
+      "family": "DeepFilterNet",
+      "role": "speech-enhancement-comparator",
+      "stemsExpected": ["enhanced-speech"],
+      "runtimeTargets": ["python-offline", "rust-runtime"],
+      "status": "comparator-only",
+      "officialSources": ["https://github.com/Rikorose/DeepFilterNet"],
+      "licenseChecks": [
+        "repository-license",
+        "pretrained-weight-license",
+        "runtime-license"
+      ],
+      "risks": [
+        "denoising is not voice removal",
+        "may suppress ambience with speech"
+      ]
+    },
+    {
+      "id": "dpdfnet-sherpa-onnx",
+      "family": "DPDFNet",
+      "role": "streaming-enhancement-comparator",
+      "stemsExpected": ["enhanced-speech"],
+      "runtimeTargets": ["sherpa-onnx-wasm", "python-offline"],
+      "status": "comparator-only",
+      "officialSources": [
+        "https://k2-fsa.github.io/sherpa/onnx/speech-enhancement/dpdfnet.html",
+        "https://github.com/k2-fsa/sherpa-onnx"
+      ],
+      "licenseChecks": [
+        "repository-license",
+        "pretrained-weight-license",
+        "wasm-runtime-license"
+      ],
+      "risks": [
+        "enhancement is not source separation",
+        "may not remove teacher voice from the mix"
+      ]
+    }
+  ]
+}

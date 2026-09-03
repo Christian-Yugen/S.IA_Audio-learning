@@ -1,9 +1,9 @@
 # S·IA — Audio-learning by UXBRAS®
 
-> Transforme as legendas das aulas do Coursera em uma experiência de áudio
-> sincronizada, contínua e revisável.
+> Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
+> sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.8.14-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.8.38-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
@@ -11,14 +11,14 @@
 ## Sobre a S·IA
 
 A **S·IA** é uma extensão para Google Chrome criada pela **UXBRAS®** para apoiar
-acessibilidade, foco e aprendizado por áudio em aulas do Coursera.
+acessibilidade, foco e aprendizado por áudio em aulas compatíveis do Coursera, da Udemy e, mediante ativação manual, do YouTube.
 
 A extensão identifica as legendas nativas do vídeo, organiza os fragmentos em
 sentenças, elimina palavras repetidas, converte o texto em voz e adapta a
 sincronização conforme o ritmo da aula.
 
 Além da leitura, o **S·IA Companion** permite repetir frases, navegar pelo
-histórico da aula, salvar trechos, criar anotações e exportar material de estudo.
+histórico da aula, salvar trechos, criar anotações, exportar material de estudo e, de forma opcional, transformar uma cue temporal segura em marcação e cartão de recuperação.
 
 Tudo funciona localmente no navegador. A versão atual não utiliza servidor,
 analytics, anúncios ou API externa de inteligência artificial.
@@ -42,6 +42,8 @@ analytics, anúncios ou API externa de inteligência artificial.
 - Perfis automáticos por curso.
 - S·IA Recall para repetir a última frase.
 - Histórico local com timestamps.
+- Marcação temporal, perguntas determinísticas de recuperação e revisão espaçada local no Companion.
+- Resumo local sob demanda da aula e leitura opcional pelo mesmo núcleo Browser/Piper.
 - Favoritos e anotações.
 - Exportação dos trechos salvos em Markdown.
 - Painel lateral nativo S·IA Companion.
@@ -155,9 +157,12 @@ O painel lateral oferece:
 - anotações;
 - filtro de trechos salvos;
 - exportação em Markdown;
-- limpeza controlada do histórico.
+- limpeza controlada do histórico;
+- estudo ativo opcional a partir da cue atual;
+- cartões de recuperação com resposta do estudante e avaliação **Lembrei**, **Parcial** ou **Esqueci**;
+- revisão espaçada local, sem transformar tempo assistido em domínio.
 
-Para abrir, selecione **Abrir S·IA Companion** no pop-up.
+Para abrir, selecione **Abrir S·IA Companion** no pop-up. O botão **Marcar cue atual** só fica disponível quando existe uma cue com texto e início/fim temporais confirmados; texto visual sem timing seguro não pode virar marcação temporal.
 
 ## Instalação para desenvolvimento
 
@@ -239,6 +244,8 @@ S.IA_Audio-learning/
 ├── sidepanel.html
 ├── sidepanel.css
 ├── sidepanel.js
+├── learning/
+│   └── learning-engine.js
 ├── tests/
 │   └── sync-engine.test.js
 ├── scripts/
@@ -258,7 +265,8 @@ S.IA_Audio-learning/
 | `content.js` | Detectar legendas, controlar fala, vídeo, histórico e Recall |
 | `sync-engine.js` | Regras puras de tempo, pontuação e deduplicação |
 | `popup.*` | Configuração rápida e status da aula |
-| `sidepanel.*` | Histórico, favoritos, notas e exportação |
+| `sidepanel.*` | Histórico, favoritos, notas, registro da legenda lida, exportação e estudo ativo |
+| `learning/learning-engine.js` | Marcações temporais, cartões, avaliações, due cards e métricas locais |
 | `service-worker.js` | Atalhos e comunicação com a aba ativa |
 | `manifest.json` | Permissões e componentes da extensão |
 
@@ -291,6 +299,13 @@ SIA_GET_LEARNING_CONTEXT
 SIA_REPLAY_LAST
 SIA_UPDATE_HISTORY_ENTRY
 SIA_CLEAR_HISTORY
+SIA_GET_STUDY_CONTEXT
+SIA_CREATE_STUDY_BOOKMARK
+SIA_REVIEW_STUDY_CARD
+SIA_REPLAY_STUDY_BOOKMARK
+SIA_CLEAR_STUDY
+SIA_GET_LESSON_TRANSCRIPT
+SIA_REPLAY_LESSON_TRANSCRIPT
 ```
 
 ## Permissões
@@ -298,7 +313,7 @@ SIA_CLEAR_HISTORY
 | Permissão | Finalidade |
 |---|---|
 | `activeTab` | Comunicar o pop-up, painel e atalhos com a aula ativa |
-| `storage` | Salvar configurações, perfis, histórico, favoritos e notas |
+| `storage` | Salvar configurações, perfis, histórico, favoritos, notas e dados pedagógicos locais apagáveis |
 | `sidePanel` | Exibir o S·IA Companion |
 | `https://*.coursera.org/*` | Detectar vídeo e legendas nas páginas compatíveis |
 
@@ -317,8 +332,9 @@ A versão atual:
 - não utiliza API externa de IA;
 - não exige conta.
 
-Configurações, histórico, favoritos e notas ficam em `chrome.storage.local` e são
-apagados quando a extensão é removida.
+Configurações, histórico, favoritos, notas, marcações, respostas e cartões ficam em
+`chrome.storage.local`. O Companion oferece limpeza do estudo; a remoção da extensão
+apaga esses dados conforme o comportamento de armazenamento do Chrome.
 
 Leia a [Política de Privacidade](PRIVACY.md).
 
@@ -408,15 +424,16 @@ Mudanças futuras devem preservar:
 - backup e importação;
 - acessibilidade ampliada.
 
-### Premium — evolução futura
+### Evolução futura
 
 - explicação de trechos;
 - tradução;
 - definição de termos;
-- perguntas de revisão;
-- resumos;
-- vozes neurais;
-- sincronização em nuvem.
+- arquivos integrais das falas;
+- melhorias de acessibilidade;
+- backup e importação local com confirmação explícita.
+
+O MVP atual não usa IA externa, servidor, analytics ou sincronização em nuvem.
 
 Os recursos premium serão opcionais. A leitura e as ferramentas locais devem
 continuar úteis sem assinatura.
@@ -444,7 +461,7 @@ Commits devem ser pequenos, objetivos e restritos ao ciclo em desenvolvimento.
 
 ## Estado do projeto
 
-A S·IA está em desenvolvimento ativo. A versão 1.8.14 permanece como release de referência estável do Coursera; a 1.8.32 é a correção atual para manter a sentença fragmentada unificada quando a continuação passa para a linha visual seguinte mesmo sem ID nativo da cue, baseada na 1.8.22 funcional; a 1.8.22 permanece como baseline funcional e a 1.8.31 como rollback intermediário. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
+A S·IA está em desenvolvimento ativo. A versão 1.8.41 identifica o recurso como **registro local da legenda lida** e troca a antiga leitura isolada por revisão contextual: o Companion reposiciona o vídeo no primeiro trecho temporal registrado, deixa a leitura normal da S·IA acompanhar as legendas e pausa ao fim do último intervalo capturado. O texto continua disponível para mostrar e salvar em um arquivo `.txt`; o fluxo não é resumo, interpretação, análise nem aula completa. A versão 1.8.40 corrigiu a nomenclatura honesta do registro. A versão 1.8.39 fornece a base de armazenamento local separado. A versão 1.8.38 corrige a ativação do áudio neural: selecionar Piper não tenta abrir o `AudioContext` automaticamente; o áudio é liberado depois de um gesto real na página. A versão 1.8.37 corrigiu a leitura do conteúdo com o vídeo pausado. A versão 1.8.35 explica a revisão em linguagem direta: leia a pergunta, escreva o que lembra, mostre a resposta da aula e avalie como você se saiu. A versão 1.8.34 permanece como base visual do Companion autoexplicativo e a 1.8.33 como base do primeiro ciclo integrado de estudo ativo local, sem substituir o núcleo compartilhado de voz, fila ou sincronização. A versão 1.8.32 permanece como referência de rollback da leitura YouTube. Ao trocar de versão, feche as abas YouTube antigas para remover scripts já injetados. O histórico abaixo preserva a evolução desde a versão 1.7.0.
 
 Antes da publicação pública ainda serão definidos:
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "blindSessionId": "",
+  "evaluator": "",
+  "samples": [
+    {
+      "sampleId": "",
+      "scenario": "",
+      "modelAlias": "",
+      "voiceSuppression": null,
+      "ambiencePreservation": null,
+      "artifactSeverity": null,
+      "siaClarity": null,
+      "naturalness": null,
+      "syncPerception": null,
+      "usable": null,
+      "dominantArtifact": "",
+      "notes": ""
+    }
+  ]
+}

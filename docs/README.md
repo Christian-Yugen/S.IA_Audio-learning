@@ -46,6 +46,15 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.30](releases/1.8.30.md) | Usa lookahead temporal para sintetizar a sentença fragmentada como uma unidade contínua. |
 | [S·IA 1.8.31](releases/1.8.31.md) | Mantém a sentença unificada quando a continuação começa na linha visual seguinte. |
 | [S·IA 1.8.32](releases/1.8.32.md) | Usa sequência local para manter a continuidade mesmo sem ID nativo da cue. |
+| [S·IA 1.8.33](releases/1.8.33.md) | Companion com marcação, cartões e revisão espaçada local. |
+| [S·IA 1.8.34](releases/1.8.34.md) | Companion autoexplicativo com orientação por etapas e estados claros. |
+| [S·IA 1.8.35](releases/1.8.35.md) | Explica a revisão como responder, mostrar a resposta e avaliar a própria lembrança. |
+| [S·IA 1.8.36](releases/1.8.36.md) | Resumo local sob demanda e leitura opcional pelo núcleo Browser/Piper. |
+| [S·IA 1.8.37](releases/1.8.37.md) | Permite ouvir o resumo mesmo com o vídeo já pausado. |
+| [S·IA 1.8.38](releases/1.8.38.md) | Evita iniciar o AudioContext sem gesto e mantém o desbloqueio recuperável. |
+| [S·IA 1.8.39](releases/1.8.39.md) | Reúne localmente as falas iniciadas pela S·IA para visualizar, salvar e ouvir. |
+| [S·IA 1.8.40](releases/1.8.40.md) | Corrige a apresentação: é registro da legenda lida, não resumo nem análise. |
+| [S·IA 1.8.41](releases/1.8.41.md) | Substitui ouvir texto isolado por revisão do trecho registrado no próprio vídeo com a S·IA. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

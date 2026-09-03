@@ -22,7 +22,6 @@
   const VALID_TYPES = new Set(Object.values(TYPES));
   const VALID_RATINGS = new Set(Object.values(RATINGS));
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
   function normalizeText(value) {
     return String(value ?? "").replace(/\s+/gu, " ").trim();
   }
@@ -58,6 +57,36 @@
       default:
         return "Qual é a ideia principal deste trecho?";
     }
+  }
+
+  function createTranscript(entries) {
+    const source = (Array.isArray(entries) ? entries : [])
+      .map((entry, index) => ({
+        entry,
+        index,
+        text: normalizeText(entry?.texto ?? entry?.text),
+      }))
+      .filter(item => item.text)
+      .sort((a, b) => finiteNumber(a.entry?.inicio, a.index) - finiteNumber(b.entry?.inicio, b.index));
+    const seen = new Set();
+    const trechos = [];
+    for (const item of source) {
+      const key = String(item.entry?.id || `${item.text}|${item.index}`);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      trechos.push(Object.freeze({
+        id: key,
+        texto: item.text,
+        inicio: finiteNumber(item.entry?.inicio, 0),
+        fim: finiteNumber(item.entry?.fim, 0),
+      }));
+    }
+    return Object.freeze({
+      texto: trechos.map(item => item.texto).join("\\n\\n"),
+      trechos: Object.freeze(trechos),
+      totalFrases: trechos.length,
+      caracteres: trechos.reduce((total, item) => total + item.texto.length, 0),
+    });
   }
 
   function createBookmark({
@@ -116,6 +145,7 @@
       proximaRevisaoEm: timestamp,
       ultimaRevisaoEm: 0,
       ultimaAvaliacao: "",
+      ultimaResposta: "",
       intervaloDias: 0,
       facilidade: 2.5,
       repeticoes: 0,
@@ -128,7 +158,7 @@
     return Math.trunc(timestamp + Math.max(1, days) * MS_PER_DAY);
   }
 
-  function reviewCard(card, rating, { now = Date.now() } = {}) {
+  function reviewCard(card, rating, { now = Date.now(), answer = "" } = {}) {
     if (!card?.id) return null;
     const safe = safeRating(rating);
     const timestamp = Math.trunc(finiteNumber(now, Date.now()));
@@ -163,6 +193,7 @@
       proximaRevisaoEm: addDays(timestamp, intervalDays),
       ultimaRevisaoEm: timestamp,
       ultimaAvaliacao: safe,
+      ultimaResposta: normalizeText(answer).slice(0, 2000),
       intervaloDias: intervalDays,
       facilidade: Number(ease.toFixed(2)),
       repeticoes: repetitions,
@@ -201,6 +232,7 @@
     RATINGS,
     normalizeText,
     questionForType,
+    createTranscript,
     createBookmark,
     createRecallCard,
     reviewCard,

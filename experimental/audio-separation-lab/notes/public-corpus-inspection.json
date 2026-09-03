@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "root": "experimental/audio-separation-lab/corpus/raw",
+  "files": [
+    {
+      "path": "experimental/audio-separation-lab/corpus/raw/public-lecture-hawking30s.ogg",
+      "bytes": 308054,
+      "sha256": "9b0716e49a140055b35e4f498b9473662a85e47c7b89088a7ea78c598458a9b0",
+      "format": {
+        "format_name": "ogg",
+        "duration": "30.000000",
+        "size": "308054"
+      },
+      "audioStreams": [
+        {
+          "index": 0,
+          "codec_name": "vorbis",
+          "codec_type": "audio",
+          "sample_rate": "44100",
+          "channels": 2
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

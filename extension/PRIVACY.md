@@ -1,6 +1,6 @@
 # Política de privacidade da S·IA
 
-Última atualização: 25 de agosto de 2026.
+Última atualização: 27 de agosto de 2026.
 
 ## Propósito
 
@@ -18,11 +18,15 @@ Todo o processamento de voz ocorre localmente no navegador, usando a voz nativa 
 
 As preferências de voz, idioma, velocidade, tom, volume, sincronização e interface, os perfis configurados por curso e o histórico recente de frases são armazenados localmente com `chrome.storage.local`. A escolha de plataforma fixada para um domínio também usa `chrome.storage.local`. Uma escolha limitada à aba usa `chrome.storage.session` e é removida quando a aba deixa de existir.
 
-Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
+O Companion inclui um MVP opcional de aprendizagem ativa. Quando o usuário cria uma marcação, a extensão guarda localmente somente o trecho temporal seguro da legenda, a URL/título e identificadores da aula, o intervalo confirmado, o tipo de marcação, a pergunta e os metadados de revisão do cartão. A resposta digitada pelo estudante e a última avaliação também ficam em `chrome.storage.local`; não são transmitidas, sincronizadas com servidor ou usadas para diagnosticar capacidade.
+
+Quando o usuário solicita a **legenda lida da aula**, a extensão reúne localmente as frases que a S·IA iniciou e guarda esse registro em uma chave própria do `chrome.storage.local`. O texto pode ser mostrado no Companion, baixado pelo usuário em um único arquivo `.txt` ou usado para voltar o vídeo ao primeiro trecho temporal registrado e rever, no próprio vídeo, o intervalo capturado com a leitura normal da S·IA. Esse arquivo é criado no dispositivo no momento do download; não é enviado para servidor. O registro é limitado ao texto e aos tempos que a extensão conseguiu capturar e informa quando o limite local de segurança foi atingido. Ele não resume, interpreta ou corrige a aula e não deve ser confundido com uma transcrição oficial fornecida pela plataforma.
+
+Trechos favoritos e anotações criadas pelo próprio usuário também permanecem somente no dispositivo. **Limpar histórico** apaga o histórico recente e o registro da legenda lida; **Limpar estudo** apaga somente marcações e cartões. A remoção da extensão apaga esses dados conforme o comportamento de armazenamento do Chrome.
 
 ## Compartilhamento e transmissão
 
-A S·IA não envia legendas, histórico de navegação, preferências ou dados de voz para servidores externos. O acesso same-origin do YouTube serve apenas para recuperar as captions do vídeo ativado e não é uma chamada de inferência ou um serviço de terceiros da S·IA. A extensão não vende nem compartilha dados pessoais.
+A S·IA não envia legendas, histórico de navegação, preferências, transcrições, respostas, arquivos de aula ou dados de voz para servidores externos. O acesso same-origin do YouTube serve apenas para recuperar as captions do vídeo ativado e não é uma chamada de inferência ou um serviço de terceiros da S·IA. A extensão não vende nem compartilha dados pessoais.
 
 ## Permissões
 

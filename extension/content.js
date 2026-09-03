@@ -17,11 +17,14 @@
         toleranciaTaxaAdaptativa: 0.15,
         pesoCalibracaoVoz: 0.2,
         janelaDeduplicacaoConcluidaMs: 5000,
-        maximoHistoricoFrases: 60
+        maximoHistoricoFrases: 60,
+        maximoTranscricaoFrases: 10000
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
+    const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
     const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
     const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
+    const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
 
     function continuaSemPontuacaoFinal(texto) {
@@ -90,9 +93,21 @@
     let legendaNeuralPrecarregada = null;
     let testeNeuralEmAndamento = false;
     let historicoFrases = [];
+    let transcricaoFrases = [];
+    let transcricaoCortada = false;
+    let replayTranscricaoAtivo = null;
     const chaveHistorico = `sia_history_${location.pathname
         .replace(/[^a-z0-9]+/gi, "_")
         .slice(0, 120)}`;
+    const chaveTranscricao = `${chaveHistorico}_transcript`;
+    const chaveEstudo = `sia_learning_${PLATAFORMA_APRENDIZAGEM_ID}_${(
+        new URL(location.href).searchParams.get("v") || location.pathname
+    ).replace(/[^a-z0-9]+/gi, "_").slice(0, 140)}`;
+    const chaveCartoesEstudo = `${chaveEstudo}_cards`;
+    let marcacoesEstudo = [];
+    let cartoesEstudo = [];
+    let cueEstudoAtual = null;
+    let estadoAprendizagemPronto = Promise.resolve();
     let bufferSentenca = {
         texto: "",
         inicioVideo: null,
@@ -131,6 +146,53 @@
             }
             return false;
         }
+    }
+
+    async function salvarEstadoAprendizagem() {
+        if (!MOTOR_APRENDIZAGEM) return false;
+        const okMarks = await salvarStorageLocalSeguro(chaveEstudo, marcacoesEstudo);
+        const okCards = await salvarStorageLocalSeguro(chaveCartoesEstudo, cartoesEstudo);
+        return okMarks && okCards;
+    }
+
+    async function carregarEstadoAprendizagem() {
+        if (!MOTOR_APRENDIZAGEM) return;
+        try {
+            const resultado = await chrome.storage.local.get([chaveEstudo, chaveCartoesEstudo]);
+            marcacoesEstudo = Array.isArray(resultado?.[chaveEstudo])
+                ? resultado[chaveEstudo].slice(-200)
+                : [];
+            cartoesEstudo = Array.isArray(resultado?.[chaveCartoesEstudo])
+                ? resultado[chaveCartoesEstudo].slice(-200)
+                : [];
+        } catch (error) {
+            if (!contextoExtensaoInvalidado(error)) {
+                console.warn("[S·IA] Não foi possível carregar o estudo local.", error);
+            }
+        }
+    }
+
+    function videoIdParaEstudo() {
+        try {
+            return new URL(location.href).searchParams.get("v") || "";
+        } catch {
+            return "";
+        }
+    }
+
+    function contextoDaCueParaEstudo(cue) {
+        return {
+            cue: {
+                text: cue?.text ?? cue?.texto,
+                startTime: cue?.startTime ?? cue?.inicio,
+                endTime: cue?.endTime ?? cue?.fim,
+            },
+            platformId: PLATAFORMA_APRENDIZAGEM_ID,
+            videoId: videoIdParaEstudo(),
+            url: location.href,
+            title: document.title,
+            course: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "",
+        };
     }
 
     function normalizarTexto(valor) {
@@ -525,7 +587,218 @@
 
         historicoFrases.push(entrada);
         historicoFrases = historicoFrases.slice(-CONFIG.maximoHistoricoFrases);
-        await salvarStorageLocalSeguro(chaveHistorico, historicoFrases);
+        transcricaoFrases.push({ ...entrada });
+        if (transcricaoFrases.length > CONFIG.maximoTranscricaoFrases) {
+            transcricaoFrases = transcricaoFrases.slice(-CONFIG.maximoTranscricaoFrases);
+            transcricaoCortada = true;
+        }
+        await Promise.all([
+            salvarStorageLocalSeguro(chaveHistorico, historicoFrases),
+            salvarStorageLocalSeguro(chaveTranscricao, transcricaoFrases),
+        ]);
+    }
+
+    async function criarMarcacaoEstudo({ type, note } = {}) {
+        await estadoAprendizagemPronto;
+        if (!MOTOR_APRENDIZAGEM || !cueEstudoAtual) {
+            return { ok: false, reason: "no-temporal-cue" };
+        }
+        const existente = marcacoesEstudo.find(item =>
+            item.texto === cueEstudoAtual.text
+            && Math.abs(Number(item.inicio) - Number(cueEstudoAtual.startTime)) < 0.08
+            && Math.abs(Number(item.fim) - Number(cueEstudoAtual.endTime)) < 0.08
+        );
+        if (existente) {
+            return { ok: true, duplicate: true, bookmark: existente, card: cartoesEstudo.find(card => card.bookmarkId === existente.id) || null };
+        }
+        const bookmark = MOTOR_APRENDIZAGEM.createBookmark({
+            ...contextoDaCueParaEstudo(cueEstudoAtual),
+            type,
+            note,
+        });
+        if (!bookmark) return { ok: false, reason: "invalid-bookmark" };
+        const card = MOTOR_APRENDIZAGEM.createRecallCard(bookmark);
+        marcacoesEstudo = [bookmark, ...marcacoesEstudo].slice(0, 200);
+        if (card) cartoesEstudo = [card, ...cartoesEstudo].slice(0, 200);
+        await salvarEstadoAprendizagem();
+        return { ok: true, bookmark, card };
+    }
+
+    async function avaliarCartaoEstudo(cardId, rating, answer = "") {
+        await estadoAprendizagemPronto;
+        if (!MOTOR_APRENDIZAGEM) return { ok: false, reason: "learning-engine-unavailable" };
+        const index = cartoesEstudo.findIndex(card => card.id === cardId);
+        if (index < 0) return { ok: false, reason: "card-not-found" };
+        const updated = MOTOR_APRENDIZAGEM.reviewCard(cartoesEstudo[index], rating, { answer });
+        if (!updated) return { ok: false, reason: "invalid-review" };
+        cartoesEstudo[index] = updated;
+        await salvarEstadoAprendizagem();
+        return { ok: true, card: updated };
+    }
+
+    function repetirMarcacaoEstudo(id = "") {
+        const mark = marcacoesEstudo.find(item => item.id === id);
+        const video = document.querySelector("video");
+        if (!mark || !video) return false;
+        interromperFala();
+        ultimoTextoDetectado = "";
+        textoCandidato = "";
+        cueEstudoAtual = null;
+        video.currentTime = Math.max(0, Number(mark.inicio) - 0.05);
+        void video.play();
+        return true;
+    }
+
+    function contextoAprendizagem() {
+        const now = Date.now();
+        return {
+            ok: true,
+            enabled: Boolean(MOTOR_APRENDIZAGEM),
+            currentCue: cueEstudoAtual,
+            bookmarks: marcacoesEstudo,
+            cards: cartoesEstudo,
+            dueCards: MOTOR_APRENDIZAGEM?.dueCards?.(cartoesEstudo, { now, limit: 20 }) || [],
+            progress: MOTOR_APRENDIZAGEM?.progress?.(cartoesEstudo, { now }) || null,
+        };
+    }
+
+    function transcricaoAulaLocal() {
+        if (!MOTOR_APRENDIZAGEM?.createTranscript) {
+            return { ok: false, reason: "transcript-engine-unavailable" };
+        }
+        const transcricao = MOTOR_APRENDIZAGEM.createTranscript(transcricaoFrases);
+        return {
+            ok: true,
+            transcricao,
+            parcial: transcricaoCortada,
+            fonte: "historico-local-integral",
+            titulo: document.title,
+            url: location.href,
+        };
+    }
+
+    function obterTrechosTemporaisSegurosDaTranscricao() {
+        if (!MOTOR_APRENDIZAGEM?.createTranscript) return [];
+        const entradasSeguras = (Array.isArray(transcricaoFrases) ? transcricaoFrases : [])
+            .filter(entrada => {
+                const texto = normalizarTexto(entrada?.texto ?? entrada?.text);
+                const inicio = Number(entrada?.inicio);
+                const fim = Number(entrada?.fim);
+                return Boolean(texto)
+                    && Number.isFinite(inicio)
+                    && Number.isFinite(fim)
+                    && fim > inicio;
+            });
+        return MOTOR_APRENDIZAGEM.createTranscript(entradasSeguras).trechos || [];
+    }
+
+    function cancelarReplayTranscricao() {
+        const replay = replayTranscricaoAtivo;
+        if (!replay) return false;
+        replayTranscricaoAtivo = null;
+        for (const [evento, listener] of Object.entries(replay.listeners || {})) {
+            replay.video.removeEventListener?.(evento, listener);
+        }
+        return true;
+    }
+
+    function repetirTranscricaoNoVideo() {
+        const video = document.querySelector("video");
+        const trechos = obterTrechosTemporaisSegurosDaTranscricao();
+        const primeiro = trechos[0];
+        const ultimo = trechos.at(-1);
+        const inicio = Number(primeiro?.inicio);
+        const fim = Number(ultimo?.fim);
+        if (!video) return { ok: false, reason: "video-not-found" };
+        if (
+            !primeiro
+            || !ultimo
+            || !Number.isFinite(inicio)
+            || !Number.isFinite(fim)
+            || fim <= inicio
+        ) {
+            return { ok: false, reason: "transcript-timing-unavailable" };
+        }
+
+        interromperFala();
+        ultimoTextoDetectado = "";
+        textoCandidato = "";
+        cueEstudoAtual = null;
+        coberturaLegendaAte = 0;
+        const inicioRevisao = Math.max(0, inicio - 0.05);
+        const replay = {
+            video,
+            inicioRevisao,
+            limite: fim + 0.35,
+            ignorarBuscaInicial: true,
+            listeners: {},
+        };
+        const finalizarNoLimite = () => {
+            if (replayTranscricaoAtivo !== replay) return;
+            cancelarReplayTranscricao();
+            if (Number.isFinite(replay.video.duration) && replay.video.duration > 0) {
+                replay.video.currentTime = Math.min(replay.limite, replay.video.duration);
+            }
+            replay.video.pause?.();
+            interromperFala();
+        };
+        replay.listeners.timeupdate = () => {
+            if (Number(replay.video.currentTime) >= replay.limite) finalizarNoLimite();
+        };
+        replay.listeners.pause = () => {
+            if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+        };
+        replay.listeners.ended = () => {
+            if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+        };
+        replay.listeners.emptied = () => {
+            if (replayTranscricaoAtivo === replay) {
+                cancelarReplayTranscricao();
+                interromperFala();
+            }
+        };
+        replay.listeners.seeking = () => {
+            if (replayTranscricaoAtivo !== replay) return;
+            if (
+                replay.ignorarBuscaInicial
+                && Math.abs(Number(replay.video.currentTime) - replay.inicioRevisao) < 0.2
+            ) {
+                replay.ignorarBuscaInicial = false;
+                return;
+            }
+            cancelarReplayTranscricao();
+            interromperFala();
+            ultimoTextoDetectado = "";
+            textoCandidato = "";
+        };
+        replayTranscricaoAtivo = replay;
+        for (const [evento, listener] of Object.entries(replay.listeners)) {
+            replay.video.addEventListener?.(evento, listener);
+        }
+        try {
+            replay.video.currentTime = inicioRevisao;
+        } catch {
+            cancelarReplayTranscricao();
+            return { ok: false, reason: "video-seek-failed" };
+        }
+        try {
+            const promessaPlay = replay.video.play?.();
+            if (promessaPlay && typeof promessaPlay.catch === "function") {
+                promessaPlay.catch(() => {
+                    if (replayTranscricaoAtivo === replay) cancelarReplayTranscricao();
+                });
+            }
+        } catch {
+            cancelarReplayTranscricao();
+            return { ok: false, reason: "video-play-failed" };
+        }
+        return {
+            ok: true,
+            reason: "transcript-replay-started",
+            inicio: inicioRevisao,
+            fim,
+            totalFrases: trechos.length,
+        };
     }
 
     function repetirEntradaHistorico(id = "") {
@@ -715,7 +988,9 @@
 
             emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
-            void registrarFraseNoHistorico(registro);
+            if (registro.contexto?.naoRegistrarHistorico !== true) {
+                void registrarFraseNoHistorico(registro);
+            }
             registro.inicioRealEm = performance.now();
             erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
             previsaoFimFilaEm = Math.max(
@@ -850,7 +1125,9 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             registrarDiagnostico("fala-neural-iniciada", registro.texto);
-            void registrarFraseNoHistorico(registro);
+            if (registro.contexto?.naoRegistrarHistorico !== true) {
+                void registrarFraseNoHistorico(registro);
+            }
             registro.inicioRealEm = performance.now();
             erroInicioFila = (registro.inicioRealEm - registro.inicioPrevistoEm) / 1000;
             previsaoFimFilaEm = Math.max(
@@ -958,10 +1235,12 @@
     }
 
     function falar(texto, contexto = {}) {
+        const contextoFala = replayTranscricaoAtivo
+            ? { ...contexto, naoRegistrarHistorico: true, replayTranscricao: true }
+            : contexto;
         let valor = normalizarTexto(texto);
         if (!valor || !extensaoAtiva || sinteseBloqueada) return;
-
-        const usarPiper = contexto?.nativeOnly !== true
+        const usarPiper = contextoFala?.nativeOnly !== true
             && globalThis.SiaPiperVoice?.isActive?.() === true;
         if (!usarPiper && (!("speechSynthesis" in globalThis) || !("SpeechSynthesisUtterance" in globalThis))) {
             ultimoErroSintese = "synthesis-unavailable";
@@ -1001,13 +1280,23 @@
 
         if (valor === textoEmFala || valor === falaEnfileirada?.texto) return;
 
+        if (MOTOR_APRENDIZAGEM && Number.isFinite(Number(contextoFala?.inicioCue)) && Number.isFinite(Number(contextoFala?.fimCue))) {
+            cueEstudoAtual = {
+                text: valor,
+                startTime: Number(contextoFala.inicioCue),
+                endTime: Number(contextoFala.fimCue),
+                platformId: PLATAFORMA_APRENDIZAGEM_ID,
+                videoId: videoIdParaEstudo(),
+            };
+        }
+
         if (falaEnfileirada) {
-            legendaReserva = { texto: valor, contexto };
+            legendaReserva = { texto: valor, contexto: contextoFala };
             registrarDiagnostico("reserva-atualizada", valor);
             return;
         }
 
-        enfileirarFala(valor, contexto);
+        enfileirarFala(valor, contextoFala);
     }
 
     function processarCueExterna(cue) {
@@ -1083,6 +1372,7 @@
     }
 
     function interromperFala() {
+        cancelarReplayTranscricao();
         geracaoDaFala++;
         falaAtual = null;
         falaEnfileirada = null;
@@ -1501,9 +1791,55 @@
                     courseKey: chaveHistorico,
                     title: document.title,
                     url: location.href,
-                    history: historicoFrases
+                    history: historicoFrases,
+                    study: contextoAprendizagem()
                 });
                 return;
+            }
+
+            if (mensagem?.type === "SIA_GET_STUDY_CONTEXT") {
+                responder(contextoAprendizagem());
+                return;
+            }
+
+            if (mensagem?.type === "SIA_GET_LESSON_TRANSCRIPT") {
+                responder(transcricaoAulaLocal());
+                return;
+            }
+
+            if (mensagem?.type === "SIA_REPLAY_LESSON_TRANSCRIPT") {
+                responder(repetirTranscricaoNoVideo());
+                return;
+            }
+
+            if (mensagem?.type === "SIA_CREATE_STUDY_BOOKMARK") {
+                void criarMarcacaoEstudo({
+                    type: mensagem.typeId || mensagem.bookmarkType,
+                    note: mensagem.note,
+                }).then(responder);
+                return true;
+            }
+
+            if (mensagem?.type === "SIA_REVIEW_STUDY_CARD") {
+                void avaliarCartaoEstudo(mensagem.cardId, mensagem.rating, mensagem.answer).then(responder);
+                return true;
+            }
+
+            if (mensagem?.type === "SIA_REPLAY_STUDY_BOOKMARK") {
+                responder({ ok: repetirMarcacaoEstudo(mensagem.bookmarkId) });
+                return;
+            }
+
+            if (mensagem?.type === "SIA_CLEAR_STUDY") {
+                marcacoesEstudo = [];
+                cartoesEstudo = [];
+                void Promise.all([
+                    removerStorageLocalSeguro(chaveEstudo),
+                    removerStorageLocalSeguro(chaveCartoesEstudo),
+                ]).then(([marksRemoved, cardsRemoved]) => {
+                    responder({ ok: marksRemoved && cardsRemoved });
+                });
+                return true;
             }
 
             if (mensagem?.type === "SIA_REPLAY_LAST") {
@@ -1530,8 +1866,15 @@
 
             if (mensagem?.type === "SIA_CLEAR_HISTORY") {
                 historicoFrases = [];
-                void removerStorageLocalSeguro(chaveHistorico);
-                responder({ ok: true });
+                transcricaoFrases = [];
+                transcricaoCortada = false;
+                void Promise.all([
+                    removerStorageLocalSeguro(chaveHistorico),
+                    removerStorageLocalSeguro(chaveTranscricao),
+                ]).then(([historicoRemovido, transcricaoRemovida]) => {
+                    responder({ ok: historicoRemovido && transcricaoRemovida });
+                });
+                return true;
             }
         });
     }
@@ -1539,16 +1882,23 @@
     function iniciarSia() {
         conectarConfiguracoes();
         conectarEntradaDeCaption();
-        chrome.storage.local.get(chaveHistorico, resultado => {
+        estadoAprendizagemPronto = carregarEstadoAprendizagem();
+        chrome.storage.local.get([chaveHistorico, chaveTranscricao], resultado => {
             const salvo = resultado[chaveHistorico];
             historicoFrases = Array.isArray(salvo)
                 ? salvo.slice(-CONFIG.maximoHistoricoFrases)
                 : [];
+            const salvoTranscricao = resultado[chaveTranscricao];
+            transcricaoFrases = Array.isArray(salvoTranscricao)
+                ? salvoTranscricao.slice(-CONFIG.maximoTranscricaoFrases)
+                : historicoFrases.map(item => ({ ...item }));
+            transcricaoCortada = transcricaoFrases.length >= CONFIG.maximoTranscricaoFrases;
         });
         if (!PLATAFORMA_EXTERNA) {
             setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
         }
         addEventListener("pagehide", () => {
+            cancelarReplayTranscricao();
             removerEntradaDeCaption();
             interromperFala();
         }, { once: true });

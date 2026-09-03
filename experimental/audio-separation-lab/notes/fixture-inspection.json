@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "root": "fixtures/g7-udemy",
+  "files": [
+    {
+      "path": "fixtures/g7-udemy/test.webm",
+      "bytes": 5208,
+      "sha256": "3ebd577b6dfa89268b68ce3640dbeb20c91d26d0f58b4ccf3a495651f4e5fe3f",
+      "format": {
+        "format_name": "matroska,webm",
+        "duration": "6.000000",
+        "size": "5208"
+      },
+      "audioStreams": []
+    }
+  ],
+  "errors": []
+}

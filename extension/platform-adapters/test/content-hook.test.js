@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { URL } from 'node:url';
 
 const inputSource = fs.readFileSync(new URL('../caption-input.js', import.meta.url), 'utf8');
 const syncSource = fs.readFileSync(new URL('../../sync-engine.js', import.meta.url), 'utf8');
+const learningSource = fs.readFileSync(new URL('../../learning/learning-engine.js', import.meta.url), 'utf8');
 const contentSource = fs.readFileSync(new URL('../../content.js', import.meta.url), 'utf8');
 
 class FakeUtterance {
@@ -40,6 +42,9 @@ function createHarness({
     playbackRate: 1,
     paused,
     ended: false,
+    duration: 120,
+    playCalls: 0,
+    pauseCalls: 0,
     textTracks: textTrack ? [textTrack] : [],
     closest() {
       return null;
@@ -50,6 +55,16 @@ function createHarness({
     },
     removeEventListener(name, listener) {
       listeners.get(name)?.delete(listener);
+    },
+    play() {
+      this.paused = false;
+      this.playCalls += 1;
+      return Promise.resolve();
+    },
+    pause() {
+      this.paused = true;
+      this.pauseCalls += 1;
+      this.dispatch("pause");
     },
     dispatch(name) {
       for (const listener of listeners.get(name) || []) listener();
@@ -62,15 +77,31 @@ function createHarness({
     },
     addEventListener() {},
   };
+  const storageValues = {
+    sia_enabled: true,
+    sia_lang: 'pt-BR',
+    sia_speed: 1.2,
+    sia_voice_engine: 'browser',
+  };
   const storage = {
-    get(_keys, callback) {
-      callback({ sia_enabled: true, sia_lang: 'pt-BR', sia_speed: 1.2, sia_voice_engine: 'browser' });
+    get(keys, callback) {
+      const result = { ...storageValues };
+      if (typeof callback === 'function') {
+        callback(result);
+        return;
+      }
+      return Promise.resolve(result);
     },
-    set(_value, callback) {
+    set(value, callback) {
+      Object.assign(storageValues, value || {});
       callback?.();
+      return Promise.resolve();
     },
-    remove(_key, callback) {
+    remove(key, callback) {
+      const keysToRemove = Array.isArray(key) ? key : [key];
+      keysToRemove.forEach(item => delete storageValues[item]);
       callback?.();
+      return Promise.resolve();
     },
   };
   let messageListener = null;
@@ -101,6 +132,7 @@ function createHarness({
     chrome,
     document: documentRef,
     location: { hostname, pathname, href: `https://${hostname}${pathname}` },
+    URL,
     performance: { now: () => now },
     HTMLElement: class {},
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
@@ -142,6 +174,7 @@ function createHarness({
   });
   context.globalThis = context;
   vm.runInContext(syncSource, context);
+  vm.runInContext(learningSource, context);
   vm.runInContext(inputSource, context);
   vm.runInContext(contentSource, context);
   return {
@@ -195,6 +228,66 @@ test('H3 cue segura chega ao mesmo caminho de fala do content script', () => {
   assert.equal(harness.spoken.length, 1);
   assert.equal(harness.spoken[0].text, 'Uma cue segura para falar.');
   assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('MVP pedagógico cria marcação e cartão sem alterar o caminho de voz', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ text: 'Uma ideia importante para revisar.' }));
+  assert.equal(result.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+
+  const current = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
+  assert.equal(current.ok, true);
+  assert.equal(current.currentCue.text, 'Uma ideia importante para revisar.');
+  assert.equal(current.bookmarks.length, 0);
+
+  const created = await harness.sendMessage({
+    type: 'SIA_CREATE_STUDY_BOOKMARK',
+    bookmarkType: 'important',
+  });
+  assert.equal(created.ok, true);
+  assert.equal(created.bookmark.texto, 'Uma ideia importante para revisar.');
+  assert.ok(created.card?.id);
+  assert.equal(harness.spoken.length, 1);
+
+  const afterCreate = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
+  assert.equal(afterCreate.cards.length, 1, JSON.stringify(afterCreate));
+  assert.equal(afterCreate.cards[0].id, created.card.id);
+
+  const reviewed = await harness.sendMessage({
+    type: 'SIA_REVIEW_STUDY_CARD',
+    cardId: created.card.id,
+    rating: 'remembered',
+    answer: 'Uma ideia importante para revisar.',
+  });
+  assert.equal(reviewed.ok, true, JSON.stringify(reviewed));
+  assert.equal(reviewed.card.ultimaAvaliacao, 'remembered');
+  assert.equal(reviewed.card.ultimaResposta, 'Uma ideia importante para revisar.');
+  assert.equal(reviewed.card.intervaloDias, 1);
+
+  const cleared = await harness.sendMessage({ type: 'SIA_CLEAR_STUDY' });
+  assert.equal(cleared.ok, true, JSON.stringify(cleared));
+  const afterClear = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
+  assert.equal(afterClear.bookmarks.length, 0);
+  assert.equal(afterClear.cards.length, 0);
+});
+
+test('cue sobreposta descartada pela deduplicação não substitui a cue de estudo', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const first = harness.input.push(cue({ text: 'Uma frase segura para estudo.' }));
+  assert.equal(first.accepted, true);
+  const overlapped = harness.input.push(cue({
+    text: 'estudo.',
+    startTime: 10.1,
+    endTime: 12.1,
+  }));
+  assert.equal(overlapped.accepted, true);
+  assert.equal(harness.spoken.length, 1);
+  const current = await harness.sendMessage({ type: 'SIA_GET_STUDY_CONTEXT' });
+  assert.equal(current.currentCue.text, 'Uma frase segura para estudo.');
+  assert.equal(current.currentCue.startTime, 10);
 });
 
 test('H3 cue insegura não alcança a fala do content script', () => {
@@ -484,4 +577,73 @@ test('H6 teste neural do popup usa o bridge compartilhado na aba ativa', async (
   assert.equal(result.engine, 'piper-local');
   assert.equal(harness.piperSpoken.length, 1);
   assert.equal(harness.spoken.length, 0);
+});
+
+test('revisão da legenda volta ao vídeo, usa o intervalo registrado e não cria fala livre', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'A aula apresenta o conceito principal.', startTime: 10, endTime: 12 }));
+  harness.spoken[0].onend?.();
+  harness.input.push(cue({ text: 'O exemplo mostra como aplicar esse conceito.', startTime: 10.1, endTime: 15 }));
+
+  const transcript = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(transcript.ok, true, JSON.stringify(transcript));
+  assert.equal(transcript.transcricao.totalFrases, 2);
+  assert.ok(transcript.transcricao.trechos.every(item => item.texto));
+
+  const before = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  const spokenBefore = harness.spoken.length;
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, true, JSON.stringify(replay));
+  assert.equal(replay.inicio, 9.95);
+  assert.equal(replay.fim, 15);
+  assert.equal(harness.video.currentTime, 9.95);
+  assert.equal(harness.video.playCalls, 1);
+  assert.equal(harness.video.paused, false);
+  assert.equal(harness.spoken.length, spokenBefore);
+
+  harness.video.currentTime = 15.36;
+  harness.video.dispatch('timeupdate');
+  assert.equal(harness.video.paused, true);
+  assert.equal(harness.video.pauseCalls, 1);
+  assert.equal(harness.video.currentTime, 15.35);
+  assert.equal(harness.spoken.length, spokenBefore);
+
+  const after = await harness.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  assert.equal(after.history.length, before.history.length);
+});
+
+test('revisão contextual preserva a única fila Piper e não sintetiza a transcrição isoladamente', async () => {
+  const harness = createHarness({ piperActive: true });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Fala neural da aula.', startTime: 10, endTime: 12 }));
+  const spokenBefore = harness.piperSpoken.length;
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, true, JSON.stringify(replay));
+  assert.equal(harness.piperSpoken.length, spokenBefore);
+  assert.equal(harness.video.playCalls, 1);
+});
+
+test('revisão contextual recusa registro sem intervalo temporal seguro', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Legenda sem fim confirmado.', startTime: 10, endTime: 0 }));
+  const replay = await harness.sendMessage({ type: 'SIA_REPLAY_LESSON_TRANSCRIPT' });
+  assert.equal(replay.ok, false, JSON.stringify(replay));
+  assert.equal(replay.reason, 'transcript-timing-unavailable');
+  assert.equal(harness.video.playCalls, 0);
+});
+
+test('limpar histórico remove também a transcrição integral local', async () => {
+  const harness = createHarness();
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  harness.input.push(cue({ text: 'Fala que será apagada.', startTime: 10, endTime: 12 }));
+  const before = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(before.transcricao.totalFrases, 1);
+
+  const cleared = await harness.sendMessage({ type: 'SIA_CLEAR_HISTORY' });
+  assert.equal(cleared.ok, true, JSON.stringify(cleared));
+  const after = await harness.sendMessage({ type: 'SIA_GET_LESSON_TRANSCRIPT' });
+  assert.equal(after.transcricao.totalFrases, 0);
+  assert.equal(after.transcricao.texto, '');
 });

@@ -6,6 +6,7 @@ const {
   TYPES,
   RATINGS,
   questionForType,
+  createTranscript,
   createBookmark,
   createRecallCard,
   reviewCard,
@@ -67,8 +68,12 @@ test("cria cartão de recuperação vinculado ao timestamp", () => {
 
 test("primeira lembrança agenda revisão para o dia seguinte", () => {
   const card = createRecallCard(bookmark(), { now: NOW, id: "card-1" });
-  const reviewed = reviewCard(card, RATINGS.REMEMBERED, { now: NOW });
+  const reviewed = reviewCard(card, RATINGS.REMEMBERED, {
+    now: NOW,
+    answer: "Uma resposta lembrada pelo estudante.",
+  });
   assert.equal(reviewed.ultimaAvaliacao, RATINGS.REMEMBERED);
+  assert.equal(reviewed.ultimaResposta, "Uma resposta lembrada pelo estudante.");
   assert.equal(reviewed.repeticoes, 1);
   assert.equal(reviewed.intervaloDias, 1);
   assert.equal(reviewed.proximaRevisaoEm, NOW + DAY);
@@ -115,4 +120,26 @@ test("calcula evolução sem confundir tempo assistido com domínio", () => {
     lapsos: 1,
     retencao: 0.5,
   });
+});
+
+test("reúne todas as falas em ordem temporal e mantém a origem de cada trecho", () => {
+  const entries = [
+    { id: "h-2", texto: "Segunda fala.", inicio: 4, fim: 7 },
+    { id: "h-1", texto: "Primeira fala.", inicio: 1, fim: 3 },
+    { id: "h-2", texto: "Segunda fala repetida.", inicio: 4, fim: 7 },
+    { id: "h-3", texto: "Terceira fala.", inicio: 8, fim: 10 },
+  ];
+  const result = createTranscript(entries);
+  assert.equal(result.totalFrases, 3);
+  assert.equal(result.texto, "Primeira fala.\\n\\nSegunda fala.\\n\\nTerceira fala.");
+  assert.deepEqual(result.trechos.map(entry => entry.id), ["h-1", "h-2", "h-3"]);
+  assert.equal(result.caracteres, result.trechos.reduce((total, entry) => total + entry.texto.length, 0));
+});
+
+test("retorna arquivo integral vazio quando ainda não há falas", () => {
+  const result = createTranscript([]);
+  assert.equal(result.texto, "");
+  assert.equal(result.totalFrases, 0);
+  assert.equal(result.caracteres, 0);
+  assert.deepEqual(result.trechos, []);
 });

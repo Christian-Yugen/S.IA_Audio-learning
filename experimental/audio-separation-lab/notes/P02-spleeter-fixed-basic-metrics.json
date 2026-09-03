@@ -1,0 +1,29 @@
+{
+  "directory": "/tmp/sia-platform-guard-work/experimental/audio-separation-lab/results/P02-spleeter-cpu-fixed",
+  "stems": [
+    {
+      "file": "accompaniment.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 963072,
+      "durationSeconds": 10.919183673469387,
+      "rms": 0.21796516809408123,
+      "rmsDbfs": -13.232258064896815,
+      "peak": 0.999969482421875,
+      "peakDbfs": -0.00026507636037961915,
+      "clippedSamples": 2
+    },
+    {
+      "file": "vocals.wav",
+      "sampleRate": 44100,
+      "channels": 2,
+      "sampleCount": 963072,
+      "durationSeconds": 10.919183673469387,
+      "rms": 0.11090216645643858,
+      "rmsDbfs": -19.10119939786684,
+      "peak": 0.94952392578125,
+      "peakDbfs": -0.44988175168601063,
+      "clippedSamples": 0
+    }
+  ]
+}

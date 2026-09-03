@@ -1,0 +1,26 @@
+# Conteúdo audiovisual real e resultados potencialmente sensíveis
+corpus/raw/
+corpus/working/
+results/
+models/*.onnx
+models/*.ort
+models/*.bin
+models/*.safetensors
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.webm
+*.flac
+*.ogg
+
+# Artefatos temporários
+__pycache__/
+
+*.tar.bz2
+models/**/*.onnx
+models/**/*.ort
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.tar.bz2
+runners/**/node_modules/
