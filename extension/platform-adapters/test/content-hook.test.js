@@ -32,6 +32,8 @@ class FakeElement {
 
 function createHarness({
   paused = false,
+  volume = 1,
+  manualTimers = false,
   piperActive = false,
   hostname = 'www.udemy.com',
   pathname = '/course/test/learn/lecture/1',
@@ -48,9 +50,12 @@ function createHarness({
   const piperSpoken = [];
   const primed = [];
   let now = 1000;
+  let nextTimerId = 1;
+  const pendingTimers = new Map();
   const video = {
     currentTime: 10.5,
     playbackRate: 1,
+    volume,
     paused,
     ended: false,
     duration: 120,
@@ -159,8 +164,24 @@ function createHarness({
       return intervalCallbacks.length;
     },
     clearInterval: () => {},
-    setTimeout: callback => { callback(); return 1; },
-    clearTimeout: () => {},
+    setTimeout: (callback, delay = 0) => {
+      if (!manualTimers) {
+        callback();
+        return 1;
+      }
+      const id = nextTimerId++;
+      pendingTimers.set(id, { callback, at: now + Number(delay || 0) });
+      return id;
+    },
+    clearTimeout: id => {
+      pendingTimers.delete(id);
+    },
+    requestAnimationFrame: callback => {
+      now += 20;
+      callback(now);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
     Translator: translatorApi,
     SiaPiperVoiceStatus: () => ({
       engine: piperActive ? 'piper-local' : 'browser',
@@ -200,17 +221,30 @@ function createHarness({
     input: context.SiaCaptionInput,
     video,
     spoken,
-      piperSpoken,
-      primed,
-      setNow(value) {
-        now = Number(value);
-      },
-      tick() {
-        for (const callback of intervalCallbacks) callback();
-      },
-      finishPiper(index = 0) {
-        piperSpoken[index]?.onend?.();
-      },
+    piperSpoken,
+    primed,
+    setNow(value) {
+      now = Number(value);
+    },
+    advanceTimers(ms) {
+      now += Number(ms || 0);
+      const due = [];
+      for (const [id, timer] of pendingTimers.entries()) {
+        if (timer.at <= now) {
+          due.push({ id, callback: timer.callback });
+        }
+      }
+      for (const item of due) {
+        pendingTimers.delete(item.id);
+        item.callback();
+      }
+    },
+    tick() {
+      for (const callback of intervalCallbacks) callback();
+    },
+    finishPiper(index = 0) {
+      piperSpoken[index]?.onend?.();
+    },
     sendMessage(message) {
       return new Promise(resolve => {
         if (!messageListener) {
@@ -968,6 +1002,75 @@ test('Coursera: captura da frase ativa na coluna lateral de Transcrição dispar
   const textoPrecache = harness.primed[1].text;
   assert.ok(textoPrecache.includes('Vamos examinar o que é o aprendizado supervisionado'), 'deve pré-sintetizar a frase seguinte');
   assert.ok(!textoPrecache.includes('0:15'), 'deve sanitizar o timestamp da frase seguinte');
+});
+
+test('audio ducking reduz volume do vídeo ao falar frase nativa e restaura ao pausar', async () => {
+  const harness = createHarness({ manualTimers: true, volume: 1 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  assert.equal(harness.video.volume, 1);
+
+  harness.input.push(cue({ text: 'Legenda falada com ducking ativo.' }));
+  assert.equal(harness.spoken.length, 1);
+
+  // Volume deve sofrer ducking para 0.15 (15% do volume base)
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.15);
+
+  // Ao pausar o vídeo durante a fala, volume deve ser restaurado imediatamente para 1
+  harness.video.pause();
+  harness.tick();
+  assert.equal(harness.video.volume, 1);
+});
+
+test('audio ducking opera com voz neural Piper e preserva ducking entre legendas consecutivas', async () => {
+  const harness = createHarness({ manualTimers: true, piperActive: true, volume: 1 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  // Primeira legenda inicia fala neural
+  harness.input.push(cue({ text: 'Primeira frase neural com ducking.', startTime: 10, endTime: 12 }));
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.15);
+
+  // Primeira fala conclui
+  harness.piperSpoken[0].onend?.();
+  // Durante o hold timer de 280ms (avançando 100ms), volume permanece em 0.15
+  harness.advanceTimers(100);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.15);
+
+  // Segunda legenda chega dentro da janela de hold e tempo do vídeo avança
+  harness.video.currentTime = 12.5;
+  harness.input.push(cue({ text: 'Segunda frase contínua neural.', startTime: 12.1, endTime: 14 }));
+  assert.equal(harness.piperSpoken.length, 2);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.15);
+
+  // Segunda fala conclui
+  harness.piperSpoken[1].onend?.();
+  // Avança o restante do hold timer e tempo de restauração
+  harness.advanceTimers(350);
+
+  // Volume deve ser restaurado para 1
+  assert.equal(Number(harness.video.volume.toFixed(2)), 1);
+});
+
+test('audio ducking desativado via configuração restaura volume imediatamente e expõe status', async () => {
+  const harness = createHarness({ manualTimers: true, volume: 0.8 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  harness.input.push(cue({ text: 'Frase com ducking a 80% base.' }));
+  // 80% * 0.15 = 0.12
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.12);
+
+  const status = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
+  assert.equal(status.duckingActive, true);
+  assert.equal(status.duckingEnabled, true);
+  assert.equal(status.duckingLevel, 0.15);
+
+  // Desativa ducking via atualização de configuração
+  await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking', value: false });
+  assert.equal(harness.video.volume, 0.8);
+
+  const statusAtualizado = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
+  assert.equal(statusAtualizado.duckingEnabled, false);
 });
 
 

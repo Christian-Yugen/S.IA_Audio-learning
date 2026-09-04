@@ -35,6 +35,150 @@
     let filaEntregaTraducao = Promise.resolve();
     let ultimoIdEntregaTraducao = 0;
     let videoEstavaPausado = false;
+    let duckingAtivo = true;
+    let duckingNivel = 0.15;
+    let volumeBaseVideo = null;
+    let duckingAnimId = null;
+    let duckingHoldTimer = null;
+    let duckingEmAndamento = false;
+
+    const requestAnimFrame = typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame
+        : callback => setTimeout(() => callback(performance.now()), 16);
+    const cancelAnimFrame = typeof cancelAnimationFrame === "function"
+        ? cancelAnimationFrame
+        : clearTimeout;
+
+    function rampaVolumeVideo(video, volumeDestino, duracaoMs, aoConcluir = null) {
+        if (!video || !Number.isFinite(video.volume)) return;
+        if (duckingAnimId) {
+            cancelAnimFrame(duckingAnimId);
+            duckingAnimId = null;
+        }
+        const volumeInicial = video.volume;
+        if (Math.abs(volumeInicial - volumeDestino) < 0.01 || duracaoMs <= 0) {
+            video.volume = Math.max(0, Math.min(1, volumeDestino));
+            aoConcluir?.();
+            return;
+        }
+        const inicio = performance.now();
+        let framesSemAvanco = 0;
+        function frame(agora) {
+            const decorrido = agora - inicio;
+            if (decorrido <= 0) {
+                framesSemAvanco++;
+                if (framesSemAvanco > 2) {
+                    video.volume = Math.max(0, Math.min(1, volumeDestino));
+                    duckingAnimId = null;
+                    aoConcluir?.();
+                    return;
+                }
+            }
+            const progresso = Math.min(1, Math.max(0, decorrido / duracaoMs));
+            const fator = progresso * progresso * (3 - 2 * progresso);
+            const atual = volumeInicial + (volumeDestino - volumeInicial) * fator;
+            video.volume = Math.max(0, Math.min(1, atual));
+            if (progresso < 1) {
+                duckingAnimId = requestAnimFrame(frame);
+            } else {
+                duckingAnimId = null;
+                aoConcluir?.();
+            }
+        }
+        duckingAnimId = requestAnimFrame(frame);
+    }
+
+    function obterVideoParaDucking() {
+        if (videoMonitorado) {
+            if (typeof videoMonitorado.isConnected !== "boolean" || videoMonitorado.isConnected) {
+                return videoMonitorado;
+            }
+        }
+        if (typeof document !== "undefined" && typeof document.querySelector === "function") {
+            const video = document.querySelector("video");
+            if (video) {
+                videoMonitorado = video;
+                return video;
+            }
+        }
+        return videoMonitorado;
+    }
+
+    function iniciarDucking() {
+        if (!duckingAtivo) return;
+        const video = obterVideoParaDucking();
+        if (!video || !Number.isFinite(video.volume)) return;
+        if (duckingHoldTimer) {
+            clearTimeout(duckingHoldTimer);
+            duckingHoldTimer = null;
+        }
+        duckingEmAndamento = true;
+        if (volumeBaseVideo === null) {
+            volumeBaseVideo = video.volume;
+        }
+        if (typeof video.addEventListener === "function") {
+            video.addEventListener("pause", restaurarDuckingImediato);
+            video.addEventListener("ended", restaurarDuckingImediato);
+            video.addEventListener("seeking", restaurarDuckingImediato);
+        }
+        const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
+        rampaVolumeVideo(video, volumeAlvo, 100);
+    }
+
+    function agendarRestauracaoDucking() {
+        if (!duckingAtivo) return;
+        const video = obterVideoParaDucking();
+        if (!video || volumeBaseVideo === null) return;
+        duckingEmAndamento = false;
+        if (duckingHoldTimer) {
+            clearTimeout(duckingHoldTimer);
+            duckingHoldTimer = null;
+        }
+        duckingHoldTimer = setTimeout(() => {
+            duckingHoldTimer = null;
+            if (duckingEmAndamento || volumeBaseVideo === null) return;
+            const alvo = volumeBaseVideo;
+            const videoAtual = obterVideoParaDucking();
+            if (!videoAtual || !Number.isFinite(videoAtual.volume)) {
+                volumeBaseVideo = null;
+                return;
+            }
+            rampaVolumeVideo(videoAtual, alvo, 300, () => {
+                if (!duckingEmAndamento) {
+                    if (typeof videoAtual.removeEventListener === "function") {
+                        videoAtual.removeEventListener("pause", restaurarDuckingImediato);
+                        videoAtual.removeEventListener("ended", restaurarDuckingImediato);
+                        videoAtual.removeEventListener("seeking", restaurarDuckingImediato);
+                    }
+                    volumeBaseVideo = null;
+                }
+            });
+        }, 280);
+    }
+
+    function restaurarDuckingImediato() {
+        duckingEmAndamento = false;
+        if (duckingHoldTimer) {
+            clearTimeout(duckingHoldTimer);
+            duckingHoldTimer = null;
+        }
+        if (duckingAnimId) {
+            cancelAnimFrame(duckingAnimId);
+            duckingAnimId = null;
+        }
+        const video = obterVideoParaDucking();
+        if (video) {
+            if (typeof video.removeEventListener === "function") {
+                video.removeEventListener("pause", restaurarDuckingImediato);
+                video.removeEventListener("ended", restaurarDuckingImediato);
+                video.removeEventListener("seeking", restaurarDuckingImediato);
+            }
+            if (volumeBaseVideo !== null && Number.isFinite(video.volume)) {
+                video.volume = Math.max(0, Math.min(1, volumeBaseVideo));
+            }
+        }
+        volumeBaseVideo = null;
+    }
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -1404,6 +1548,7 @@
         utterance.onstart = () => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            iniciarDucking();
             emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
             if (registro.contexto?.naoRegistrarHistorico !== true) {
@@ -1438,6 +1583,7 @@
 
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
+            agendarRestauracaoDucking();
             registrarDiagnostico("fala-finalizada", registro.texto);
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
@@ -1469,6 +1615,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            agendarRestauracaoDucking();
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
             ultimoErroSintese = evento.error || "speech-error";
@@ -1560,6 +1707,7 @@
         utterance.onstart = () => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            iniciarDucking();
             registrarDiagnostico("fala-neural-iniciada", registro.texto);
             if (registro.contexto?.naoRegistrarHistorico !== true) {
                 void registrarFraseNoHistorico(registro);
@@ -1591,6 +1739,7 @@
 
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
+            agendarRestauracaoDucking();
             registrarDiagnostico("fala-neural-finalizada", registro.texto);
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
@@ -1616,6 +1765,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
+            agendarRestauracaoDucking();
             registrarDiagnostico("fala-neural-erro", registro.texto);
             ultimoErroSintese = evento?.error || "piper-error";
             if (falaAtual === registro) falaAtual = null;
@@ -1917,6 +2067,7 @@
         ultimoTextoConcluidoEm = 0;
         limparBufferSentenca();
         restaurarVelocidadeVideo();
+        restaurarDuckingImediato();
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
         }
@@ -1955,6 +2106,7 @@
             if (!videoEstavaPausado) {
                 videoEstavaPausado = true;
                 if (!testeNeuralEmAndamento) interromperFala();
+                restaurarDuckingImediato();
                 textoCandidato = "";
             }
             // Enquanto pausado, pré-sintetiza a frase atual/inicial para latência zero ao dar Play
@@ -2094,6 +2246,20 @@
                     precacheTraducoesFuturas(document.querySelector("video"));
                 }
                 break;
+            case "sia_ducking":
+                duckingAtivo = Boolean(valor);
+                if (!duckingAtivo) {
+                    restaurarDuckingImediato();
+                }
+                break;
+            case "sia_ducking_level": {
+                const parsed = Number(valor);
+                if (Number.isFinite(parsed)) {
+                    const norm = parsed > 1 ? parsed / 100 : parsed;
+                    duckingNivel = Math.max(0, Math.min(1, norm));
+                }
+                break;
+            }
         }
     }
 
@@ -2107,7 +2273,9 @@
             "sia_volume",
             "sia_sync",
             "sia_voice_engine",
-            "sia_translate_en_pt"
+            "sia_translate_en_pt",
+            "sia_ducking",
+            "sia_ducking_level"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
@@ -2337,6 +2505,9 @@
                     translationState: MOTOR_TRADUCAO?.getStatus?.().state || "unavailable",
                     translationError: ultimoErroTraducao,
                     syncEngineReady: Boolean(MOTOR_SINCRONIA),
+                    duckingActive: Boolean(duckingEmAndamento || volumeBaseVideo !== null),
+                    duckingEnabled: duckingAtivo,
+                    duckingLevel: duckingNivel,
                     platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
                     platformActive: plataformaAtiva,
                     platformDiagnostic: globalThis.SiaCoreDiagnostic?.get?.() || null
@@ -2460,6 +2631,7 @@
             cancelarReplayTranscricao();
             removerEntradaDeCaption();
             interromperFala();
+            restaurarDuckingImediato();
         }, { once: true });
         console.info(PLATAFORMA_EXTERNA
             ? "S.IA: entrada de cues externas ativa."
