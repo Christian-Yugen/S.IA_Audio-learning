@@ -7,7 +7,6 @@ import { URL } from 'node:url';
 const inputSource = fs.readFileSync(new URL('../caption-input.js', import.meta.url), 'utf8');
 const syncSource = fs.readFileSync(new URL('../../sync-engine.js', import.meta.url), 'utf8');
 const learningSource = fs.readFileSync(new URL('../../learning/learning-engine.js', import.meta.url), 'utf8');
-const translationSource = fs.readFileSync(new URL('../../translation/translation-engine.js', import.meta.url), 'utf8');
 const contentSource = fs.readFileSync(new URL('../../content.js', import.meta.url), 'utf8');
 
 class FakeUtterance {
@@ -24,14 +23,20 @@ class FakeUtterance {
   }
 }
 
+class FakeElement {
+  getBoundingClientRect() {
+    return { width: 100, height: 20, top: 10, left: 10 };
+  }
+}
+
 function createHarness({
   paused = false,
   piperActive = false,
   hostname = 'www.udemy.com',
   pathname = '/course/test/learn/lecture/1',
   textTrack = null,
-  translateEnabled = false,
-  translatorApi = undefined,
+  playerRoot = null,
+  documentQuerySelector = null,
 } = {}) {
   const listeners = new Map();
   const globalListeners = new Map();
@@ -50,7 +55,7 @@ function createHarness({
     pauseCalls: 0,
     textTracks: textTrack ? [textTrack] : [],
     closest() {
-      return null;
+      return playerRoot || null;
     },
     addEventListener(name, listener) {
       if (!listeners.has(name)) listeners.set(name, new Set());
@@ -76,6 +81,10 @@ function createHarness({
   const documentRef = {
     readyState: 'complete',
     querySelector(selector) {
+      if (typeof documentQuerySelector === 'function') {
+        const custom = documentQuerySelector(selector);
+        if (custom !== undefined) return custom;
+      }
       return selector === 'video' ? video : null;
     },
     addEventListener() {},
@@ -85,7 +94,6 @@ function createHarness({
     sia_lang: 'pt-BR',
     sia_speed: 1.2,
     sia_voice_engine: 'browser',
-    sia_translate_en_pt: translateEnabled,
   };
   const storage = {
     get(keys, callback) {
@@ -138,7 +146,7 @@ function createHarness({
     location: { hostname, pathname, href: `https://${hostname}${pathname}` },
     URL,
     performance: { now: () => now },
-    HTMLElement: class {},
+    HTMLElement: FakeElement,
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
     SpeechSynthesisUtterance: FakeUtterance,
     speechSynthesis,
@@ -149,7 +157,6 @@ function createHarness({
     clearInterval: () => {},
     setTimeout: callback => { callback(); return 1; },
     clearTimeout: () => {},
-    Translator: translatorApi,
     SiaPiperVoiceStatus: () => ({
       engine: piperActive ? 'piper-local' : 'browser',
       state: piperActive ? 'ready' : 'idle',
@@ -180,7 +187,6 @@ function createHarness({
   context.globalThis = context;
   vm.runInContext(syncSource, context);
   vm.runInContext(learningSource, context);
-  vm.runInContext(translationSource, context);
   vm.runInContext(inputSource, context);
   vm.runInContext(contentSource, context);
   return {
@@ -233,23 +239,6 @@ test('H3 cue segura chega ao mesmo caminho de fala do content script', () => {
   assert.equal(result.accepted, true);
   assert.equal(harness.spoken.length, 1);
   assert.equal(harness.spoken[0].text, 'Uma cue segura para falar.');
-  assert.equal(harness.spoken[0].lang, 'pt-BR');
-});
-
-test('traduz cue inglesa antes de enviá-la ao núcleo de voz', async () => {
-  const harness = createHarness({
-    translateEnabled: true,
-    translatorApi: {
-      availability: async () => 'available',
-      create: async () => ({ translate: async () => 'Uma legenda traduzida.' }),
-    },
-  });
-  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
-  const result = harness.input.push(cue({ text: 'A translated caption.' }));
-  assert.equal(result.accepted, true);
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(harness.spoken.length, 1);
-  assert.equal(harness.spoken[0].text, 'Uma legenda traduzida.');
   assert.equal(harness.spoken[0].lang, 'pt-BR');
 });
 
@@ -492,6 +481,41 @@ test('Coursera prepara a primeira cue antes de ela aparecer sem falar antecipada
   assert.equal(harness.piperSpoken[0].text, 'A primeira fala.');
 });
 
+test('Coursera compõe e reutiliza o precache para sentenças fragmentadas sem pontuação na primeira cue', () => {
+  const cues = [
+    { startTime: 10, endTime: 11, text: 'Primeira parte' },
+    { startTime: 11, endTime: 12.5, text: 'da frase completa.' },
+    { startTime: 13, endTime: 14.5, text: 'Segunda frase independente.' },
+  ];
+  const track = {
+    kind: 'subtitles',
+    mode: 'showing',
+    activeCues: [],
+    cues,
+  };
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    textTrack: track,
+  });
+  harness.video.currentTime = 9.8;
+
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 0);
+  assert.equal(harness.primed.length, 1);
+  assert.equal(harness.primed[0].text, 'Primeira parte da frase completa.');
+
+  harness.video.currentTime = 10;
+  track.activeCues = [cues[0]];
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+  assert.equal(harness.piperSpoken[0].text, 'Primeira parte da frase completa.');
+  assert.equal(harness.piperSpoken[0].rate, harness.primed[0].rate);
+  assert.equal(harness.primed.length, 3);
+  assert.equal(harness.primed[2].text, 'Segunda frase independente.');
+});
+
 test('Coursera pré-carrega a próxima cue quando ela chega progressivamente', () => {
   const cues = [
     { startTime: 10, endTime: 12, text: 'A primeira frase.' },
@@ -560,6 +584,59 @@ test('continuação neural sem pontuação usa pausa curta sem alterar fila ou f
   assert.equal(harness.piperSpoken.length, 2);
   assert.equal(harness.piperSpoken[1].text, 'A frase termina.');
   assert.equal(harness.piperSpoken[1].silenceScale, 0.2);
+});
+
+test('Coursera lê legenda do DOM imediatamente após estabilização sem esperar próxima cue ou pontuação', () => {
+  let textoDomAtual = 'Primeira legenda traduzida';
+  class CaptionElement extends FakeElement {
+    get innerText() {
+      return textoDomAtual;
+    }
+    get textContent() {
+      return textoDomAtual;
+    }
+    closest() {
+      return null;
+    }
+  }
+
+  const captionElement = new CaptionElement();
+  const root = {
+    querySelectorAll(selector) {
+      if (selector.includes('.rc-VideoCaptions') && textoDomAtual) {
+        return [captionElement];
+      }
+      return [];
+    }
+  };
+
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/1',
+    piperActive: true,
+    playerRoot: root,
+  });
+
+  harness.setNow(1000);
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 0, 'não deve falar antes da estabilização de 50ms');
+
+  harness.setNow(1060);
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1, 'deve disparar a fala neural imediatamente após 50ms');
+  assert.equal(harness.piperSpoken[0].text, 'Primeira legenda traduzida,');
+
+  harness.finishPiper(0);
+
+  // Nova legenda aparece no DOM (sem pontuação final)
+  textoDomAtual = 'Segunda legenda traduzida';
+  harness.setNow(1200);
+  harness.tick();
+
+  harness.setNow(1260);
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 2, 'segunda legenda deve disparar imediatamente sem esperar próxima');
+  assert.equal(harness.piperSpoken[1].text, 'Segunda legenda traduzida,');
 });
 
 test('H5 fonte que não é TextTrack', () => {
@@ -670,3 +747,205 @@ test('limpar histórico remove também a transcrição integral local', async ()
   assert.equal(after.transcricao.totalFrases, 0);
   assert.equal(after.transcricao.texto, '');
 });
+
+test('substitui fala enfileirada não iniciada quando uma nova legenda da tela surge', () => {
+  let textoDomAtual = 'Frase antiga que ainda não começou';
+  class CaptionElement extends FakeElement {
+    get innerText() { return textoDomAtual; }
+    get textContent() { return textoDomAtual; }
+    closest() { return null; }
+  }
+  const captionElement = new CaptionElement();
+  const root = {
+    querySelectorAll(selector) {
+      if (selector.includes('.rc-VideoCaptions') && textoDomAtual) {
+        return [captionElement];
+      }
+      return [];
+    }
+  };
+
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/2',
+    piperActive: true,
+    playerRoot: root,
+  });
+
+  // Frase 1 detectada e estabilizada
+  harness.setNow(1000);
+  harness.tick();
+  harness.setNow(1060);
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1, 'primeira frase enfileirada');
+  assert.equal(harness.piperSpoken[0].text, 'Frase antiga que ainda não começou,');
+
+  // Antes da frase 1 iniciar (finishPiper não chamado), uma nova frase 2 surge na tela
+  textoDomAtual = 'Frase nova atualizada';
+  harness.setNow(1100);
+  harness.tick();
+  harness.setNow(1160);
+  harness.tick();
+
+  // Frase 2 deve assumir imediatamente, substituindo a anterior obsoleta
+  assert.equal(harness.piperSpoken.length, 2, 'nova frase deve substituir a anterior sem retenção');
+  assert.equal(harness.piperSpoken[1].text, 'Frase nova atualizada,');
+});
+
+test('com Piper ativo, nova legenda da tela é enviada diretamente ao Piper sem ficar retida em legendaReserva', () => {
+  let textoDomAtual = 'Frase um em reprodução';
+  class CaptionElement extends FakeElement {
+    get innerText() { return textoDomAtual; }
+    get textContent() { return textoDomAtual; }
+    closest() { return null; }
+  }
+  const captionElement = new CaptionElement();
+  const root = {
+    querySelectorAll(selector) {
+      if (selector.includes('.rc-VideoCaptions') && textoDomAtual) {
+        return [captionElement];
+      }
+      return [];
+    }
+  };
+
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/3',
+    piperActive: true,
+    playerRoot: root,
+  });
+
+  // Frase 1 detectada e iniciada
+  harness.setNow(1000);
+  harness.tick();
+  harness.setNow(1060);
+  harness.tick();
+  assert.equal(harness.piperSpoken.length, 1);
+
+  // Frase 2 aparece no DOM enquanto a Frase 1 ainda está em fala (não finalizada)
+  textoDomAtual = 'Frase dois seguinte na tela';
+  harness.setNow(1200);
+  harness.tick();
+  harness.setNow(1260);
+  harness.tick();
+
+  // Frase 2 deve ter sido enviada diretamente ao Piper (length == 2) sem esperar finishPiper ou próxima cue
+  assert.equal(harness.piperSpoken.length, 2, 'Frase 2 deve ir diretamente para a fila neural');
+  assert.equal(harness.piperSpoken[1].text, 'Frase dois seguinte na tela,');
+
+  // Frase 3 aparece no DOM
+  textoDomAtual = 'Frase três terceira na tela';
+  harness.setNow(1400);
+  harness.tick();
+  harness.setNow(1460);
+  harness.tick();
+
+  // Frase 3 também vai diretamente para o Piper sem ficar bloqueada em reserva
+  assert.equal(harness.piperSpoken.length, 3, 'Frase 3 deve ir diretamente para a fila neural');
+  assert.equal(harness.piperSpoken[2].text, 'Frase três terceira na tela,');
+});
+
+test('legenda DOM bilíngue (português e inglês) extrai e sintetiza apenas a linha em português', () => {
+  const textoBilingue = [
+    'As entradas são confusas e espalhadas por sistemas, portanto, o pipeline deve coletá-las de maneira repetível e governada.',
+    'The inputs are messy and spread across systems, so the pipeline must collect them in a governed, repeatable way.'
+  ].join('\n');
+
+  class BilingualCaptionElement extends FakeElement {
+    get innerText() { return textoBilingue; }
+    get textContent() { return textoBilingue; }
+    closest() { return null; }
+  }
+  const captionElement = new BilingualCaptionElement();
+  const root = {
+    querySelectorAll(selector) {
+      if (selector.includes('.rc-VideoCaptions')) {
+        return [captionElement];
+      }
+      return [];
+    }
+  };
+
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/test/lecture/bilingual',
+    piperActive: true,
+    playerRoot: root,
+  });
+
+  harness.setNow(1000);
+  harness.tick();
+  harness.setNow(1060);
+  harness.tick();
+
+  assert.equal(harness.piperSpoken.length, 1, 'deve disparar a fala com a frase selecionada');
+  const falado = harness.piperSpoken[0].text;
+  assert.ok(falado.includes('As entradas são confusas'), 'deve conter o texto traduzido em português');
+  assert.ok(!falado.includes('The inputs are messy'), 'NÃO deve conter o texto em inglês duplicado');
+});
+
+test('Coursera: captura da frase ativa na coluna lateral de Transcrição dispara imediatamente e pré-carrega próxima frase', () => {
+  class TranscriptPhraseElement extends FakeElement {
+    constructor(text, isHighlight = false) {
+      super();
+      this._text = text;
+      this.isHighlight = isHighlight;
+      this.nextElementSibling = null;
+      this.parentElement = null;
+      this.children = [];
+    }
+    get innerText() { return this._text; }
+    get textContent() { return this._text; }
+    closest(selector) {
+      if (selector.includes('Transcript') || selector.includes('transcript')) return container;
+      return null;
+    }
+  }
+
+  const frase1 = new TranscriptPhraseElement('0:08 Neste vídeo, vamos nos aprofundar um pouco mais.', true);
+  const frase2 = new TranscriptPhraseElement('0:15 Vamos examinar o que é o aprendizado supervisionado.', false);
+  frase1.nextElementSibling = frase2;
+
+  const container = new FakeElement();
+  container.querySelector = (selector) => {
+    if (selector.includes('TranscriptHighlight') || selector.includes('highlight') || selector.includes('active')) {
+      return frase1;
+    }
+    return null;
+  };
+  container.querySelectorAll = (selector) => {
+    return [frase1, frase2];
+  };
+
+  const harness = createHarness({
+    hostname: 'www.coursera.org',
+    pathname: '/learn/machine-learning/lecture/intro',
+    piperActive: true,
+    documentQuerySelector(selector) {
+      if (selector.includes('rc-Transcript') || selector.includes('transcript')) {
+        return container;
+      }
+      return undefined;
+    }
+  });
+
+  harness.setNow(1000);
+  // No primeiro tick, sem aguardar estabilidade de debounce do DOM
+  harness.tick();
+
+  assert.equal(harness.piperSpoken.length, 1, 'Frase ativa do transcript deve ser falada no mesmo ciclo (imediato)');
+  const textoFalado = harness.piperSpoken[0].text;
+  assert.ok(textoFalado.includes('Neste vídeo, vamos nos aprofundar'), 'deve conter o texto da frase ativa');
+  assert.ok(!textoFalado.includes('0:08'), 'deve sanitizar o timestamp numérico');
+
+  assert.equal(harness.primed.length, 2, 'Deve preparar a frase ativa e antecipar a próxima frase no Piper');
+  const textoPrimeAtual = harness.primed[0].text;
+  assert.ok(textoPrimeAtual.includes('Neste vídeo, vamos nos aprofundar'), 'deve preparar a frase ativa');
+  const textoPrecache = harness.primed[1].text;
+  assert.ok(textoPrecache.includes('Vamos examinar o que é o aprendizado supervisionado'), 'deve pré-sintetizar a frase seguinte');
+  assert.ok(!textoPrecache.includes('0:15'), 'deve sanitizar o timestamp da frase seguinte');
+});
+
+
+

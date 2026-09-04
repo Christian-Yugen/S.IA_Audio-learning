@@ -11,7 +11,8 @@
         velocidadeVideoMinima: 0.55,
         palavrasPorSegundo: 2.7,
         maximoCaracteresSemPonto: 280,
-        maximoSegundosSemPonto: 12,
+        maximoSegundosSemPonto: 3.0,
+        maximoSegundosAntecipacao: 12,
         maximoCuesAntecipadas: 6,
         passoMaximoTaxaAdaptativa: 0.3,
         toleranciaTaxaAdaptativa: 0.15,
@@ -32,6 +33,8 @@
     let ultimoErroTraducao = "";
     let ultimaPreTraducaoEm = 0;
     let filaEntregaTraducao = Promise.resolve();
+    let ultimoIdEntregaTraducao = 0;
+    let videoEstavaPausado = false;
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -341,25 +344,8 @@
     }
 
     function processarFragmentoDeSentenca(texto, contexto = {}) {
-        const video = contexto.video;
-        if (bufferSentenca.inicioVideo === null) {
-            bufferSentenca.inicioVideo = Number(video?.currentTime) || 0;
-        }
-
-        bufferSentenca.texto = unirFragmentosSemRepetir(bufferSentenca.texto, texto);
-        bufferSentenca.fragmentos++;
-        const tempoEmBuffer = Math.max(
-            0,
-            (Number(video?.currentTime) || 0) - bufferSentenca.inicioVideo
-        );
-
-        if (
-            terminaComPontuacaoFinal(bufferSentenca.texto)
-            || bufferSentenca.texto.length >= CONFIG.maximoCaracteresSemPonto
-            || tempoEmBuffer >= CONFIG.maximoSegundosSemPonto
-        ) {
-            liberarBufferSentenca(contexto);
-        }
+        limparBufferSentenca();
+        falar(texto, contexto);
     }
 
     function elementoVisivel(elemento) {
@@ -373,6 +359,117 @@
             && retangulo.height > 0;
     }
 
+    function detectarLinhaPorIdioma(linhas, idiomaAlvo = "pt-BR") {
+        if (!Array.isArray(linhas) || !linhas.length) return "";
+        const validas = linhas.map(normalizarTexto).filter(textoValidoDeLegenda);
+        if (!validas.length) return "";
+        if (validas.length === 1) return validas[0];
+
+        const querPt = /^pt/i.test(idiomaAlvo);
+        const querEn = /^en/i.test(idiomaAlvo);
+
+        const pontuarLinha = texto => {
+            let scorePt = 0;
+            let scoreEn = 0;
+
+            const acentosPt = (texto.match(/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/g) || []).length;
+            scorePt += acentosPt * 3;
+
+            const palavrasPt = (texto.match(/\b(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|por|para|com|que|e|é|se|não|ao|à|como|mas|mais|ou|são|este|esta|isso|esse|essa|você|ele|ela|eles|elas|nós|muito|também|sua|seu|suas|seus|então|portanto|quando|onde|pelo|pela|pelos|pelas)\b/gi) || []).length;
+            scorePt += palavrasPt * 2;
+
+            const palavrasEn = (texto.match(/\b(the|and|to|of|in|is|are|that|it|with|as|for|was|on|at|by|from|this|these|those|you|we|they|or|an|be|have|has|had|not|but|what|all|were|when|so|next|split|into|will|can)\b/gi) || []).length;
+            scoreEn += palavrasEn * 2;
+
+            return { scorePt, scoreEn };
+        };
+
+        if (querPt) {
+            let melhor = validas[0];
+            let melhorDiff = -Infinity;
+            for (const linha of validas) {
+                const { scorePt, scoreEn } = pontuarLinha(linha);
+                const diff = scorePt - scoreEn;
+                if (diff > melhorDiff) {
+                    melhorDiff = diff;
+                    melhor = linha;
+                }
+            }
+            if (melhorDiff > 0) return melhor;
+        } else if (querEn) {
+            let melhor = validas[0];
+            let melhorDiff = -Infinity;
+            for (const linha of validas) {
+                const { scorePt, scoreEn } = pontuarLinha(linha);
+                const diff = scoreEn - scorePt;
+                if (diff > melhorDiff) {
+                    melhorDiff = diff;
+                    melhor = linha;
+                }
+            }
+            if (melhorDiff > 0) return melhor;
+        }
+
+        return validas[0];
+    }
+
+    function comporSentencaDeCues(cuesBase, todasAsCues, tempoFallback = 0) {
+        let texto = "";
+        let fimCue = 0;
+        let inicioCue = Number.POSITIVE_INFINITY;
+        for (const cue of cuesBase || []) {
+            let fragmentoBruto = String(cue?.text || "");
+            let fragmento = normalizarTexto(fragmentoBruto);
+            if (fragmentoBruto.includes("\n")) {
+                const partes = fragmentoBruto.split(/\r?\n+/);
+                fragmento = detectarLinhaPorIdioma(partes, idiomaFala) || fragmento;
+            }
+            if (textoValidoDeLegenda(fragmento)) {
+                texto = unirFragmentosSemRepetir(texto, fragmento);
+                fimCue = Math.max(fimCue, Number(cue?.endTime) || 0);
+                inicioCue = Math.min(inicioCue, Number(cue?.startTime) || tempoFallback);
+            }
+        }
+
+        if (!texto) return null;
+
+        const fimCueAtiva = fimCue;
+        let cuesAntecipadas = 0;
+        const futuras = (todasAsCues || []).filter(cue =>
+            Number(cue?.startTime) >= fimCueAtiva - 0.04
+        );
+
+        for (const cue of futuras) {
+            if (terminaComPontuacaoFinal(texto)) break;
+            if (cuesAntecipadas >= CONFIG.maximoCuesAntecipadas) break;
+            if ((Number(cue?.endTime) || fimCue) - inicioCue > (CONFIG.maximoSegundosAntecipacao || 12)) {
+                break;
+            }
+
+            let fragmentoBruto = String(cue?.text || "");
+            let fragmento = normalizarTexto(fragmentoBruto);
+            if (fragmentoBruto.includes("\n")) {
+                const partes = fragmentoBruto.split(/\r?\n+/);
+                fragmento = detectarLinhaPorIdioma(partes, idiomaFala) || fragmento;
+            }
+            if (!textoValidoDeLegenda(fragmento)) continue;
+
+            const combinado = unirFragmentosSemRepetir(texto, fragmento);
+            if (combinado.length > CONFIG.maximoCaracteresSemPonto) break;
+
+            texto = combinado;
+            fimCue = Math.max(fimCue, Number(cue?.endTime) || 0);
+            cuesAntecipadas++;
+        }
+
+        return {
+            texto,
+            inicioCue,
+            fimCue,
+            sentencaAntecipada: cuesAntecipadas > 0
+        };
+    }
+
     function obterLegendasDaTextTrack(video) {
         if (!video.textTracks) return null;
 
@@ -382,51 +479,12 @@
             const cuesAtivas = [...(track.activeCues || [])];
             if (!cuesAtivas.length) continue;
 
-            let texto = "";
-            let fimCue = 0;
-            let inicioCue = Number.POSITIVE_INFINITY;
-            for (const cue of cuesAtivas) {
-                const fragmento = normalizarTexto(cue.text);
-                if (textoValidoDeLegenda(fragmento)) {
-                    texto = unirFragmentosSemRepetir(texto, fragmento);
-                    fimCue = Math.max(fimCue, Number(cue.endTime) || 0);
-                    inicioCue = Math.min(inicioCue, Number(cue.startTime) || video.currentTime);
-                }
-            }
-
-            if (!texto) continue;
-
-            const fimCueAtiva = fimCue;
-            let cuesAntecipadas = 0;
-            const todasAsCues = [...(track.cues || [])];
-            const futuras = todasAsCues.filter(cue =>
-                Number(cue.startTime) >= fimCueAtiva - 0.04
-            );
-
-            for (const cue of futuras) {
-                if (terminaComPontuacaoFinal(texto)) break;
-                if (cuesAntecipadas >= CONFIG.maximoCuesAntecipadas) break;
-                if ((Number(cue.endTime) || fimCue) - inicioCue > CONFIG.maximoSegundosSemPonto) {
-                    break;
-                }
-
-                const fragmento = normalizarTexto(cue.text);
-                if (!textoValidoDeLegenda(fragmento)) continue;
-
-                const combinado = unirFragmentosSemRepetir(texto, fragmento);
-                if (combinado.length > CONFIG.maximoCaracteresSemPonto) break;
-
-                texto = combinado;
-                fimCue = Math.max(fimCue, Number(cue.endTime) || 0);
-                cuesAntecipadas++;
-            }
+            const composta = comporSentencaDeCues(cuesAtivas, [...(track.cues || [])], video.currentTime);
+            if (!composta) continue;
 
             return {
-                texto,
-                inicioCue,
-                fimCue,
-                video,
-                sentencaAntecipada: cuesAntecipadas > 0
+                ...composta,
+                video
             };
         }
 
@@ -448,7 +506,7 @@
             .filter(elemento => elementoVisivel(elemento))
             .filter(elemento => !elemento.closest(SELETORES_CONTROLE));
 
-        const textos = [];
+        const linhasColetadas = [];
         for (const elemento of candidatos) {
             // Se há containers de legenda aninhados, usa somente o mais interno para
             // não repetir o mesmo diálogo duas ou três vezes.
@@ -456,30 +514,201 @@
                 continue;
             }
 
-            const texto = normalizarTexto(elemento.innerText || elemento.textContent);
-            if (textoValidoDeLegenda(texto)) textos.push(texto);
+            // Separa por quebras de linha existentes (div, p, br ou \n) para que
+            // traduções automáticas bilíngues (PT e EN) não sejam coladas juntas.
+            const textoBruto = elemento.innerText || elemento.textContent || "";
+            const pedacos = textoBruto.split(/\r?\n+/);
+            for (const pedaco of pedacos) {
+                const texto = normalizarTexto(pedaco);
+                if (textoValidoDeLegenda(texto)) {
+                    linhasColetadas.push(texto);
+                }
+            }
         }
 
-        return normalizarTexto([...new Set(textos)].join(" "));
+        const linhasUnicas = [...new Set(linhasColetadas)];
+        if (!linhasUnicas.length) return "";
+
+        return detectarLinhaPorIdioma(linhasUnicas, idiomaFala);
+    }
+
+    const SELETORES_CONTAINER_TRANSCRICAO = [
+        '.rc-Transcript',
+        '[data-testid*="transcript" i]',
+        '[class*="transcript-content" i]',
+        '[class*="transcriptContent" i]',
+        '[class*="Transcript" i]',
+        '[class*="transcript" i]',
+        '[aria-label*="transcript" i]',
+        '[aria-label*="transcri" i]',
+        '[id*="transcript" i]'
+    ].join(",");
+
+    const SELETORES_FRASE_ATIVA_TRANSCRICAO = [
+        '.rc-TranscriptHighlight',
+        '[class*="TranscriptHighlight" i]',
+        '[class*="transcript-highlight" i]',
+        '[class*="transcriptHighlight" i]',
+        '[class*="active-phrase" i]',
+        '[class*="activePhrase" i]',
+        '[class*="current-phrase" i]',
+        '[class*="currentPhrase" i]',
+        '[aria-current="true"]',
+        '[aria-current="step"]',
+        'span[class*="phrase" i][class*="active" i]',
+        'span[class*="phrase" i][class*="highlight" i]',
+        '[data-testid*="transcript-cue" i][class*="active" i]',
+        '[data-testid*="transcript-cue" i][class*="highlight" i]',
+        '[class*="is-highlighted" i]',
+        '[class*="highlighted" i]'
+    ].join(",");
+
+    function formatarTextoTranscricao(textoBruto) {
+        if (!textoBruto) return "";
+        let texto = normalizarTexto(textoBruto).replace(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*/, "");
+        if (textoBruto.includes("\n") || texto.includes(". ")) {
+            const partes = textoBruto.includes("\n")
+                ? textoBruto.split(/\r?\n+/)
+                : texto.split(/(?<=[.!?…])\s+(?=[A-Z\p{Lu}])/u);
+            texto = detectarLinhaPorIdioma(partes, idiomaFala) || texto;
+        }
+        return normalizarTexto(texto).replace(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*/, "");
+    }
+
+    function obterFraseAtivaDaTranscricao(video) {
+        const container = document.querySelector(SELETORES_CONTAINER_TRANSCRICAO);
+        if (!container || !elementoVisivel(container)) return null;
+
+        const candidatoAtivo = container.querySelector(SELETORES_FRASE_ATIVA_TRANSCRICAO);
+        if (!candidatoAtivo || !elementoVisivel(candidatoAtivo)) return null;
+
+        const textoBruto = candidatoAtivo.innerText || candidatoAtivo.textContent || "";
+        const texto = formatarTextoTranscricao(textoBruto);
+
+        if (!textoValidoDeLegenda(texto)) return null;
+
+        let inicioCue = video.currentTime;
+        try {
+            const bloco = candidatoAtivo.closest('[class*="Paragraph" i], [class*="paragraph" i], [class*="row" i], li') || candidatoAtivo.parentElement;
+            const botaoTempo = bloco?.querySelector('button, [class*="time" i], [class*="timestamp" i]');
+            const textoTempo = normalizarTexto(botaoTempo?.innerText || botaoTempo?.textContent || "");
+            const match = textoTempo.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (match) {
+                if (match[3]) {
+                    inicioCue = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+                } else {
+                    inicioCue = Number(match[1]) * 60 + Number(match[2]);
+                }
+            }
+        } catch {}
+
+        const duracaoEstimada = Math.max(1.5, texto.split(/\s+/).length / CONFIG.palavrasPorSegundo);
+        return {
+            texto,
+            origem: "transcript",
+            video,
+            inicioCue,
+            fimCue: inicioCue + duracaoEstimada,
+            elementoAtivo: candidatoAtivo
+        };
+    }
+
+    function obterProximasFrasesDaTranscricao(elementoAtivo, limite = 3) {
+        if (!elementoAtivo) return [];
+        const container = elementoAtivo.closest(SELETORES_CONTAINER_TRANSCRICAO);
+        if (!container) return [];
+
+        const resultados = [];
+        const visitados = new Set();
+        visitados.add(elementoAtivo);
+
+        // 1. Tenta o próximo irmão direto (dentro do mesmo parágrafo)
+        let proximo = elementoAtivo.nextElementSibling;
+        while (proximo && resultados.length < limite) {
+            const texto = formatarTextoTranscricao(proximo.innerText || proximo.textContent || "");
+            if (textoValidoDeLegenda(texto) && !resultados.includes(texto)) {
+                resultados.push(texto);
+                visitados.add(proximo);
+            }
+            proximo = proximo.nextElementSibling;
+        }
+
+        // 2. Se for a última frase do bloco atual, busca no próximo parágrafo
+        const blocoAtual = elementoAtivo.closest('[class*="Paragraph" i], [class*="paragraph" i], [class*="row" i], li') || elementoAtivo.parentElement;
+        let proximoBloco = blocoAtual?.nextElementSibling;
+        while (proximoBloco && resultados.length < limite) {
+            const candidatas = proximoBloco.querySelectorAll('.rc-Phrase, span[class*="phrase" i], [class*="phrase" i], p, span');
+            for (const cand of candidatas) {
+                if (cand.closest('button, [class*="time" i], [class*="timestamp" i]')) continue;
+                if (visitados.has(cand)) continue;
+                const texto = formatarTextoTranscricao(cand.innerText || cand.textContent || "");
+                if (textoValidoDeLegenda(texto) && !resultados.includes(texto)) {
+                    resultados.push(texto);
+                    visitados.add(cand);
+                    if (resultados.length >= limite) break;
+                }
+            }
+            proximoBloco = proximoBloco.nextElementSibling;
+        }
+
+        // 3. Fallback: lista linear de todas as frases do container
+        if (resultados.length < limite) {
+            const todasAsFrases = [...container.querySelectorAll('.rc-Phrase, span[class*="phrase" i], [class*="phrase" i], [class*="TranscriptHighlight" i], span, p')]
+                .filter(el => {
+                    if (el.children.length > 2) return false;
+                    if (el.closest('button, [class*="time" i], [class*="timestamp" i]')) return false;
+                    const txt = formatarTextoTranscricao(el.innerText || el.textContent || "");
+                    return textoValidoDeLegenda(txt);
+                });
+
+            const indice = todasAsFrases.indexOf(elementoAtivo);
+            if (indice >= 0) {
+                for (let i = indice + 1; i < todasAsFrases.length && resultados.length < limite; i++) {
+                    const txt = formatarTextoTranscricao(todasAsFrases[i].innerText || todasAsFrases[i].textContent || "");
+                    if (textoValidoDeLegenda(txt) && !resultados.includes(txt)) {
+                        resultados.push(txt);
+                    }
+                }
+            }
+        }
+
+        return resultados;
+    }
+
+    function obterProximaFraseDaTranscricao(elementoAtivo) {
+        const proximas = obterProximasFrasesDaTranscricao(elementoAtivo, 1);
+        return proximas[0] || null;
     }
 
     function obterTextoAtual(video) {
-        // activeCues não contém botões nem o relógio do player e tem prioridade.
+        // 1. Transcrição oficial ativa do Coursera (tem a marcação mais precisa e estável de frases)
+        const textoTranscricao = obterFraseAtivaDaTranscricao(video);
+        if (textoTranscricao) {
+            return textoTranscricao;
+        }
+
+        // 2. activeCues não contém botões nem o relógio do player e tem prioridade sobre o DOM do player.
         const textoTrack = obterLegendasDaTextTrack(video);
         if (textoTrack) {
             return { ...textoTrack, origem: "track" };
         }
 
+        // 3. Fallback para as legendas flutuantes do player no DOM
+        const textoDom = obterLegendasDoDom(video);
+        const duracaoEstimada = Math.max(1.5, textoDom.split(/\s+/).length / CONFIG.palavrasPorSegundo);
         return {
-            texto: obterLegendasDoDom(video),
+            texto: textoDom,
             origem: "dom",
             video,
             inicioCue: video.currentTime,
-            fimCue: 0
+            fimCue: video.currentTime + duracaoEstimada
         };
     }
 
     function obterLegendaAtivaParaPrecache(video) {
+        const fraseTranscricao = obterFraseAtivaDaTranscricao(video);
+        if (fraseTranscricao) return fraseTranscricao;
+
         if (!video?.textTracks) return null;
 
         for (const track of video.textTracks) {
@@ -494,30 +723,123 @@
         return null;
     }
 
+    function precacheFraseNeural(textoOriginal, contexto = {}) {
+        const provider = globalThis.SiaPiperVoice;
+        if (!provider?.isActive?.() || !extensaoAtiva) return;
+        const originalNormalizado = normalizarTexto(textoOriginal);
+        if (!textoValidoDeLegenda(originalNormalizado)) return;
+
+        const taxaBase = Number(contexto.rate) || velocidadeFala;
+
+        if (traducaoInglesAtiva && MOTOR_TRADUCAO) {
+            void MOTOR_TRADUCAO.translate(originalNormalizado, {
+                sourceLanguage: "en",
+                targetLanguage: "pt-BR"
+            }).then(traduzido => {
+                if (!traduzido?.text || !extensaoAtiva) return;
+                const textoParaSintese = traduzido.text;
+                const utterance = {
+                    text: prepararTextoParaSintese(textoParaSintese),
+                    lang: idiomaFala,
+                    rate: taxaBase,
+                    pitch: tomFala,
+                    volume: volumeFala,
+                    voice: null,
+                    silenceScale: continuaSemPontuacaoFinal(textoParaSintese) ? 0.08 : 0.2
+                };
+                const precache = {
+                    texto: textoParaSintese,
+                    textoOriginal: originalNormalizado,
+                    origem: contexto.origem || "precache",
+                    inicioCue: contexto.inicioCue,
+                    fimCue: contexto.fimCue,
+                    rate: utterance.rate,
+                    silenceScale: utterance.silenceScale
+                };
+                legendaNeuralPrecarregada = precache;
+                void Promise.resolve(provider.primeText?.(utterance)).then(ok => {
+                    if (ok === false && legendaNeuralPrecarregada === precache) {
+                        legendaNeuralPrecarregada = null;
+                    }
+                });
+            }).catch(() => {});
+            return;
+        }
+
+        const utterance = {
+            text: prepararTextoParaSintese(originalNormalizado),
+            lang: idiomaFala,
+            rate: taxaBase,
+            pitch: tomFala,
+            volume: volumeFala,
+            voice: null,
+            silenceScale: continuaSemPontuacaoFinal(originalNormalizado) ? 0.08 : 0.2
+        };
+        const precache = {
+            texto: originalNormalizado,
+            textoOriginal: originalNormalizado,
+            origem: contexto.origem || "precache",
+            inicioCue: contexto.inicioCue,
+            fimCue: contexto.fimCue,
+            rate: utterance.rate,
+            silenceScale: utterance.silenceScale
+        };
+        legendaNeuralPrecarregada = precache;
+        void Promise.resolve(provider.primeText?.(utterance)).then(ok => {
+            if (ok === false && legendaNeuralPrecarregada === precache) {
+                legendaNeuralPrecarregada = null;
+            }
+        });
+    }
+
     function precacheProximaLegendaNeural(video, legendaAtual) {
         const provider = globalThis.SiaPiperVoice;
-        if (!provider?.isActive?.() || legendaAtual?.origem !== "track") return;
+        if (!provider?.isActive?.()) return;
+
+        // Pré-carregamento para a próxima frase da transcrição do Coursera
+        if (legendaAtual?.origem === "transcript" && legendaAtual.elementoAtivo) {
+            const proximas = obterProximasFrasesDaTranscricao(legendaAtual.elementoAtivo, 2);
+            const proximoTexto = proximas[0];
+            if (proximoTexto && proximoTexto !== legendaAtual.texto) {
+                if (proximas[1] && traducaoInglesAtiva && MOTOR_TRADUCAO?.prime) {
+                    MOTOR_TRADUCAO.prime(proximas[1], { sourceLanguage: "en", targetLanguage: "pt-BR" });
+                }
+                precacheFraseNeural(proximoTexto, {
+                    origem: "transcript",
+                    rate: velocidadeFala
+                });
+                return;
+            }
+        }
+
+        if (legendaAtual?.origem !== "track") return;
 
         const fimAtualInformado = Number(legendaAtual.fimCue) || 0;
         if (!fimAtualInformado || !video?.textTracks) return;
 
         for (const track of video.textTracks) {
+            if (track.kind !== "subtitles" && track.kind !== "captions") continue;
             const fimCueAtiva = Math.max(
                 0,
                 ...[...(track.activeCues || [])].map(cue => Number(cue.endTime) || 0)
             );
-            const fimAtual = fimCueAtiva || fimAtualInformado;
-            const proximas = [...(track.cues || [])]
-                .filter(cue => Number(cue.startTime) >= fimAtual - 0.04)
-                .sort((a, b) => Number(a.startTime) - Number(b.startTime));
-            const proxima = proximas.find(cue =>
+            const fimAtual = Math.max(fimCueAtiva, coberturaLegendaAte, fimAtualInformado);
+            const todasAsCues = [...(track.cues || [])].sort((a, b) => Number(a.startTime) - Number(b.startTime));
+            const proximas = todasAsCues.filter(cue =>
+                Number(cue.startTime) >= fimAtual - 0.04
+            );
+            const proximaInicial = proximas.find(cue =>
                 textoValidoDeLegenda(normalizarTexto(cue.text))
                 && Number(cue.startTime) > fimAtual - 0.04
             );
-            if (!proxima) continue;
+            if (!proximaInicial) continue;
 
-            const texto = normalizarTexto(proxima.text);
-            const inicioCue = Number(proxima.startTime) || video.currentTime;
+            const composta = comporSentencaDeCues([proximaInicial], todasAsCues, Number(proximaInicial.startTime) || video.currentTime);
+            if (!composta) continue;
+
+            const texto = composta.texto;
+            const inicioCue = composta.inicioCue;
+            const fimCue = composta.fimCue;
             const contexto = {
                 // Calcula a taxa no instante em que a cue deve começar, não no
                 // instante em que a cue anterior foi detectada.
@@ -526,29 +848,16 @@
                     playbackRate: video.playbackRate || 1
                 },
                 inicioCue,
-                fimCue: Number(proxima.endTime) || 0,
-                sentencaAntecipada: false,
+                fimCue,
+                sentencaAntecipada: composta.sentencaAntecipada,
                 inicioPrevistoEm: Math.max(performance.now(), previsaoFimFilaEm)
             };
-            const utterance = {
-                text: prepararTextoParaSintese(texto),
-                lang: idiomaFala,
-                rate: calcularTaxaAntecipada(texto, contexto),
-                pitch: tomFala,
-                volume: volumeFala,
-                voice: null
-            };
-            const precache = {
-                texto,
+            const taxa = calcularTaxaAntecipada(texto, contexto);
+            precacheFraseNeural(texto, {
+                origem: "track",
                 inicioCue,
-                fimCue: Number(proxima.endTime) || 0,
-                rate: utterance.rate
-            };
-            legendaNeuralPrecarregada = precache;
-            void Promise.resolve(provider.primeText?.(utterance)).then(ok => {
-                if (ok === false && legendaNeuralPrecarregada === precache) {
-                    legendaNeuralPrecarregada = null;
-                }
+                fimCue,
+                rate: taxa
             });
             return;
         }
@@ -562,17 +871,14 @@
     }
 
     function criarEntradaHistorico(registro) {
-
         const video = registro.contexto?.video || videoMonitorado;
         const inicio = Number(registro.contexto?.inicioCue);
         const fim = Number(registro.contexto?.fimCue);
         return {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             texto: registro.texto,
-            textoOriginal: normalizarTexto(registro.contexto?.originalText),
-            traduzido: registro.contexto?.translated === true,
-            idiomaOrigem: String(registro.contexto?.sourceLanguage || ""),
-            idiomaDestino: String(registro.contexto?.targetLanguage || ""),
+            textoOriginal: registro.contexto?.originalText || "",
+            traduzido: Boolean(registro.contexto?.translated),
             inicio: Number.isFinite(inicio) ? inicio : Number(video?.currentTime) || 0,
             fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
             url: location.href,
@@ -1091,16 +1397,31 @@
         const fimCue = Number(contexto?.fimCue);
         const mesmaCuePrecarregada = Boolean(
             precache
-            && precache.texto === normalizarTexto(texto)
-            && Number.isFinite(inicioCue)
-            && Number.isFinite(fimCue)
-            && Math.abs(precache.inicioCue - inicioCue) < 0.08
-            && Math.abs(precache.fimCue - fimCue) < 0.08
+            && (
+                precache.texto === normalizarTexto(texto)
+                || (contexto?.originalText && precache.textoOriginal === normalizarTexto(contexto.originalText))
+            )
+            && (
+                precache.origem === "transcript"
+                || precache.origem === "precache"
+                || (
+                    Number.isFinite(inicioCue)
+                    && Number.isFinite(fimCue)
+                    && Number.isFinite(precache.inicioCue)
+                    && Number.isFinite(precache.fimCue)
+                    && Math.abs(precache.inicioCue - inicioCue) < 0.25
+                    && Math.abs(precache.fimCue - fimCue) < 0.25
+                )
+                || (!Number.isFinite(inicioCue) && !Number.isFinite(precache.inicioCue))
+            )
         );
         if (precache && !mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
         const taxaAntecipada = mesmaCuePrecarregada
             ? precache.rate
             : calcularTaxaAntecipada(texto, contextoPlanejado);
+        const silenceScaleAntecipado = (mesmaCuePrecarregada && Number.isFinite(precache?.silenceScale))
+            ? precache.silenceScale
+            : (continuaSemPontuacaoFinal(texto) ? 0.08 : 0.2);
         if (mesmaCuePrecarregada) legendaNeuralPrecarregada = null;
         const utterance = {
             text: prepararTextoParaSintese(texto),
@@ -1109,10 +1430,7 @@
             pitch: tomFala,
             volume: volumeFala,
             voice: null,
-            // A vírgula já é acrescentada pelo sync-engine ao texto sintetizado.
-            // Este parâmetro apenas encurta a pausa do Piper; não altera fila,
-            // velocidade, fallback nem o comportamento da voz nativa.
-            silenceScale: continuaSemPontuacaoFinal(texto) ? 0.08 : 0.2,
+            silenceScale: silenceScaleAntecipado,
             onstart: null,
             onend: null,
             onerror: null
@@ -1300,35 +1618,28 @@
             };
         }
 
-        if (falaEnfileirada) {
-            legendaReserva = { texto: valor, contexto: contextoFala };
-            registrarDiagnostico("reserva-atualizada", valor);
+        if (contextoFala?.naoRegistrarHistorico !== true) {
+            void registrarFraseNoHistorico({
+                texto: valor,
+                contexto: contextoFala
+            });
+        }
+
+        if (usarPiper) {
+            enfileirarFala(valor, contextoFala);
             return;
         }
 
-        enfileirarFala(valor, contextoFala);
-    }
-
-    function precacheTraducoesFuturas(video, fimAtual = 0) {
-        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO?.prime || !video?.textTracks) return;
-        const agora = performance.now();
-        if (agora - ultimaPreTraducaoEm < 400) return;
-        ultimaPreTraducaoEm = agora;
-        for (const track of video.textTracks) {
-            if (track.kind !== "subtitles" && track.kind !== "captions") continue;
-            const inicio = Number(fimAtual) || Number(video.currentTime) || 0;
-            const futuras = [...(track.cues || [])]
-                .filter(cue => Number(cue.startTime) >= inicio - 0.04)
-                .sort((a, b) => Number(a.startTime) - Number(b.startTime))
-                .slice(0, 4);
-            futuras.forEach(cue => {
-                const texto = normalizarTexto(cue.text);
-                if (textoValidoDeLegenda(texto)) {
-                    MOTOR_TRADUCAO.prime(texto, { sourceLanguage: "en", targetLanguage: "pt-BR" });
-                }
-            });
-            if (futuras.length) return;
+        // Se uma nova legenda chega da tela para a voz nativa e há uma fala anterior tocando ou pendente,
+        // cancela a anterior para que a voz nativa fale imediatamente a legenda ativa do vídeo sem atraso acumulado.
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+            speechSynthesis.cancel();
         }
+        falaAtual = null;
+        falaEnfileirada = null;
+        legendaReserva = null;
+
+        enfileirarFala(valor, contextoFala);
     }
 
     function falar(texto, contexto = {}) {
@@ -1337,14 +1648,14 @@
             return;
         }
         const geracao = geracaoTraducao;
+        const entregaId = ++ultimoIdEntregaTraducao;
         const originalText = normalizarTexto(texto);
         const traducao = MOTOR_TRADUCAO.translate(originalText, {
             sourceLanguage: "en",
             targetLanguage: "pt-BR"
         });
-        filaEntregaTraducao = filaEntregaTraducao.catch(() => {}).then(() => traducao);
-        void filaEntregaTraducao.then(resultado => {
-            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+        Promise.resolve(traducao).then(resultado => {
+            if (geracao !== geracaoTraducao || entregaId < ultimoIdEntregaTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
             ultimoErroTraducao = "";
             falarAgora(resultado.text, {
                 ...contexto,
@@ -1354,11 +1665,48 @@
                 targetLanguage: resultado.targetLanguage
             });
         }).catch(error => {
-            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            if (geracao !== geracaoTraducao || entregaId < ultimoIdEntregaTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
             ultimoErroTraducao = String(error?.message || error || "translation-failed");
             registrarDiagnostico("traducao-indisponivel", originalText);
             falarAgora(originalText, { ...contexto, translationFallback: true });
         });
+    }
+
+    function precacheTraducoesFuturas(video, ateTempo = 0) {
+        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO?.prime || !video) return;
+        const agora = performance.now();
+        if (agora - ultimaPreTraducaoEm < 400) return;
+        ultimaPreTraducaoEm = agora;
+        const limiteInferior = Math.max(video.currentTime, ateTempo || 0) - 0.05;
+
+        // Pré-tradução de TextTracks
+        if (video.textTracks) {
+            for (const track of video.textTracks) {
+                if (track.kind !== "subtitles" && track.kind !== "captions") continue;
+                const futuras = [...(track.cues || [])]
+                    .filter(cue => Number(cue?.startTime) >= limiteInferior)
+                    .slice(0, 4);
+                for (const cue of futuras) {
+                    const texto = normalizarTexto(cue?.text || "");
+                    if (textoValidoDeLegenda(texto)) {
+                        MOTOR_TRADUCAO.prime(texto, { sourceLanguage: "en", targetLanguage: "pt-BR" });
+                    }
+                }
+                if (futuras.length) return;
+            }
+        }
+
+        // Pré-tradução de frases futuras da Transcrição oficial do Coursera
+        const container = document.querySelector(SELETORES_CONTAINER_TRANSCRICAO);
+        if (container) {
+            const ativo = container.querySelector(SELETORES_FRASE_ATIVA_TRANSCRICAO);
+            if (ativo) {
+                const proximas = obterProximasFrasesDaTranscricao(ativo, 4);
+                for (const frase of proximas) {
+                    MOTOR_TRADUCAO.prime(frase, { sourceLanguage: "en", targetLanguage: "pt-BR" });
+                }
+            }
+        }
     }
 
     function processarCueExterna(cue) {
@@ -1380,7 +1728,6 @@
         const video = document.querySelector("video");
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
-        precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
         if (video.currentTime > Number(cue.endTime) + 0.35) return false;
         if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
@@ -1438,6 +1785,7 @@
         cancelarReplayTranscricao();
         geracaoDaFala++;
         geracaoTraducao++;
+        ultimoIdEntregaTraducao++;
         falaAtual = null;
         falaEnfileirada = null;
         textoEmFala = "";
@@ -1489,10 +1837,24 @@
         precacheTraducoesFuturas(video, coberturaLegendaAte || video.currentTime);
 
         if (video.paused || video.ended) {
-            if (!testeNeuralEmAndamento) interromperFala();
-            textoCandidato = "";
+            if (!videoEstavaPausado) {
+                videoEstavaPausado = true;
+                if (!testeNeuralEmAndamento) interromperFala();
+                textoCandidato = "";
+            }
+            // Enquanto pausado, pré-sintetiza a frase atual/inicial para latência zero ao dar Play
+            if (!video.ended && !legendaNeuralPrecarregada) {
+                const legendaPausa = obterTextoAtual(video);
+                if (legendaPausa?.texto) {
+                    precacheFraseNeural(legendaPausa.texto, {
+                        ...legendaPausa,
+                        rate: velocidadeFala
+                    });
+                }
+            }
             return;
         }
+        videoEstavaPausado = false;
 
         if (
             bufferSentenca.texto
@@ -1501,19 +1863,21 @@
             liberarBufferSentenca({ video, fimCue: 0 });
         }
 
-        if (video.currentTime < coberturaLegendaAte - 0.04) {
-            // O Coursera pode preencher o TextTrack progressivamente. Enquanto
-            // a fala atual ainda cobre o vídeo, apenas prepara a próxima cue;
-            // a reprodução continua dependente do relógio e da fila normal.
-            if (!legendaNeuralPrecarregada) {
-                const legendaAtiva = obterLegendaAtivaParaPrecache(video);
-                if (legendaAtiva) precacheProximaLegendaNeural(video, legendaAtiva);
-            }
-            return;
-        }
-
         const legenda = obterTextoAtual(video);
         const textoAtual = legenda.texto;
+
+        if (video.currentTime < coberturaLegendaAte - 0.04) {
+            // Enquanto a fala atual ainda cobre o vídeo e o texto na tela não mudou,
+            // apenas prepara a próxima cue. Se uma nova legenda legítima já surgiu na tela,
+            // não bloqueia a captura em tempo real.
+            if (!textoAtual || textoAtual === ultimoTextoDetectado) {
+                if (!legendaNeuralPrecarregada) {
+                    const legendaAtiva = obterLegendaAtivaParaPrecache(video);
+                    if (legendaAtiva) precacheProximaLegendaNeural(video, legendaAtiva);
+                }
+                return;
+            }
+        }
 
         if (!textoAtual) {
             // Em pequenos intervalos antes da próxima cue, prepara o áudio
@@ -1534,19 +1898,17 @@
 
         if (textoAtual === ultimoTextoDetectado) return;
 
-        // TextTrack.activeCues já é uma fonte estável e pode ser falada no mesmo
-        // ciclo. O DOM recebe apenas uma proteção mínima contra mutações parciais.
-        if (legenda.origem === "track") {
+        // Fontes estruturadas (TextTrack e Transcript oficial do Coursera) já são estáveis
+        // e podem ser faladas no mesmo ciclo sem atraso de debounce do DOM.
+        if (legenda.origem === "track" || legenda.origem === "transcript") {
             ultimoTextoDetectado = textoAtual;
             textoCandidato = "";
             limparBufferSentenca();
-                        coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
+            coberturaLegendaAte = Math.max(video.currentTime, Number(legenda.fimCue) || 0);
             falar(textoAtual, legenda);
-            // A previsão da fila já inclui a fala atual; só então calculamos
-            // a taxa/cache da próxima cue.
+            // A previsão da fila já inclui a fala atual; antecipa a síntese da próxima frase.
             precacheProximaLegendaNeural(video, legenda);
             return;
-
         }
 
         const agora = performance.now();
@@ -1560,7 +1922,9 @@
 
         ultimoTextoDetectado = textoAtual;
         textoCandidato = "";
-        processarFragmentoDeSentenca(textoAtual, legenda);
+        limparBufferSentenca();
+        falar(textoAtual, legenda);
+        precacheProximaLegendaNeural(video, legenda);
     }
 
     function aplicarConfiguracao(chave, valor) {
