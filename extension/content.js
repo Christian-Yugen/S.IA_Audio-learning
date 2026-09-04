@@ -1728,6 +1728,7 @@
         const video = document.querySelector("video");
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
+        precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
         if (video.currentTime > Number(cue.endTime) + 0.35) return false;
         if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
