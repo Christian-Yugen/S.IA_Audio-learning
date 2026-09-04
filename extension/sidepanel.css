@@ -82,6 +82,12 @@ nav { justify-content: flex-start; gap: 8px; }
   background: var(--surface);
 }
 .history-item p { margin: 0; line-height: 1.45; }
+.original-text {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
 .time {
   align-self: start;
   padding: 3px 5px;

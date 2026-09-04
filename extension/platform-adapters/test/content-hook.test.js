@@ -7,6 +7,7 @@ import { URL } from 'node:url';
 const inputSource = fs.readFileSync(new URL('../caption-input.js', import.meta.url), 'utf8');
 const syncSource = fs.readFileSync(new URL('../../sync-engine.js', import.meta.url), 'utf8');
 const learningSource = fs.readFileSync(new URL('../../learning/learning-engine.js', import.meta.url), 'utf8');
+const translationSource = fs.readFileSync(new URL('../../translation/translation-engine.js', import.meta.url), 'utf8');
 const contentSource = fs.readFileSync(new URL('../../content.js', import.meta.url), 'utf8');
 
 class FakeUtterance {
@@ -29,6 +30,8 @@ function createHarness({
   hostname = 'www.udemy.com',
   pathname = '/course/test/learn/lecture/1',
   textTrack = null,
+  translateEnabled = false,
+  translatorApi = undefined,
 } = {}) {
   const listeners = new Map();
   const globalListeners = new Map();
@@ -82,6 +85,7 @@ function createHarness({
     sia_lang: 'pt-BR',
     sia_speed: 1.2,
     sia_voice_engine: 'browser',
+    sia_translate_en_pt: translateEnabled,
   };
   const storage = {
     get(keys, callback) {
@@ -145,6 +149,7 @@ function createHarness({
     clearInterval: () => {},
     setTimeout: callback => { callback(); return 1; },
     clearTimeout: () => {},
+    Translator: translatorApi,
     SiaPiperVoiceStatus: () => ({
       engine: piperActive ? 'piper-local' : 'browser',
       state: piperActive ? 'ready' : 'idle',
@@ -175,6 +180,7 @@ function createHarness({
   context.globalThis = context;
   vm.runInContext(syncSource, context);
   vm.runInContext(learningSource, context);
+  vm.runInContext(translationSource, context);
   vm.runInContext(inputSource, context);
   vm.runInContext(contentSource, context);
   return {
@@ -227,6 +233,23 @@ test('H3 cue segura chega ao mesmo caminho de fala do content script', () => {
   assert.equal(result.accepted, true);
   assert.equal(harness.spoken.length, 1);
   assert.equal(harness.spoken[0].text, 'Uma cue segura para falar.');
+  assert.equal(harness.spoken[0].lang, 'pt-BR');
+});
+
+test('traduz cue inglesa antes de enviá-la ao núcleo de voz', async () => {
+  const harness = createHarness({
+    translateEnabled: true,
+    translatorApi: {
+      availability: async () => 'available',
+      create: async () => ({ translate: async () => 'Uma legenda traduzida.' }),
+    },
+  });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  const result = harness.input.push(cue({ text: 'A translated caption.' }));
+  assert.equal(result.accepted, true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(harness.spoken.length, 1);
+  assert.equal(harness.spoken[0].text, 'Uma legenda traduzida.');
   assert.equal(harness.spoken[0].lang, 'pt-BR');
 });
 

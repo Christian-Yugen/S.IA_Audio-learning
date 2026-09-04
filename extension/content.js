@@ -22,10 +22,16 @@
     });
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
     const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
+    const MOTOR_TRADUCAO = globalThis.SiaTranslationEngine?.create?.() || null;
     const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
     const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
     const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
+    let traducaoInglesAtiva = false;
+    let geracaoTraducao = 0;
+    let ultimoErroTraducao = "";
+    let ultimaPreTraducaoEm = 0;
+    let filaEntregaTraducao = Promise.resolve();
 
     function continuaSemPontuacaoFinal(texto) {
         const valor = String(texto || "").trim();
@@ -563,6 +569,10 @@
         return {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             texto: registro.texto,
+            textoOriginal: normalizarTexto(registro.contexto?.originalText),
+            traduzido: registro.contexto?.translated === true,
+            idiomaOrigem: String(registro.contexto?.sourceLanguage || ""),
+            idiomaDestino: String(registro.contexto?.targetLanguage || ""),
             inicio: Number.isFinite(inicio) ? inicio : Number(video?.currentTime) || 0,
             fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
             url: location.href,
@@ -1234,7 +1244,7 @@
         speechSynthesis.speak(registro.utterance);
     }
 
-    function falar(texto, contexto = {}) {
+    function falarAgora(texto, contexto = {}) {
         const contextoFala = replayTranscricaoAtivo
             ? { ...contexto, naoRegistrarHistorico: true, replayTranscricao: true }
             : contexto;
@@ -1299,6 +1309,58 @@
         enfileirarFala(valor, contextoFala);
     }
 
+    function precacheTraducoesFuturas(video, fimAtual = 0) {
+        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO?.prime || !video?.textTracks) return;
+        const agora = performance.now();
+        if (agora - ultimaPreTraducaoEm < 400) return;
+        ultimaPreTraducaoEm = agora;
+        for (const track of video.textTracks) {
+            if (track.kind !== "subtitles" && track.kind !== "captions") continue;
+            const inicio = Number(fimAtual) || Number(video.currentTime) || 0;
+            const futuras = [...(track.cues || [])]
+                .filter(cue => Number(cue.startTime) >= inicio - 0.04)
+                .sort((a, b) => Number(a.startTime) - Number(b.startTime))
+                .slice(0, 4);
+            futuras.forEach(cue => {
+                const texto = normalizarTexto(cue.text);
+                if (textoValidoDeLegenda(texto)) {
+                    MOTOR_TRADUCAO.prime(texto, { sourceLanguage: "en", targetLanguage: "pt-BR" });
+                }
+            });
+            if (futuras.length) return;
+        }
+    }
+
+    function falar(texto, contexto = {}) {
+        if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
+            falarAgora(texto, contexto);
+            return;
+        }
+        const geracao = geracaoTraducao;
+        const originalText = normalizarTexto(texto);
+        const traducao = MOTOR_TRADUCAO.translate(originalText, {
+            sourceLanguage: "en",
+            targetLanguage: "pt-BR"
+        });
+        filaEntregaTraducao = filaEntregaTraducao.catch(() => {}).then(() => traducao);
+        void filaEntregaTraducao.then(resultado => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            ultimoErroTraducao = "";
+            falarAgora(resultado.text, {
+                ...contexto,
+                originalText: resultado.originalText,
+                translated: resultado.translated,
+                sourceLanguage: resultado.sourceLanguage,
+                targetLanguage: resultado.targetLanguage
+            });
+        }).catch(error => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            ultimoErroTraducao = String(error?.message || error || "translation-failed");
+            registrarDiagnostico("traducao-indisponivel", originalText);
+            falarAgora(originalText, { ...contexto, translationFallback: true });
+        });
+    }
+
     function processarCueExterna(cue) {
         if (
             !PLATAFORMA_EXTERNA
@@ -1318,6 +1380,7 @@
         const video = document.querySelector("video");
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
+        precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
         if (video.currentTime > Number(cue.endTime) + 0.35) return false;
         if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
@@ -1374,6 +1437,7 @@
     function interromperFala() {
         cancelarReplayTranscricao();
         geracaoDaFala++;
+        geracaoTraducao++;
         falaAtual = null;
         falaEnfileirada = null;
         textoEmFala = "";
@@ -1422,6 +1486,7 @@
             textoCandidato = "";
         }
         ultimaPosicaoVideo = video.currentTime;
+        precacheTraducoesFuturas(video, coberturaLegendaAte || video.currentTime);
 
         if (video.paused || video.ended) {
             if (!testeNeuralEmAndamento) interromperFala();
@@ -1540,6 +1605,16 @@
                 globalThis.SiaPiperVoice?.setActive?.(nextEngine);
                 break;
             }
+            case "sia_translate_en_pt":
+                traducaoInglesAtiva = Boolean(valor);
+                geracaoTraducao++;
+                ultimoErroTraducao = "";
+                ultimaPreTraducaoEm = 0;
+                if (traducaoInglesAtiva) {
+                    void MOTOR_TRADUCAO?.prepare?.({ sourceLanguage: "en", targetLanguage: "pt-BR" });
+                    precacheTraducoesFuturas(document.querySelector("video"));
+                }
+                break;
         }
     }
 
@@ -1552,7 +1627,8 @@
             "sia_pitch",
             "sia_volume",
             "sia_sync",
-            "sia_voice_engine"
+            "sia_voice_engine",
+            "sia_translate_en_pt"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
@@ -1777,6 +1853,10 @@
                     voiceEngineState: globalThis.SiaPiperVoiceStatus?.().state || "unavailable",
                     audioState: globalThis.SiaPiperVoiceStatus?.().audioState || "unknown",
                     audioError: globalThis.SiaPiperVoiceStatus?.().audioError || "",
+                    translationEnabled: traducaoInglesAtiva,
+                    translationReady: MOTOR_TRADUCAO?.getStatus?.().ready === true,
+                    translationState: MOTOR_TRADUCAO?.getStatus?.().state || "unavailable",
+                    translationError: ultimoErroTraducao,
                     syncEngineReady: Boolean(MOTOR_SINCRONIA),
                     platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
                     platformActive: plataformaAtiva,
