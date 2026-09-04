@@ -1356,6 +1356,12 @@
                 sentencaAntecipadaAtiva = false;
                 restaurarVelocidadeVideo();
             }
+
+            const reserva = legendaReserva;
+            legendaReserva = null;
+            if (reserva && reserva.texto !== registro.texto) {
+                enfileirarFala(reserva.texto, reserva.contexto);
+            }
         };
 
         utterance.onerror = evento => {
@@ -1630,14 +1636,15 @@
             return;
         }
 
-        // Se uma nova legenda chega da tela para a voz nativa e há uma fala anterior tocando ou pendente,
-        // cancela a anterior para que a voz nativa fale imediatamente a legenda ativa do vídeo sem atraso acumulado.
-        if (speechSynthesis.speaking || speechSynthesis.pending) {
-            speechSynthesis.cancel();
+        // Para a voz nativa, se já houver fala em reprodução, mantém a nova legenda como reserva
+        // ou enfileirada para iniciar suavemente assim que a atual concluir, sem cortar palavras.
+        if (speechSynthesis.speaking) {
+            if (falaEnfileirada) {
+                registrarDiagnostico("substituindo-fala-enfileirada", falaEnfileirada.texto);
+            }
+            legendaReserva = { texto: valor, contexto: contextoFala };
+            return;
         }
-        falaAtual = null;
-        falaEnfileirada = null;
-        legendaReserva = null;
 
         enfileirarFala(valor, contextoFala);
     }
@@ -1648,14 +1655,15 @@
             return;
         }
         const geracao = geracaoTraducao;
-        const entregaId = ++ultimoIdEntregaTraducao;
         const originalText = normalizarTexto(texto);
         const traducao = MOTOR_TRADUCAO.translate(originalText, {
             sourceLanguage: "en",
             targetLanguage: "pt-BR"
         });
-        Promise.resolve(traducao).then(resultado => {
-            if (geracao !== geracaoTraducao || entregaId < ultimoIdEntregaTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+        filaEntregaTraducao = filaEntregaTraducao.catch(() => {}).then(() => traducao);
+        void filaEntregaTraducao.then(resultado => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            if (!resultado?.text) return;
             ultimoErroTraducao = "";
             falarAgora(resultado.text, {
                 ...contexto,
@@ -1665,7 +1673,7 @@
                 targetLanguage: resultado.targetLanguage
             });
         }).catch(error => {
-            if (geracao !== geracaoTraducao || entregaId < ultimoIdEntregaTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
             ultimoErroTraducao = String(error?.message || error || "translation-failed");
             registrarDiagnostico("traducao-indisponivel", originalText);
             falarAgora(originalText, { ...contexto, translationFallback: true });
@@ -1787,6 +1795,7 @@
         geracaoDaFala++;
         geracaoTraducao++;
         ultimoIdEntregaTraducao++;
+        filaEntregaTraducao = Promise.resolve();
         falaAtual = null;
         falaEnfileirada = null;
         textoEmFala = "";
@@ -1829,7 +1838,7 @@
             textoCandidato = "";
         }
 
-        if (video.currentTime + 0.25 < ultimaPosicaoVideo) {
+        if (ultimaPosicaoVideo > 0 && (video.currentTime + 0.25 < ultimaPosicaoVideo || video.currentTime - ultimaPosicaoVideo > 1.8)) {
             interromperFala();
             ultimoTextoDetectado = "";
             textoCandidato = "";

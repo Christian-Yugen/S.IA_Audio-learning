@@ -38,6 +38,8 @@ function createHarness({
   textTrack = null,
   playerRoot = null,
   documentQuerySelector = null,
+  translateEnabled = false,
+  translatorApi = null,
 } = {}) {
   const listeners = new Map();
   const globalListeners = new Map();
