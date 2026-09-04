@@ -338,3 +338,37 @@ test("não tenta abrir o AudioContext automaticamente ao selecionar Piper", asyn
   assert.equal(harness.status().audioState, "awaiting-gesture");
   assert.equal(harness.played.length, 0);
 });
+
+test("transição suave entre legendas: não interrompe a fala anterior e reproduz a nova em sequência", async () => {
+  const harness = createHarness();
+  const events = [];
+  harness.provider.setActive("piper-local");
+
+  harness.provider.speak({
+    text: "Primeira legenda em reprodução.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => events.push("start-1"),
+    onend: () => events.push("end-1"),
+    onerror: () => events.push("error-1")
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 15));
+
+  harness.provider.speak({
+    text: "Segunda legenda seguinte.",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    onstart: () => events.push("start-2"),
+    onend: () => events.push("end-2"),
+    onerror: () => events.push("error-2")
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 80));
+
+  assert.deepEqual(events, ["start-1", "end-1", "start-2", "end-2"]);
+  assert.equal(harness.played.length, 2);
+});
+

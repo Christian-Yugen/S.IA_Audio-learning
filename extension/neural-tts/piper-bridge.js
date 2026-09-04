@@ -512,10 +512,13 @@ const READY_TIMEOUT_MS = 30000;
     speak(utterance) {
       if (!active) return false;
       const token = sequence;
-      // Mantém na fila apenas a legenda mais recente que aguarda reprodução.
-      // Se uma nova legenda chega da tela enquanto a anterior ainda não começou a tocar,
-      // a nova assume a posição para evitar atraso acumulado de 1 frase.
-      this.queue = [{ utterance, token }];
+      // Mantém na fila as legendas para transição fluida e contínua sem corte de palavras.
+      // Se a fala atual ainda está em andamento, a nova aguarda sua conclusão natural.
+      this.queue.push({ utterance, token });
+      while (this.queue.length > 2) {
+        const dropped = this.queue.shift();
+        safeCall(dropped.utterance?.onend);
+      }
       // Inicia imediatamente a pré-síntese no Web Worker em segundo plano.
       // Mesmo enquanto a frase anterior ainda estiver tocando no AudioContext,
       // o Worker já sintetiza as amostras de áudio da próxima frase em paralelo.
@@ -526,7 +529,7 @@ const READY_TIMEOUT_MS = 30000;
     }
 
     async processQueue() {
-      if (this.processing || !this.queue.length || !active) return;
+      if (this.currentRecord || this.processing || !this.queue.length || !active) return;
       this.processing = true;
       const record = this.queue.shift();
       const token = record.token;
@@ -580,18 +583,13 @@ const READY_TIMEOUT_MS = 30000;
           throw new Error(`Taxa de áudio inválida: ${audio.sampleRate}`);
         }
 
-        // Se uma fala anterior ainda está reproduzindo no AudioContext, encerra
-        // a anterior para que a legenda atual da tela comece imediatamente sem atraso.
-        if (this.currentSource) {
+        // Se uma fonte órfã anterior persistir sem registro ativo, limpa com segurança.
+        if (this.currentSource && !this.currentRecord) {
           try {
             this.currentSource.onended = null;
             this.currentSource.stop();
           } catch {
             // A fonte já pode ter terminado.
-          }
-          if (this.currentRecord) {
-            safeCall(this.currentRecord.utterance?.onend);
-            this.currentRecord = null;
           }
           this.currentSource = null;
           this.currentGain = null;

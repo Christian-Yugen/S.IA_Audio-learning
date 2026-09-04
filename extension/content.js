@@ -671,6 +671,108 @@
                 }
             }
         }
+        return normalizarTexto(texto).replace(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*/, "");
+    }
+
+    function obterFraseAtivaDaTranscricao(video) {
+        const container = document.querySelector(SELETORES_CONTAINER_TRANSCRICAO);
+        if (!container || !elementoVisivel(container)) return null;
+
+        const candidatoAtivo = container.querySelector(SELETORES_FRASE_ATIVA_TRANSCRICAO);
+        if (!candidatoAtivo || !elementoVisivel(candidatoAtivo)) return null;
+
+        const textoBruto = candidatoAtivo.innerText || candidatoAtivo.textContent || "";
+        const texto = formatarTextoTranscricao(textoBruto);
+
+        if (!textoValidoDeLegenda(texto)) return null;
+
+        let inicioCue = video.currentTime;
+        try {
+            const bloco = candidatoAtivo.closest('[class*="Paragraph" i], [class*="paragraph" i], [class*="row" i], li') || candidatoAtivo.parentElement;
+            const botaoTempo = bloco?.querySelector('button, [class*="time" i], [class*="timestamp" i]');
+            const textoTempo = normalizarTexto(botaoTempo?.innerText || botaoTempo?.textContent || "");
+            const match = textoTempo.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (match) {
+                if (match[3]) {
+                    inicioCue = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+                } else {
+                    inicioCue = Number(match[1]) * 60 + Number(match[2]);
+                }
+            }
+        } catch {}
+
+        const duracaoEstimada = Math.max(1.5, texto.split(/\s+/).length / CONFIG.palavrasPorSegundo);
+        return {
+            texto,
+            origem: "transcript",
+            video,
+            inicioCue,
+            fimCue: inicioCue + duracaoEstimada,
+            elementoAtivo: candidatoAtivo
+        };
+    }
+
+    function obterProximasFrasesDaTranscricao(elementoAtivo, limite = 3) {
+        if (!elementoAtivo) return [];
+        const container = elementoAtivo.closest(SELETORES_CONTAINER_TRANSCRICAO);
+        if (!container) return [];
+
+        const resultados = [];
+        const visitados = new Set();
+        visitados.add(elementoAtivo);
+
+        // 1. Tenta o próximo irmão direto (dentro do mesmo parágrafo)
+        let proximo = elementoAtivo.nextElementSibling;
+        while (proximo && resultados.length < limite) {
+            const texto = formatarTextoTranscricao(proximo.innerText || proximo.textContent || "");
+            if (textoValidoDeLegenda(texto) && !resultados.includes(texto)) {
+                resultados.push(texto);
+                visitados.add(proximo);
+            }
+            proximo = proximo.nextElementSibling;
+        }
+
+        // 2. Se for a última frase do bloco atual, busca no próximo parágrafo
+        const blocoAtual = elementoAtivo.closest('[class*="Paragraph" i], [class*="paragraph" i], [class*="row" i], li') || elementoAtivo.parentElement;
+        let proximoBloco = blocoAtual?.nextElementSibling;
+        while (proximoBloco && resultados.length < limite) {
+            const candidatas = proximoBloco.querySelectorAll('.rc-Phrase, span[class*="phrase" i], [class*="phrase" i], p, span');
+            for (const cand of candidatas) {
+                if (cand.closest('button, [class*="time" i], [class*="timestamp" i]')) continue;
+                if (visitados.has(cand)) continue;
+                const texto = formatarTextoTranscricao(cand.innerText || cand.textContent || "");
+                if (textoValidoDeLegenda(texto) && !resultados.includes(texto)) {
+                    resultados.push(texto);
+                    visitados.add(cand);
+                    if (resultados.length >= limite) break;
+                }
+            }
+            proximoBloco = proximoBloco.nextElementSibling;
+        }
+
+        // 3. Fallback: lista linear de todas as frases do container
+        if (resultados.length < limite) {
+            const todasAsFrases = [...container.querySelectorAll('.rc-Phrase, span[class*="phrase" i], [class*="phrase" i], [class*="TranscriptHighlight" i], span, p')]
+                .filter(el => {
+                    if (el.children.length > 2) return false;
+                    if (el.closest('button, [class*="time" i], [class*="timestamp" i]')) return false;
+                    const txt = formatarTextoTranscricao(el.innerText || el.textContent || "");
+                    return textoValidoDeLegenda(txt);
+                });
+
+            const indice = todasAsFrases.indexOf(elementoAtivo);
+            if (indice >= 0) {
+                for (let i = indice + 1; i < todasAsFrases.length && resultados.length < limite; i++) {
+                    const txt = formatarTextoTranscricao(todasAsFrases[i].innerText || todasAsFrases[i].textContent || "");
+                    if (textoValidoDeLegenda(txt) && !resultados.includes(txt)) {
+                        resultados.push(txt);
+                    }
+                }
+            }
+        }
+
+        return resultados;
+    }
 
         return resultados;
     }
@@ -1356,6 +1458,12 @@
                 sentencaAntecipadaAtiva = false;
                 restaurarVelocidadeVideo();
             }
+
+            const reserva = legendaReserva;
+            legendaReserva = null;
+            if (reserva && reserva.texto !== registro.texto) {
+                enfileirarFala(reserva.texto, reserva.contexto);
+            }
         };
 
         utterance.onerror = evento => {
@@ -1630,17 +1738,20 @@
             return;
         }
 
-        // Se uma nova legenda chega da tela para a voz nativa e há uma fala anterior tocando ou pendente,
-        // cancela a anterior para que a voz nativa fale imediatamente a legenda ativa do vídeo sem atraso acumulado.
-        if (speechSynthesis.speaking || speechSynthesis.pending) {
-            speechSynthesis.cancel();
+        // Para a voz nativa, se já houver fala em reprodução, mantém a nova legenda como reserva
+        // ou enfileirada para iniciar suavemente assim que a atual concluir, sem cortar palavras.
+        if (speechSynthesis.speaking) {
+            if (falaEnfileirada) {
+                registrarDiagnostico("substituindo-fala-enfileirada", falaEnfileirada.texto);
+            }
+            legendaReserva = { texto: valor, contexto: contextoFala };
+            return;
         }
-        falaAtual = null;
-        falaEnfileirada = null;
-        legendaReserva = null;
 
-        enfileirarFala(valor, contextoFala);
-    }
+        if (usarPiper) {
+            enfileirarFala(valor, contextoFala);
+            return;
+        }
 
     function falar(texto, contexto = {}) {
         if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
@@ -1654,8 +1765,10 @@
             sourceLanguage: "en",
             targetLanguage: "pt-BR"
         });
-        Promise.resolve(traducao).then(resultado => {
-            if (geracao !== geracaoTraducao || entregaId < ultimoIdEntregaTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+        filaEntregaTraducao = filaEntregaTraducao.catch(() => {}).then(() => traducao);
+        void filaEntregaTraducao.then(resultado => {
+            if (geracao !== geracaoTraducao || !traducaoInglesAtiva || !extensaoAtiva) return;
+            if (!resultado?.text) return;
             ultimoErroTraducao = "";
             falarAgora(resultado.text, {
                 ...contexto,
@@ -1787,6 +1900,7 @@
         geracaoDaFala++;
         geracaoTraducao++;
         ultimoIdEntregaTraducao++;
+        filaEntregaTraducao = Promise.resolve();
         falaAtual = null;
         falaEnfileirada = null;
         textoEmFala = "";
@@ -1829,7 +1943,7 @@
             textoCandidato = "";
         }
 
-        if (video.currentTime + 0.25 < ultimaPosicaoVideo) {
+        if (ultimaPosicaoVideo > 0 && (video.currentTime + 0.25 < ultimaPosicaoVideo || video.currentTime - ultimaPosicaoVideo > 1.8)) {
             interromperFala();
             ultimoTextoDetectado = "";
             textoCandidato = "";
