@@ -3,7 +3,7 @@
 > Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
 > sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.8.38-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.9.0-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
