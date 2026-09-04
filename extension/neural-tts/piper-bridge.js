@@ -25,6 +25,21 @@ const READY_TIMEOUT_MS = 30000;
     return String(value || "").toLowerCase() === ENGINE_PIPER;
   }
 
+  function safeSendMessage(payload) {
+    try {
+      if (typeof chrome === "undefined" || !chrome?.runtime?.id || typeof chrome.runtime?.sendMessage !== "function") {
+        return Promise.resolve(null);
+      }
+      const promise = chrome.runtime.sendMessage(payload);
+      if (promise && typeof promise?.catch === "function") {
+        return promise.catch(() => null);
+      }
+      return Promise.resolve(null);
+    } catch {
+      return Promise.resolve(null);
+    }
+  }
+
   function abortError(message = "Reprodução neural cancelada") {
     const error = new Error(message);
     error.name = "AbortError";
@@ -54,6 +69,7 @@ const READY_TIMEOUT_MS = 30000;
       this.currentGain = null;
       this.currentRecord = null;
       this.queue = [];
+      this.processing = false;
       this.pending = new Map();
       this.nextRequestId = 1;
       this.audioCache = new Map();
@@ -134,9 +150,14 @@ const READY_TIMEOUT_MS = 30000;
     }
 
     supportsOffscreenHost() {
-      return typeof chrome !== "undefined"
-        && typeof chrome.runtime?.sendMessage === "function"
-        && typeof chrome.runtime?.getURL === "function";
+      try {
+        return typeof chrome !== "undefined"
+          && Boolean(chrome.runtime?.id)
+          && typeof chrome.runtime?.sendMessage === "function"
+          && typeof chrome.runtime?.getURL === "function";
+      } catch {
+        return false;
+      }
     }
 
     async createOffscreenWorker() {
@@ -147,7 +168,7 @@ const READY_TIMEOUT_MS = 30000;
         onmessage: null,
         onerror: null,
         postMessage: payload => {
-          if (terminated) return;
+          if (terminated || !chrome?.runtime?.id) return;
           const commandByType = {
             "sia-piper-init": "init",
             "sia-piper-generate": "generate",
@@ -156,12 +177,12 @@ const READY_TIMEOUT_MS = 30000;
           };
           const command = commandByType[payload?.type];
           if (!command) return;
-          Promise.resolve(chrome.runtime.sendMessage({
+          safeSendMessage({
             target: "sia-piper-router",
             command,
             sessionId: this.hostSessionId,
             ...payload
-          })).then(response => {
+          }).then(response => {
             if (terminated || !response) return;
             if (response.type) {
               proxy.onmessage?.({ data: response });
@@ -169,17 +190,19 @@ const READY_TIMEOUT_MS = 30000;
               proxy.onerror?.({ message: response.message || "Falha no host neural" });
             }
           }).catch(error => {
-            if (!terminated) proxy.onerror?.({ message: error?.message || String(error) });
+            if (!terminated && !/context invalidated/i.test(error?.message || "")) {
+              proxy.onerror?.({ message: error?.message || String(error) });
+            }
           });
         },
         terminate: () => {
           if (terminated) return;
           terminated = true;
-          void chrome.runtime.sendMessage({
+          void safeSendMessage({
             target: "sia-piper-router",
             command: "dispose",
             sessionId: this.hostSessionId
-          }).catch(() => {});
+          });
         }
       };
       this.worker = proxy;
@@ -488,20 +511,30 @@ const READY_TIMEOUT_MS = 30000;
 
     speak(utterance) {
       if (!active) return false;
-      this.queue.push({ utterance, token: sequence });
+      const token = sequence;
+      // Mantém na fila apenas a legenda mais recente que aguarda reprodução.
+      // Se uma nova legenda chega da tela enquanto a anterior ainda não começou a tocar,
+      // a nova assume a posição para evitar atraso acumulado de 1 frase.
+      this.queue = [{ utterance, token }];
+      // Inicia imediatamente a pré-síntese no Web Worker em segundo plano.
+      // Mesmo enquanto a frase anterior ainda estiver tocando no AudioContext,
+      // o Worker já sintetiza as amostras de áudio da próxima frase em paralelo.
+      // Quando a anterior terminar, a próxima frase já estará pronta no cache (latência zero).
+      void this.generate(utterance, token).catch(() => {});
       void this.processQueue();
       return true;
     }
 
     async processQueue() {
-      if (this.currentRecord || !this.queue.length || !active) return;
+      if (this.processing || !this.queue.length || !active) return;
+      this.processing = true;
       const record = this.queue.shift();
-      this.currentRecord = record;
       const token = record.token;
 
       try {
         const audio = await this.generate(record.utterance, token);
-        if (token !== sequence || !active || this.currentRecord !== record) {
+        if (token !== sequence || !active) {
+          this.processing = false;
           return;
         }
 
@@ -514,7 +547,10 @@ const READY_TIMEOUT_MS = 30000;
             this.audioState = "blocked";
             this.audioError = detail || "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
             this.queue.unshift(record);
-            this.currentRecord = null;
+            this.processing = false;
+            setTimeout(() => {
+              if (active && this.queue.length && !this.currentRecord) void this.processQueue();
+            }, 250);
             return;
           }
           throw error;
@@ -523,7 +559,15 @@ const READY_TIMEOUT_MS = 30000;
           this.audioState = "blocked";
           this.audioError = "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
           this.queue.unshift(record);
-          this.currentRecord = null;
+          this.processing = false;
+          const retry = () => {
+            if (active && this.queue.length && !this.currentRecord) void this.processQueue();
+          };
+          if (typeof window !== "undefined") {
+            window.addEventListener("pointerdown", retry, { once: true });
+            window.addEventListener("keydown", retry, { once: true });
+          }
+          setTimeout(retry, 250);
           return;
         }
         this.audioState = "running";
@@ -535,6 +579,24 @@ const READY_TIMEOUT_MS = 30000;
         if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 96000) {
           throw new Error(`Taxa de áudio inválida: ${audio.sampleRate}`);
         }
+
+        // Se uma fala anterior ainda está reproduzindo no AudioContext, encerra
+        // a anterior para que a legenda atual da tela comece imediatamente sem atraso.
+        if (this.currentSource) {
+          try {
+            this.currentSource.onended = null;
+            this.currentSource.stop();
+          } catch {
+            // A fonte já pode ter terminado.
+          }
+          if (this.currentRecord) {
+            safeCall(this.currentRecord.utterance?.onend);
+            this.currentRecord = null;
+          }
+          this.currentSource = null;
+          this.currentGain = null;
+        }
+
         const buffer = context.createBuffer(1, audio.samples.length, sampleRate);
         buffer.getChannelData(0).set(audio.samples);
 
@@ -552,6 +614,8 @@ const READY_TIMEOUT_MS = 30000;
         gain.connect(context.destination);
         this.currentSource = source;
         this.currentGain = gain;
+        this.currentRecord = record;
+        this.processing = false;
 
         source.onended = () => {
           if (this.currentRecord !== record) return;
@@ -565,13 +629,13 @@ const READY_TIMEOUT_MS = 30000;
         source.start();
         safeCall(record.utterance.onstart);
       } catch (error) {
+        this.processing = false;
         const detailText = String(error?.message || error || "");
         if (/audio.?context|not.?allowed|bloqueado|blocked/i.test(`${error?.name || ""} ${detailText}`)) {
           this.audioState = "blocked";
           this.audioError = detailText || "AudioContext bloqueado; interaja com a página antes de iniciar a leitura";
-          if (token === sequence && active && this.currentRecord === record) {
+          if (token === sequence && active && !this.currentRecord) {
             this.queue.unshift(record);
-            this.currentRecord = null;
           }
           return;
         }
@@ -589,6 +653,7 @@ const READY_TIMEOUT_MS = 30000;
     cancel() {
       sequence += 1;
       this.queue.length = 0;
+      this.processing = false;
       this.pending.forEach(item => {
         clearTimeout(item.timeout);
         item.reject(abortError());

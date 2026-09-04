@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
 const extension = join(root, "extension");
 const requiredFiles = [
   "manifest.json",
@@ -71,7 +73,7 @@ function scan(directory) {
   for (const name of readdirSync(directory)) {
     if (name === ".git") continue;
     const path = join(directory, name);
-    const rel = relative(root, path);
+    const rel = relative(root, path).replace(/\\/g, "/");
     if (fixtureRoots.has(rel)) continue;
     const stat = statSync(path);
     if (stat.isDirectory()) {
