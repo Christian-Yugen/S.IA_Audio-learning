@@ -1895,8 +1895,10 @@
             return;
         }
 
-        enfileirarFala(valor, contextoFala);
-    }
+        if (usarPiper) {
+            enfileirarFala(valor, contextoFala);
+            return;
+        }
 
     function falar(texto, contexto = {}) {
         if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
