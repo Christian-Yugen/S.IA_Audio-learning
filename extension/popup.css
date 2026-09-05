@@ -544,7 +544,6 @@ input:checked + .custom-radio::after {
   width: 1px;
   height: 1px;
   opacity: 0;
-  pointer-events: none;
 }
 
 .ducking-profile-pill:hover {
@@ -552,6 +551,7 @@ input:checked + .custom-radio::after {
   background: var(--accent-soft);
 }
 
+.ducking-profile-pill.is-active,
 .ducking-profile-pill:has(input:checked) {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -565,6 +565,7 @@ input:checked + .custom-radio::after {
   transition: color 0.15s ease;
 }
 
+.ducking-profile-pill.is-active .pill-badge,
 .ducking-profile-pill:has(input:checked) .pill-badge {
   color: var(--accent);
 }

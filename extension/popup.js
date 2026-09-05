@@ -229,7 +229,9 @@
       }
       const level = Number(settings.sia_ducking_level ?? 0.15);
       ui.duckingProfiles?.forEach(radio => {
-        radio.checked = Math.abs(Number(radio.value) - level) < 0.05;
+        const isChecked = Math.abs(Number(radio.value) - level) < 0.05;
+        radio.checked = isChecked;
+        radio.closest?.(".ducking-profile-pill")?.classList.toggle("is-active", isChecked);
       });
       if (ui.duckingProfileHint) {
         if (Math.abs(level - 0) < 0.01) {
@@ -644,6 +646,17 @@
         void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
       }
     }));
+    document.querySelectorAll(".ducking-profile-pill").forEach(pill => {
+      pill.addEventListener("click", () => {
+        const radio = pill.querySelector('input[type="radio"]');
+        if (radio && !radio.checked) {
+          radio.checked = true;
+          settings.sia_ducking_level = Number(radio.value);
+          renderDuckingProfiles();
+          void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
+        }
+      });
+    });
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);
       ui.speedLabel.value = `${value.toFixed(1)}x`;

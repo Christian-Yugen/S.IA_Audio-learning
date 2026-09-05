@@ -31,6 +31,7 @@ function createElement(id, value = "") {
     addEventListener(name, listener) { listeners.set(name, listener); },
     listener(name) { return listeners.get(name); },
     setAttribute() {},
+    closest() { return this; },
     querySelector() { return createElement(`${id}-child`); },
     replaceChildren(...children) {
       this.options = children;
