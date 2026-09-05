@@ -12,6 +12,7 @@
     sia_voice_engine: "browser",
     sia_translate_en_pt: false,
     sia_ducking: true,
+    sia_ducking_level: 0.15,
     sia_compact: false
   });
 
@@ -30,6 +31,9 @@
       lang: document.getElementById("select-lang"),
       translateEnglish: document.getElementById("translate-english"),
       audioDucking: document.getElementById("audio-ducking"),
+      duckingProfilesContainer: document.getElementById("ducking-profiles-container"),
+      duckingProfiles: [...document.querySelectorAll('input[name="ducking-level"]')],
+      duckingProfileHint: document.getElementById("ducking-profile-hint"),
       speed: document.getElementById("input-speed"),
       speedLabel: document.getElementById("label-speed"),
       pitch: document.getElementById("input-pitch"),
@@ -218,6 +222,26 @@
       }
     }
 
+    function renderDuckingProfiles() {
+      const duckingEnabled = settings.sia_ducking !== false;
+      if (ui.duckingProfilesContainer) {
+        ui.duckingProfilesContainer.style.display = duckingEnabled ? "flex" : "none";
+      }
+      const level = Number(settings.sia_ducking_level ?? 0.15);
+      ui.duckingProfiles?.forEach(radio => {
+        radio.checked = Math.abs(Number(radio.value) - level) < 0.05;
+      });
+      if (ui.duckingProfileHint) {
+        if (Math.abs(level - 0) < 0.01) {
+          ui.duckingProfileHint.textContent = "Silencia 100% o áudio do vídeo durante a fala da S·IA.";
+        } else if (Math.abs(level - 0.4) < 0.05) {
+          ui.duckingProfileHint.textContent = "Mantém o áudio original a 40% para acompanhar o idioma original.";
+        } else {
+          ui.duckingProfileHint.textContent = "O som original recua para 15% como fundo discreto.";
+        }
+      }
+    }
+
     function renderCompactMode() {
       const compact = Boolean(settings.sia_compact);
       ui.container.classList.toggle("is-compact", compact);
@@ -233,6 +257,7 @@
       ui.lang.value = settings.sia_lang;
       if (ui.translateEnglish) ui.translateEnglish.checked = Boolean(settings.sia_translate_en_pt);
       if (ui.audioDucking) ui.audioDucking.checked = settings.sia_ducking !== false;
+      renderDuckingProfiles();
       if (ui.engine) ui.engine.value = settings.sia_voice_engine;
       ui.voice.disabled = settings.sia_voice_engine === "piper-local";
       ui.speed.value = settings.sia_speed;
@@ -609,8 +634,16 @@
     });
     ui.audioDucking?.addEventListener("change", () => {
       settings.sia_ducking = ui.audioDucking.checked;
+      renderDuckingProfiles();
       void saveAndSend("sia_ducking", settings.sia_ducking);
     });
+    ui.duckingProfiles?.forEach(radio => radio.addEventListener("change", () => {
+      if (radio.checked) {
+        settings.sia_ducking_level = Number(radio.value);
+        renderDuckingProfiles();
+        void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
+      }
+    }));
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);
       ui.speedLabel.value = `${value.toFixed(1)}x`;

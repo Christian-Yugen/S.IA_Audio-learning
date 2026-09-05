@@ -918,9 +918,6 @@
         return resultados;
     }
 
-        return resultados;
-    }
-
     function obterProximaFraseDaTranscricao(elementoAtivo) {
         const proximas = obterProximasFrasesDaTranscricao(elementoAtivo, 1);
         return proximas[0] || null;
@@ -1898,10 +1895,8 @@
             return;
         }
 
-        if (usarPiper) {
-            enfileirarFala(valor, contextoFala);
-            return;
-        }
+        enfileirarFala(valor, contextoFala);
+    }
 
     function falar(texto, contexto = {}) {
         if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
