@@ -918,9 +918,6 @@
         return resultados;
     }
 
-        return resultados;
-    }
-
     function obterProximaFraseDaTranscricao(elementoAtivo) {
         const proximas = obterProximasFrasesDaTranscricao(elementoAtivo, 1);
         return proximas[0] || null;
@@ -2257,6 +2254,13 @@
                 if (Number.isFinite(parsed)) {
                     const norm = parsed > 1 ? parsed / 100 : parsed;
                     duckingNivel = Math.max(0, Math.min(1, norm));
+                    if (duckingEmAndamento && volumeBaseVideo !== null) {
+                        const video = obterVideoParaDucking();
+                        if (video) {
+                            const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
+                            rampaVolumeVideo(video, volumeAlvo, 80);
+                        }
+                    }
                 }
                 break;
             }

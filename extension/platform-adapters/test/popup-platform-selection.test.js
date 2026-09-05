@@ -31,6 +31,7 @@ function createElement(id, value = "") {
     addEventListener(name, listener) { listeners.set(name, listener); },
     listener(name) { return listeners.get(name); },
     setAttribute() {},
+    closest() { return this; },
     querySelector() { return createElement(`${id}-child`); },
     replaceChildren(...children) {
       this.options = children;
@@ -51,7 +52,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     "select-engine", "select-voice", "select-lang", "input-speed", "label-speed", "input-pitch", "label-pitch",
     "input-volume", "label-volume", "replay-last", "open-companion", "test-voice", "reset-settings",
     "connection-status", "save-feedback", "version-label", "select-platform", "platform-scope",
-    "apply-platform", "platform-diagnostic",
+    "apply-platform", "platform-diagnostic", "audio-ducking", "ducking-profiles-container", "ducking-profile-hint",
   ];
   for (const id of ids) elements.set(`#${id}`, createElement(id));
   elements.set(".container", createElement("container"));
@@ -71,6 +72,11 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     radio.checked = value === "accelerate_voice";
     return radio;
   });
+  const duckingRadios = ["0.15", "0", "0.4"].map(value => {
+    const radio = createElement(`ducking-${value}`, value);
+    radio.checked = value === "0.15";
+    return radio;
+  });
   const intervals = [];
   const reloads = [];
   const runtimeMessages = [];
@@ -79,7 +85,11 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     addEventListener(name, listener) { if (name === "DOMContentLoaded") domReady = listener; },
     getElementById(id) { return elements.get(`#${id}`) || null; },
     querySelector(selector) { return elements.get(selector) || null; },
-    querySelectorAll(selector) { return selector === 'input[name="sync-behavior"]' ? radios : []; },
+    querySelectorAll(selector) {
+      if (selector === 'input[name="sync-behavior"]') return radios;
+      if (selector === 'input[name="ducking-level"]') return duckingRadios;
+      return [];
+    },
   };
   const tab = { id: 17, url: "https://www.youtube.com/watch?v=fixture" };
   const local = {};
@@ -139,7 +149,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     sidePanel: { async open() {} },
   };
   vm.runInContext(popupSource, context, { filename: "popup.js" });
-  return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan };
+  return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan, local, duckingRadios };
 }
 
 test("popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica", async () => {
@@ -235,4 +245,45 @@ test("popup mantém YouTube após updateConnectionStatus e aplica na aba", async
   assert.equal(harness.runtimeMessages.at(-1).target, "sia-platform-selection-apply");
   assert.equal(harness.runtimeMessages.at(-1).scope, "domain");
   assert.deepEqual(harness.reloads, [17]);
+});
+
+
+test("popup gerencia perfis de dublagem do audio ducking e persiste o nível selecionado", async () => {
+  const harness = createHarness();
+  await harness.domReady();
+  await new Promise(resolve => setImmediate(resolve));
+
+  const duckingToggle = harness.elements.get("#audio-ducking");
+  const duckingRadios = harness.duckingRadios;
+  const hint = harness.elements.get("#ducking-profile-hint");
+
+  assert.equal(duckingToggle.checked, true);
+  assert.equal(duckingRadios[0].checked, true); // 0.15 Cinema padrão
+
+  // Seleciona Foco Total (0%)
+  duckingRadios[0].checked = false;
+  duckingRadios[1].checked = true;
+  duckingRadios[1].listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_ducking_level, 0);
+  assert.match(hint.textContent, /100%/);
+
+  // Seleciona Bilíngue (40%)
+  duckingRadios[1].checked = false;
+  duckingRadios[2].checked = true;
+  duckingRadios[2].listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_ducking_level, 0.4);
+  assert.match(hint.textContent, /40%/);
+
+  // Desativa Audio Ducking no toggle
+  duckingToggle.checked = false;
+  duckingToggle.listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_ducking, false);
+  const container = harness.elements.get("#ducking-profiles-container");
+  assert.equal(container.style.display, "none");
 });

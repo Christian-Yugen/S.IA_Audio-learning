@@ -502,6 +502,88 @@ input:checked + .custom-radio::after {
   display: none;
 }
 
+.ducking-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.ducking-profiles-title {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ducking-profile-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.ducking-profile-pill {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ducking-profile-pill input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.ducking-profile-pill:hover {
+  border-color: rgb(46 204 113 / 35%);
+  background: var(--accent-soft);
+}
+
+.ducking-profile-pill.is-active,
+.ducking-profile-pill:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 8px rgb(46 204 113 / 18%);
+}
+
+.ducking-profile-pill .pill-badge {
+  color: #ddd;
+  font-size: 10.5px;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.ducking-profile-pill.is-active .pill-badge,
+.ducking-profile-pill:has(input:checked) .pill-badge {
+  color: var(--accent);
+}
+
+.ducking-profile-pill .pill-desc {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.2;
+}
+
+.ducking-profile-hint {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-style: italic;
+  line-height: 1.35;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
