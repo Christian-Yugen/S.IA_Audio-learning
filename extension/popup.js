@@ -1,6 +1,14 @@
 (() => {
   "use strict";
 
+  const chromeStorage = globalThis.chrome?.storage?.local || {
+    async get(keys) { return {}; },
+    async set(items) {},
+    async remove(keys) {}
+  };
+  const chromeRuntime = globalThis.chrome?.runtime || {};
+  const chromeTabs = globalThis.chrome?.tabs || {};
+
   const DEFAULTS = Object.freeze({
     sia_enabled: true,
     sia_voice: "",
@@ -54,12 +62,12 @@
       platformDiagnostic: document.getElementById("platform-diagnostic")
     };
 
-    const manifest = chrome.runtime.getManifest?.() || {};
+    const manifest = chromeRuntime.getManifest?.() || {};
     if (ui.version) {
       ui.version.textContent = `v${manifest.version || "?"} · ${manifest.version_name || "S·IA"}`;
     }
 
-    const saved = await chrome.storage.local.get([
+    const saved = await chromeStorage.get([
       ...Object.keys(DEFAULTS),
       "sia_course_profiles",
       "sia_platform_selections"
@@ -103,7 +111,7 @@
         return { ...platformContext, tab, url };
       }
       try {
-        const remote = await chrome.runtime.sendMessage({
+        const remote = await chromeRuntime.sendMessage({
           target: "sia-platform-selection-get",
           tabId: tab.id,
           url
@@ -175,7 +183,7 @@
         renderPlatform();
         return;
       }
-      const result = await chrome.runtime.sendMessage({
+      const result = await chromeRuntime.sendMessage({
         target: "sia-platform-selection-apply",
         tabId: tab.id,
         url: tab.url,
@@ -195,7 +203,7 @@
       };
       showSavedFeedback(selected === "off" ? "YouTube desativado nesta aba" : "YouTube ativado nesta aba");
       if (selected === "off" || result.active || result.alreadyActive) {
-        await chrome.tabs.reload(tab.id);
+        await chromeTabs.reload(tab.id);
         window.close();
       }
     }
@@ -319,7 +327,7 @@
     }
 
     async function activeTab() {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chromeTabs.query({ active: true, currentWindow: true });
       return tab;
     }
 
@@ -333,7 +341,7 @@
         };
       }
       try {
-        const response = await chrome.tabs.sendMessage(tab.id, message);
+        const response = await chromeTabs.sendMessage(tab.id, message);
         return response || {
           ok: false,
           reason: "content-no-response",
@@ -354,16 +362,16 @@
 
     async function saveAndSend(key, value, showFeedback = true) {
       settings[key] = value;
-      await chrome.storage.local.set({ [key]: value });
+      await chromeStorage.set({ [key]: value });
       if (
         courseId
         && ["sia_voice", "sia_lang", "sia_speed", "sia_pitch", "sia_volume", "sia_sync", "sia_voice_engine"]
           .includes(key)
       ) {
-        const result = await chrome.storage.local.get("sia_course_profiles");
+        const result = await chromeStorage.get("sia_course_profiles");
         const profiles = result.sia_course_profiles || {};
         profiles[courseId] = { ...(profiles[courseId] || {}), [key]: value };
-        await chrome.storage.local.set({ sia_course_profiles: profiles });
+        await chromeStorage.set({ sia_course_profiles: profiles });
       }
       const delivery = await sendToContent({ type: "SIA_CONFIG_UPDATE", key, value });
       if (showFeedback) {
@@ -559,13 +567,13 @@
 
     async function resetSettings() {
       Object.assign(settings, DEFAULTS);
-      await chrome.storage.local.set(DEFAULTS);
-      await chrome.storage.local.remove("sia_platform_selections");
+      await chromeStorage.set(DEFAULTS);
+      await chromeStorage.remove("sia_platform_selections");
       if (courseId) {
-        const result = await chrome.storage.local.get("sia_course_profiles");
+        const result = await chromeStorage.get("sia_course_profiles");
         const profiles = result.sia_course_profiles || {};
         delete profiles[courseId];
-        await chrome.storage.local.set({ sia_course_profiles: profiles });
+        await chromeStorage.set({ sia_course_profiles: profiles });
       }
       await Promise.all(Object.entries(DEFAULTS).map(([key, value]) =>
         sendToContent({ type: "SIA_CONFIG_UPDATE", key, value })
@@ -606,7 +614,7 @@
       settings.sia_compact = !settings.sia_compact;
       renderCompactMode();
       renderSummary();
-      void chrome.storage.local.set({ sia_compact: settings.sia_compact });
+      void chromeStorage.set({ sia_compact: settings.sia_compact });
     });
     if (ui.engine) {
       ui.engine.addEventListener("change", () => {
@@ -646,17 +654,6 @@
         void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
       }
     }));
-    document.querySelectorAll(".ducking-profile-pill").forEach(pill => {
-      pill.addEventListener("click", () => {
-        const radio = pill.querySelector('input[type="radio"]');
-        if (radio && !radio.checked) {
-          radio.checked = true;
-          settings.sia_ducking_level = Number(radio.value);
-          renderDuckingProfiles();
-          void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
-        }
-      });
-    });
     ui.speed.addEventListener("input", () => {
       const value = Number(ui.speed.value);
       ui.speedLabel.value = `${value.toFixed(1)}x`;

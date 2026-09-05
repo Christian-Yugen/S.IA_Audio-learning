@@ -122,7 +122,7 @@
             video.addEventListener("seeking", restaurarDuckingImediato);
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-        rampaVolumeVideo(video, volumeAlvo, 100);
+        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 40 : 100);
     }
 
     function agendarRestauracaoDucking() {
