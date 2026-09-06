@@ -695,6 +695,15 @@
     testStatus: document.getElementById("spatial-test-status"),
     checkLeft: document.getElementById("check-ear-left"),
     checkRight: document.getElementById("check-ear-right"),
+    calibBadge: document.getElementById("calib-quick-badge"),
+    calibQuestionBox: document.getElementById("calib-question-box"),
+    btnCalibYes: document.getElementById("btn-calib-yes"),
+    btnCalibNo: document.getElementById("btn-calib-no"),
+    calibSuccessBox: document.getElementById("calib-success-box"),
+    btnRecalib: document.getElementById("btn-recalib"),
+    monoDetectedCard: document.getElementById("mono-detected-card"),
+    btnOpenWinSettings: document.getElementById("btn-open-win-settings"),
+    btnRetryCalib: document.getElementById("btn-retry-calib"),
   };
 
   let currentAngle = 0;
@@ -899,6 +908,34 @@
       });
     }
 
+    function setCalibrationState(state) {
+      if (state === true) {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "none";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "flex";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Calibrado ✓";
+          spatialUi.calibBadge.classList.add("calibrated");
+        }
+      } else if (state === false) {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "none";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "grid";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Mono detectado ⚠️";
+          spatialUi.calibBadge.classList.remove("calibrated");
+        }
+      } else {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "grid";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "none";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Clique para testar";
+          spatialUi.calibBadge.classList.remove("calibrated");
+        }
+      }
+    }
+
     function playChannelBeep(channelIndex) {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -920,11 +957,15 @@
           );
         }
 
+        const btn = channelIndex === 0 ? spatialUi.checkLeft : spatialUi.checkRight;
+        if (btn) btn.classList.add("playing");
+
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(ctx.destination);
         source.start();
         source.onended = () => {
+          if (btn) btn.classList.remove("playing");
           try { ctx.close(); } catch {}
         };
       } catch (e) {
@@ -936,7 +977,7 @@
       spatialUi.checkLeft.addEventListener("click", () => {
         playChannelBeep(0);
         if (spatialUi.testStatus) {
-          spatialUi.testStatus.textContent = "🔊 Emitindo som 100% no canal ESQUERDO";
+          spatialUi.testStatus.textContent = "🔊 Emitindo som no canal ESQUERDO";
           setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
         }
       });
@@ -946,15 +987,70 @@
       spatialUi.checkRight.addEventListener("click", () => {
         playChannelBeep(1);
         if (spatialUi.testStatus) {
-          spatialUi.testStatus.textContent = "🔊 Emitindo som 100% no canal DIREITO";
+          spatialUi.testStatus.textContent = "🔊 Emitindo som no canal DIREITO";
           setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
         }
       });
     }
 
+    if (spatialUi.btnCalibYes) {
+      spatialUi.btnCalibYes.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: true });
+        } catch {}
+        setCalibrationState(true);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "✓ Calibração confirmada! Som 3D ativo na aula.";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 4000);
+        }
+      });
+    }
+
+    if (spatialUi.btnCalibNo) {
+      spatialUi.btnCalibNo.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: false });
+        } catch {}
+        setCalibrationState(false);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "⚠️ Áudio Mono detectado no Windows.";
+        }
+      });
+    }
+
+    if (spatialUi.btnOpenWinSettings) {
+      spatialUi.btnOpenWinSettings.addEventListener("click", () => {
+        try {
+          window.open("ms-settings:easeofaccess-audio", "_blank");
+        } catch {}
+      });
+    }
+
+    if (spatialUi.btnRetryCalib) {
+      spatialUi.btnRetryCalib.addEventListener("click", () => {
+        setCalibrationState(null);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🎧 Testando: tocando Esquerdo e depois Direito...";
+        }
+        playChannelBeep(0);
+        setTimeout(() => {
+          playChannelBeep(1);
+        }, 650);
+      });
+    }
+
+    if (spatialUi.btnRecalib) {
+      spatialUi.btnRecalib.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: null });
+        } catch {}
+        setCalibrationState(null);
+      });
+    }
+
     try {
       chrome?.storage?.local?.get?.(
-        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level"],
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level", "sia_stereo_calibrated"],
         res => {
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
             const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
@@ -969,11 +1065,20 @@
           } else {
             updateDuckingUI(0, false);
           }
+
+          if (res?.sia_stereo_calibrated === true) {
+            setCalibrationState(true);
+          } else if (res?.sia_stereo_calibrated === false) {
+            setCalibrationState(false);
+          } else {
+            setCalibrationState(null);
+          }
         }
       );
     } catch {
       updateSpatialPosition(0, 1.0, false);
       updateDuckingUI(0, false);
+      setCalibrationState(null);
     }
   }
 

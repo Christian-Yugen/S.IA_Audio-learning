@@ -150,18 +150,64 @@
         </button>
         <p id="spatial-test-status" class="spatial-test-status" aria-live="polite"></p>
 
-        <!-- Checagem Imediata de Isolamento de Hardware (Esquerda vs Direita) -->
-        <div class="spatial-hardware-check">
-          <span class="check-label">Checagem de Isolamento Físico:</span>
+        <!-- Calibração e Checagem de Isolamento Estéreo (Esquerda vs Direita) -->
+        <div class="spatial-hardware-check" id="spatial-hardware-check">
+          <div class="check-header-row">
+            <span class="check-label">Calibração Estéreo 3D</span>
+            <span class="check-status-badge" id="calib-quick-badge">Clique para testar</span>
+          </div>
+
           <div class="check-btn-row">
-            <button type="button" id="check-ear-left" class="ear-check-btn" title="Emite sinal exclusivo no canal esquerdo">
-              ◀ Tocar Apenas no Esquerdo
+            <button type="button" id="check-ear-left" class="ear-check-btn" title="Emite sinal de 523Hz exclusivo no canal esquerdo">
+              ◀ Ouvido Esquerdo
             </button>
-            <button type="button" id="check-ear-right" class="ear-check-btn" title="Emite sinal exclusivo no canal direito">
-              Tocar Apenas no Direito ▶
+            <button type="button" id="check-ear-right" class="ear-check-btn" title="Emite sinal de 659Hz exclusivo no canal direito">
+              Ouvido Direito ▶
             </button>
           </div>
-          <small id="check-ear-hint" class="check-hint">Se ouvir nos dois lados ao clicar acima, o Windows está com 'Áudio Mono' ativado.</small>
+
+          <!-- Pergunta de Calibração Interativa -->
+          <div id="calib-question-box" class="calib-question-box">
+            <p class="calib-prompt">O som tocou isolado em cada fone?</p>
+            <div class="calib-action-row">
+              <button type="button" id="btn-calib-yes" class="calib-choice-btn btn-yes" title="Confirmar que ouviu o som separado em cada lado">
+                ✓ Sim, ouvi separado
+              </button>
+              <button type="button" id="btn-calib-no" class="calib-choice-btn btn-no" title="Indicar que o som tocou misturado nos dois fones">
+                ✕ Não, ouvi nos dois
+              </button>
+            </div>
+          </div>
+
+          <!-- Card de Sucesso: Fones Calibrados (Exibido quando confirmado) -->
+          <div id="calib-success-box" class="calib-success-box" style="display: none;">
+            <span class="success-icon">✓</span>
+            <div class="success-info">
+              <strong>Fones 100% calibrados em Estéreo!</strong>
+              <small>O palco 3D e a direção angular estão ativos.</small>
+            </div>
+            <button type="button" id="btn-recalib" class="btn-recalib" title="Fazer o teste de canais novamente">Refazer</button>
+          </div>
+
+          <!-- Card de Detecção de Áudio Mono do Windows (Exibido se o usuário responder 'Não') -->
+          <div id="mono-detected-card" class="mono-detected-card" style="display: none;">
+            <div class="mono-card-title">
+              <span class="warning-icon">⚠️</span>
+              <strong>Modo 'Áudio Mono' do Windows Detectado</strong>
+            </div>
+            <p class="mono-card-desc">
+              O Windows está somando os lados esquerdo e direito em mono. Para que o som 3D e o direcionamento funcionem, desative o áudio mono no sistema.
+            </p>
+            <a href="ms-settings:easeofaccess-audio" id="btn-open-win-settings" class="btn-win-settings" target="_blank" rel="noopener noreferrer">
+              <span class="gear-icon">⚙️</span> Desativar 'Áudio Mono' no Windows
+            </a>
+            <div class="win-shortcut-hint">
+              <span>Atalho:</span> <code>Win + I</code> ➔ <strong>Acessibilidade</strong> ➔ <strong>Áudio</strong>
+            </div>
+            <button type="button" id="btn-retry-calib" class="btn-retry-calib">
+              🔄 Já desativei no Windows, testar novamente
+            </button>
+          </div>
         </div>
       </div>
     </section>

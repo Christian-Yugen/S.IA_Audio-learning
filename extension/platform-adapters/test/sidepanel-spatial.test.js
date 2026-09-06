@@ -25,6 +25,15 @@ test("sidepanel.html contém todos os elementos visuais do Palco Sonoro 3D (dear
   assert.match(sidepanelHtml, /id="ducking-opt-15"/);
   assert.match(sidepanelHtml, /id="ducking-opt-40"/);
   assert.match(sidepanelHtml, /id="spatial-test-headphone"/);
+  assert.match(sidepanelHtml, /id="check-ear-left"/);
+  assert.match(sidepanelHtml, /id="check-ear-right"/);
+  assert.match(sidepanelHtml, /id="calib-question-box"/);
+  assert.match(sidepanelHtml, /id="btn-calib-yes"/);
+  assert.match(sidepanelHtml, /id="btn-calib-no"/);
+  assert.match(sidepanelHtml, /id="calib-success-box"/);
+  assert.match(sidepanelHtml, /id="mono-detected-card"/);
+  assert.match(sidepanelHtml, /id="btn-open-win-settings"/);
+  assert.match(sidepanelHtml, /id="btn-retry-calib"/);
 });
 
 function createMockElement(id, options = {}) {
@@ -75,7 +84,10 @@ function createSpatialHarness() {
     "equalizer-canvas", "equalizer-stage", "waveform-status-badge", "waveform-status-text",
     "spatial-radar", "spatial-puck", "spatial-pos-badge", "spatial-pos-text",
     "spatial-angle-slider", "spatial-dist-slider", "spatial-angle-value", "spatial-dist-value",
-    "ducking-mode-status", "spatial-test-headphone", "spatial-test-status"
+    "ducking-mode-status", "spatial-test-headphone", "spatial-test-status",
+    "check-ear-left", "check-ear-right", "calib-quick-badge", "calib-question-box",
+    "btn-calib-yes", "btn-calib-no", "calib-success-box", "btn-recalib",
+    "mono-detected-card", "btn-open-win-settings", "btn-retry-calib"
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createMockElement(id)]));
   elements.get("#history-item-template").content = { firstElementChild: createMockElement("history-item") };
