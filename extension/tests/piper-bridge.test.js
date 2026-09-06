@@ -146,6 +146,19 @@ function createHarness({ engine = "browser", failGeneration = false, audioBlocke
       };
     }
 
+    createDelay() {
+      return {
+        delayTime: { value: 0, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createChannelMerger() {
+      return {
+        connect() {}
+      };
+    }
+
     createStereoPanner() {
       return {
         pan: { value: 0, setValueAtTime(v) { this.value = v; } },
