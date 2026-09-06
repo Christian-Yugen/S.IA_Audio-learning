@@ -118,6 +118,11 @@
       this.output = null;
       this.pannerNode = null;
       this.stereoPanner = null;
+      this.leftGain = null;
+      this.rightGain = null;
+      this.leftDelay = null;
+      this.rightDelay = null;
+      this.merger = null;
       this.distanceFilter = null;
       this.clarityFilter = null;
       this.distanceGain = null;
@@ -129,17 +134,24 @@
     initNodes() {
       if (!this.context) return;
       try {
+        const sampleRate = Number(this.context?.sampleRate) || 22050;
+        const nyquist = sampleRate / 2;
+        const maxFreq = Math.min(10000, Math.floor(nyquist * 0.92));
+
         this.input = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.output = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.spatialGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
-        this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.distanceGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        if (this.bypassGain) {
+          this.bypassGain.gain.value = 0.0;
+        }
 
+        // 1. Filtro de absorção do ar (seguro dentro do limite de Nyquist para evitar clamping)
         if (typeof this.context.createBiquadFilter === "function") {
-          // 1. Filtro de absorção do ar (corte de agudos com a distância: 20kHz perto -> 7.5kHz longe)
           this.distanceFilter = this.context.createBiquadFilter();
           this.distanceFilter.type = "lowpass";
-          this.distanceFilter.frequency.value = 20000;
+          this.distanceFilter.frequency.value = maxFreq;
           this.distanceFilter.Q.value = 0.7;
 
           // 2. Filtro de presença vocal e brilho cristalino 4K (peaking em 3.8kHz)
@@ -150,10 +162,23 @@
           this.clarityFilter.gain.value = 1.5;
         }
 
+        // 3. Estágio Binaural Cirúrgico para Fones de Ouvido (ILD + ITD discretos por canal)
+        if (typeof this.context.createGain === "function") {
+          this.leftGain = this.context.createGain();
+          this.rightGain = this.context.createGain();
+        }
+        if (typeof this.context.createDelay === "function") {
+          this.leftDelay = this.context.createDelay(0.01);
+          this.rightDelay = this.context.createDelay(0.01);
+        }
+        if (typeof this.context.createChannelMerger === "function") {
+          this.merger = this.context.createChannelMerger(2);
+        }
+
+        // Nós padrão mantidos para compatibilidade com a Web Audio API e testes
         if (typeof this.context.createPanner === "function") {
           this.pannerNode = this.context.createPanner();
           this.pannerNode.panningModel = "equalpower";
-          // "inverse" é padrão no W3C Web Audio (nunca "none" que causa TypeError no Chromium)
           this.pannerNode.distanceModel = "inverse";
           this.pannerNode.refDistance = 1.0;
           this.pannerNode.maxDistance = 10000;
@@ -175,46 +200,72 @@
     connectNodes() {
       if (!this.input || !this.output) return;
       try {
-        // 1. Rota Bypass direto (100% puro e transparente quando desativado)
+        // 1. Rota Bypass direto (ativada somente quando o áudio 3D estiver desligado)
         if (this.bypassGain) {
           this.input.connect(this.bypassGain);
           this.bypassGain.connect(this.output);
         }
 
-        // 2. Rota Espacial de Estúdio:
-        // input -> distanceFilter -> clarityFilter -> pannerNode -> (stereoPanner) -> distanceGain -> spatialGain -> output
-        let current = this.input;
-
+        // 2. Cadeia mono acústica: input -> distanceFilter -> clarityFilter
+        let monoChain = this.input;
         if (this.distanceFilter) {
-          current.connect(this.distanceFilter);
-          current = this.distanceFilter;
+          monoChain.connect(this.distanceFilter);
+          monoChain = this.distanceFilter;
         }
-
         if (this.clarityFilter) {
-          current.connect(this.clarityFilter);
-          current = this.clarityFilter;
+          monoChain.connect(this.clarityFilter);
+          monoChain = this.clarityFilter;
         }
 
-        if (this.pannerNode) {
-          current.connect(this.pannerNode);
-          current = this.pannerNode;
-        }
+        // 3. Rota Espacial Binaural para Fones de Ouvido (ILD + ITD discretos por canal):
+        if (this.merger && this.leftGain && this.rightGain) {
+          // Ramo Esquerdo: monoChain -> (leftDelay) -> leftGain -> merger canal 0
+          if (this.leftDelay) {
+            monoChain.connect(this.leftDelay);
+            this.leftDelay.connect(this.leftGain);
+          } else {
+            monoChain.connect(this.leftGain);
+          }
+          this.leftGain.connect(this.merger, 0, 0);
 
-        if (this.stereoPanner) {
+          // Ramo Direito: monoChain -> (rightDelay) -> rightGain -> merger canal 1
+          if (this.rightDelay) {
+            monoChain.connect(this.rightDelay);
+            this.rightDelay.connect(this.rightGain);
+          } else {
+            monoChain.connect(this.rightGain);
+          }
+          this.rightGain.connect(this.merger, 0, 1);
+
+          // Pós-Merger Estéreo: merger -> distanceGain -> spatialGain -> output
+          let stereo = this.merger;
+          if (this.distanceGain) {
+            stereo.connect(this.distanceGain);
+            stereo = this.distanceGain;
+          }
+          if (this.spatialGain) {
+            stereo.connect(this.spatialGain);
+            this.spatialGain.connect(this.output);
+          } else {
+            stereo.connect(this.output);
+          }
+        } else if (this.stereoPanner) {
+          // Fallback se ChannelMerger indisponível
+          let current = monoChain;
           current.connect(this.stereoPanner);
           current = this.stereoPanner;
-        }
-
-        if (this.distanceGain) {
-          current.connect(this.distanceGain);
-          current = this.distanceGain;
-        }
-
-        if (this.spatialGain) {
-          current.connect(this.spatialGain);
-          this.spatialGain.connect(this.output);
+          if (this.distanceGain) {
+            current.connect(this.distanceGain);
+            current = this.distanceGain;
+          }
+          if (this.spatialGain) {
+            current.connect(this.spatialGain);
+            this.spatialGain.connect(this.output);
+          } else {
+            current.connect(this.output);
+          }
         } else {
-          current.connect(this.output);
+          monoChain.connect(this.output);
         }
       } catch (err) {
         try { this.input.connect(this.output); } catch {}
@@ -230,45 +281,45 @@
 
       if (!this.enabled) {
         // Modo Desativado: Bypass 100% aberto, canal espacial zerado
-        if (this.bypassGain?.gain?.setValueAtTime) {
-          this.bypassGain.gain.setValueAtTime(1.0, currentTime);
-        } else if (this.bypassGain?.gain) {
+        if (this.bypassGain?.gain) {
           this.bypassGain.gain.value = 1.0;
+          try { this.bypassGain.gain.setValueAtTime(1.0, currentTime); } catch {}
         }
-
-        if (this.spatialGain?.gain?.setValueAtTime) {
-          this.spatialGain.gain.setValueAtTime(0.0, currentTime);
-        } else if (this.spatialGain?.gain) {
+        if (this.spatialGain?.gain) {
           this.spatialGain.gain.value = 0.0;
+          try { this.spatialGain.gain.setValueAtTime(0.0, currentTime); } catch {}
         }
-
-        if (this.stereoPanner?.pan?.setValueAtTime) {
-          this.stereoPanner.pan.setValueAtTime(0, currentTime);
-        } else if (this.stereoPanner?.pan) {
+        if (this.leftGain?.gain) this.leftGain.gain.value = 1.0;
+        if (this.rightGain?.gain) this.rightGain.gain.value = 1.0;
+        if (this.leftDelay?.delayTime) this.leftDelay.delayTime.value = 0;
+        if (this.rightDelay?.delayTime) this.rightDelay.delayTime.value = 0;
+        if (this.stereoPanner?.pan) {
           this.stereoPanner.pan.value = 0;
+          try { this.stereoPanner.pan.setValueAtTime(0, currentTime); } catch {}
         }
-
-        if (this.pannerNode?.positionX?.setValueAtTime) {
-          this.pannerNode.positionX.setValueAtTime(0, currentTime);
-          this.pannerNode.positionY.setValueAtTime(0, currentTime);
-          this.pannerNode.positionZ.setValueAtTime(-1, currentTime);
+        if (this.pannerNode?.positionX) {
+          this.pannerNode.positionX.value = 0;
+          this.pannerNode.positionY.value = 0;
+          this.pannerNode.positionZ.value = -1;
+          try {
+            this.pannerNode.positionX.setValueAtTime(0, currentTime);
+            this.pannerNode.positionY.setValueAtTime(0, currentTime);
+            this.pannerNode.positionZ.setValueAtTime(-1, currentTime);
+          } catch {}
         } else if (typeof this.pannerNode?.setPosition === "function") {
           this.pannerNode.setPosition(0, 0, -1);
         }
         return;
       }
 
-      // Modo Espacial 4K Ativo
-      if (this.bypassGain?.gain?.setValueAtTime) {
-        this.bypassGain.gain.setValueAtTime(0.0, currentTime);
-      } else if (this.bypassGain?.gain) {
+      // Modo Espacial 4K Ativo: isola bypass para evitar qualquer vazamento de áudio plano
+      if (this.bypassGain?.gain) {
         this.bypassGain.gain.value = 0.0;
+        try { this.bypassGain.gain.setValueAtTime(0.0, currentTime); } catch {}
       }
-
-      if (this.spatialGain?.gain?.setValueAtTime) {
-        this.spatialGain.gain.setValueAtTime(1.15, currentTime);
-      } else if (this.spatialGain?.gain) {
+      if (this.spatialGain?.gain) {
         this.spatialGain.gain.value = 1.15;
+        try { this.spatialGain.gain.setValueAtTime(1.15, currentTime); } catch {}
       }
 
       // 1. Atenuação e Proximidade de Distância (Volume perceptível e marcante)
@@ -276,53 +327,92 @@
       if (this.distance <= 1.0) {
         distVol = 1.0 + (1.0 - this.distance) * 0.45; // 0.3m -> 1.31x (+2.4dB) | 1.0m -> 1.00x
       } else {
-        const norm = (this.distance - 1.0) / 1.5; // 0 a 1
+        const norm = (this.distance - 1.0) / 1.5;
         distVol = Math.max(0.40, 1.0 - norm * 0.55); // 1.0m -> 1.00x | 2.5m -> 0.45x (-7dB)
       }
-      if (this.distanceGain?.gain?.setValueAtTime) {
-        this.distanceGain.gain.setValueAtTime(Number(distVol.toFixed(3)), currentTime);
-      } else if (this.distanceGain?.gain) {
-        this.distanceGain.gain.value = Number(distVol.toFixed(3));
+      const distVal = Number(distVol.toFixed(3));
+      if (this.distanceGain?.gain) {
+        this.distanceGain.gain.value = distVal;
+        try { this.distanceGain.gain.setValueAtTime(distVal, currentTime); } catch {}
       }
 
-      // 2. Absorção Acústica do Ar (Corte suave de agudos simulando propagação no ar)
+      // 2. Absorção Acústica do Ar (Corte seguro dentro da faixa de Nyquist: [3000, 10000] Hz)
+      const sampleRate = Number(this.context?.sampleRate) || 22050;
+      const nyquist = sampleRate / 2;
+      const maxFreq = Math.min(10000, Math.floor(nyquist * 0.92));
+      const minFreq = Math.max(3000, Math.floor(maxFreq * 0.42));
       const normDist = Math.max(0, Math.min(1, (this.distance - 0.3) / 2.2));
-      const cutoff = Math.round(20000 - normDist * 12500); // 20.000 Hz até 7.500 Hz
-      if (this.distanceFilter?.frequency?.setValueAtTime) {
-        this.distanceFilter.frequency.setValueAtTime(cutoff, currentTime);
-      } else if (this.distanceFilter?.frequency) {
+      const cutoff = Math.round(maxFreq - normDist * (maxFreq - minFreq));
+      if (this.distanceFilter?.frequency) {
         this.distanceFilter.frequency.value = cutoff;
+        try { this.distanceFilter.frequency.setValueAtTime(cutoff, currentTime); } catch {}
       }
 
       // 3. Realce de presença vocal em 3.8kHz (intenso de perto, natural de longe)
       const clarity = Math.max(0.5, 2.5 * (1 - normDist * 0.8));
-      if (this.clarityFilter?.gain?.setValueAtTime) {
-        this.clarityFilter.gain.setValueAtTime(Number(clarity.toFixed(2)), currentTime);
-      } else if (this.clarityFilter?.gain) {
-        this.clarityFilter.gain.value = Number(clarity.toFixed(2));
+      const clarityVal = Number(clarity.toFixed(2));
+      if (this.clarityFilter?.gain) {
+        this.clarityFilter.gain.value = clarityVal;
+        try { this.clarityFilter.gain.setValueAtTime(clarityVal, currentTime); } catch {}
       }
 
-      // 4. Posicionamento 3D no PannerNode
+      // 4. Posicionamento de referência no PannerNode e StereoPanner
       const rad = (this.angle * Math.PI) / 180;
       const x = Number((this.distance * Math.sin(rad)).toFixed(2));
       const y = 0.15;
       const z = Number((-this.distance * Math.cos(rad)).toFixed(2));
 
-      if (this.pannerNode?.positionX?.setValueAtTime) {
-        this.pannerNode.positionX.setValueAtTime(x, currentTime);
-        this.pannerNode.positionY.setValueAtTime(y, currentTime);
-        this.pannerNode.positionZ.setValueAtTime(z, currentTime);
+      if (this.pannerNode?.positionX) {
+        this.pannerNode.positionX.value = x;
+        this.pannerNode.positionY.value = y;
+        this.pannerNode.positionZ.value = z;
+        try {
+          this.pannerNode.positionX.setValueAtTime(x, currentTime);
+          this.pannerNode.positionY.setValueAtTime(y, currentTime);
+          this.pannerNode.positionZ.setValueAtTime(z, currentTime);
+        } catch {}
       } else if (typeof this.pannerNode?.setPosition === "function") {
         this.pannerNode.setPosition(x, y, z);
       }
 
-      // 5. Separação Estéreo Cirúrgica nos Fones de Ouvido
-      // Math.sin(rad): -90° -> -1.0 (100% esquerda), 0° -> 0.0 (centro), +90° -> +1.0 (100% direita)
       const pan = Math.max(-1.0, Math.min(1.0, Math.sin(rad)));
-      if (this.stereoPanner?.pan?.setValueAtTime) {
-        this.stereoPanner.pan.setValueAtTime(Number(pan.toFixed(3)), currentTime);
-      } else if (this.stereoPanner?.pan) {
-        this.stereoPanner.pan.value = Number(pan.toFixed(3));
+      const panVal = Number(pan.toFixed(3));
+      if (this.stereoPanner?.pan) {
+        this.stereoPanner.pan.value = panVal;
+        try { this.stereoPanner.pan.setValueAtTime(panVal, currentTime); } catch {}
+      }
+
+      // 5. Separação Binaural Cirúrgica para Fones de Ouvido (ILD + ITD)
+      // Normalização: u de -1.0 (-90° total esq) a +1.0 (+90° total dir)
+      const u = Math.max(-1.0, Math.min(1.0, this.angle / 90));
+      let lGain, rGain;
+      if (u <= 0) {
+        lGain = 1.0;
+        rGain = Math.pow(Math.max(0, 1.0 + u), 1.5);
+      } else {
+        lGain = Math.pow(Math.max(0, 1.0 - u), 1.5);
+        rGain = 1.0;
+      }
+      const lDelay = u > 0 ? u * 0.0006 : 0;
+      const rDelay = u < 0 ? Math.abs(u) * 0.0006 : 0;
+
+      if (this.leftGain?.gain) {
+        const val = Number(lGain.toFixed(3));
+        this.leftGain.gain.value = val;
+        try { this.leftGain.gain.setValueAtTime(val, currentTime); } catch {}
+      }
+      if (this.rightGain?.gain) {
+        const val = Number(rGain.toFixed(3));
+        this.rightGain.gain.value = val;
+        try { this.rightGain.gain.setValueAtTime(val, currentTime); } catch {}
+      }
+      if (this.leftDelay?.delayTime) {
+        this.leftDelay.delayTime.value = lDelay;
+        try { this.leftDelay.delayTime.setValueAtTime(lDelay, currentTime); } catch {}
+      }
+      if (this.rightDelay?.delayTime) {
+        this.rightDelay.delayTime.value = rDelay;
+        try { this.rightDelay.delayTime.setValueAtTime(rDelay, currentTime); } catch {}
       }
     }
 

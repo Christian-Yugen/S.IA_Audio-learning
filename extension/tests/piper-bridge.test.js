@@ -472,6 +472,13 @@ test("configura e posiciona a voz 3D no espaço com áudio cristalino 4K transpa
   assert.equal(stage.pannerNode.positionZ.value, -1.06);
   assert.equal(stage.stereoPanner.pan.value, 0.707);
   assert.equal(stage.distanceGain.gain.value, 0.817);
+  assert.equal(stage.leftGain.gain.value, 0.354);
+  assert.equal(stage.rightGain.gain.value, 1.0);
+
+  // Posicionamento extremo à esquerda (-90° esquerda, 1.0m): isolamento cirúrgico de ouvido
+  harness.provider.setSpatialPosition(-90, 1.0, true);
+  assert.equal(stage.leftGain.gain.value, 1.0);
+  assert.equal(stage.rightGain.gain.value, 0.0);
 
   // Desativa o áudio 3D (modo bypass transparente 1:1)
   harness.provider.setSpatialAudio(false, "intimate");
