@@ -1024,6 +1024,22 @@
           spatialUi.testStatus.textContent = "Abrindo configurações de áudio do Windows...";
           setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3500);
         }
+
+        try {
+          const autoCloseHandler = (tab) => {
+            chrome?.tabs?.onCreated?.removeListener?.(autoCloseHandler);
+            setTimeout(() => {
+              try {
+                chrome?.tabs?.get?.(tab.id, (t) => {
+                  if (t && (t.url === "about:blank" || t.url?.startsWith("ms-settings") || !t.url || t.title === "Sem título")) {
+                    chrome?.tabs?.remove?.(tab.id);
+                  }
+                });
+              } catch {}
+            }, 4000);
+          };
+          chrome?.tabs?.onCreated?.addListener?.(autoCloseHandler);
+        } catch {}
       });
     }
 

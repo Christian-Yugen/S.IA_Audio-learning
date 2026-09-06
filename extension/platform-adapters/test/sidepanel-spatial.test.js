@@ -127,7 +127,10 @@ function createSpatialHarness() {
           return { ok: true, angle: msg.angle, distance: msg.distance };
         }
         return { ok: true };
-      }
+      },
+      onCreated: { addListener: () => {}, removeListener: () => {} },
+      get: () => {},
+      remove: () => {},
     },
     storage: {
       local: {
