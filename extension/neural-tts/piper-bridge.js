@@ -13,21 +13,21 @@
       x: 0.42,
       y: 0.09,
       z: -0.91,
-      reverbWet: 0.08
+      clarityBoost: 2.5
     }),
     stage: Object.freeze({
       name: "Palco Frontal",
       x: 0.00,
       y: 0.28,
       z: -1.58,
-      reverbWet: 0.12
+      clarityBoost: 2.0
     }),
     intimate: Object.freeze({
       name: "Proximidade VIP",
       x: 0.16,
       y: 0.00,
       z: -0.58,
-      reverbWet: 0.05
+      clarityBoost: 3.0
     })
   });
 
@@ -89,9 +89,9 @@
       this.input = null;
       this.output = null;
       this.pannerNode = null;
-      this.convolverNode = null;
-      this.reverbGain = null;
-      this.directGain = null;
+      this.clarityFilter = null;
+      this.spatialGain = null;
+      this.bypassGain = null;
       this.initNodes();
     }
 
@@ -100,56 +100,58 @@
       try {
         this.input = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.output = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.spatialGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+
+        if (typeof this.context.createBiquadFilter === "function") {
+          this.clarityFilter = this.context.createBiquadFilter();
+          this.clarityFilter.type = "peaking";
+          this.clarityFilter.frequency.value = 3800;
+          this.clarityFilter.Q.value = 0.9;
+          this.clarityFilter.gain.value = 2.5;
+        }
 
         if (typeof this.context.createPanner === "function") {
           this.pannerNode = this.context.createPanner();
           this.pannerNode.panningModel = "HRTF";
-          this.pannerNode.distanceModel = "inverse";
+          this.pannerNode.distanceModel = "none";
           this.pannerNode.refDistance = 1;
           this.pannerNode.maxDistance = 10000;
-          this.pannerNode.rolloffFactor = 1;
+          this.pannerNode.rolloffFactor = 0;
           this.pannerNode.coneInnerAngle = 360;
         }
 
-        if (typeof this.context.createConvolver === "function") {
-          const impulse = this.generateStudioImpulse();
-          if (impulse) {
-            this.convolverNode = this.context.createConvolver();
-            this.convolverNode.buffer = impulse;
-          }
-        }
-
-        if (typeof this.context.createGain === "function") {
-          this.directGain = this.context.createGain();
-          this.reverbGain = this.context.createGain();
-        }
-
-        this.applyProfile(this.profileKey, this.enabled);
         this.connectNodes();
+        this.applyProfile(this.profileKey, this.enabled);
       } catch (err) {
         console.warn("[S·IA Spatial Stage] inicialização fallback", err);
       }
     }
 
-    generateStudioImpulse() {
-      if (!this.context || typeof this.context.createBuffer !== "function") return null;
+    connectNodes() {
+      if (!this.input || !this.output) return;
       try {
-        const rate = Number(this.context.sampleRate) || 44100;
-        const length = Math.floor(rate * 0.045);
-        const buffer = this.context.createBuffer(2, length, rate);
-        const left = buffer.getChannelData(0);
-        const right = buffer.getChannelData(1);
-        const decay = 0.018;
-
-        for (let i = 0; i < length; i++) {
-          const t = i / rate;
-          const envelope = Math.exp(-t / decay);
-          left[i] = (Math.random() * 2 - 1) * envelope * 0.5;
-          right[i] = (Math.random() * 2 - 1) * envelope * 0.5;
+        // 1. Rota Bypass direto (100% puro e transparente quando desativado)
+        if (this.bypassGain) {
+          this.input.connect(this.bypassGain);
+          this.bypassGain.connect(this.output);
         }
-        return buffer;
+
+        // 2. Rota 4K Espacial: input -> clarityFilter -> pannerNode -> spatialGain -> output
+        if (this.pannerNode && this.spatialGain) {
+          if (this.clarityFilter) {
+            this.input.connect(this.clarityFilter);
+            this.clarityFilter.connect(this.pannerNode);
+          } else {
+            this.input.connect(this.pannerNode);
+          }
+          this.pannerNode.connect(this.spatialGain);
+          this.spatialGain.connect(this.output);
+        } else if (!this.bypassGain) {
+          this.input.connect(this.output);
+        }
       } catch {
-        return null;
+        try { this.input.connect(this.output); } catch {}
       }
     }
 
@@ -158,66 +160,57 @@
       this.enabled = Boolean(enabled);
       const config = SPATIAL_PROFILES[this.profileKey];
 
-      if (!this.pannerNode) return;
-
       const currentTime = Number(this.context?.currentTime) || 0;
 
       if (!this.enabled) {
-        if (this.pannerNode.positionX?.setValueAtTime) {
+        // Modo Desativado: Bypass 100% aberto, canal espacial zerado
+        if (this.bypassGain?.gain?.setValueAtTime) {
+          this.bypassGain.gain.setValueAtTime(1.0, currentTime);
+        } else if (this.bypassGain?.gain) {
+          this.bypassGain.gain.value = 1.0;
+        }
+
+        if (this.spatialGain?.gain?.setValueAtTime) {
+          this.spatialGain.gain.setValueAtTime(0.0, currentTime);
+        } else if (this.spatialGain?.gain) {
+          this.spatialGain.gain.value = 0.0;
+        }
+
+        if (this.pannerNode?.positionX?.setValueAtTime) {
           this.pannerNode.positionX.setValueAtTime(0, currentTime);
           this.pannerNode.positionY.setValueAtTime(0, currentTime);
           this.pannerNode.positionZ.setValueAtTime(-1, currentTime);
-        } else if (typeof this.pannerNode.setPosition === "function") {
+        } else if (typeof this.pannerNode?.setPosition === "function") {
           this.pannerNode.setPosition(0, 0, -1);
-        }
-        if (this.reverbGain?.gain) {
-          this.reverbGain.gain.value = 0;
-        }
-        if (this.directGain?.gain) {
-          this.directGain.gain.value = 1.0;
         }
         return;
       }
 
-      if (this.pannerNode.positionX?.setValueAtTime) {
+      // Modo 4K Ativo: Bypass fechado, canal espacial compensado com ganho de presença (+35%)
+      if (this.bypassGain?.gain?.setValueAtTime) {
+        this.bypassGain.gain.setValueAtTime(0.0, currentTime);
+      } else if (this.bypassGain?.gain) {
+        this.bypassGain.gain.value = 0.0;
+      }
+
+      if (this.spatialGain?.gain?.setValueAtTime) {
+        this.spatialGain.gain.setValueAtTime(1.35, currentTime);
+      } else if (this.spatialGain?.gain) {
+        this.spatialGain.gain.value = 1.35;
+      }
+
+      if (this.clarityFilter?.gain?.setValueAtTime) {
+        this.clarityFilter.gain.setValueAtTime(config.clarityBoost || 2.5, currentTime);
+      } else if (this.clarityFilter?.gain) {
+        this.clarityFilter.gain.value = config.clarityBoost || 2.5;
+      }
+
+      if (this.pannerNode?.positionX?.setValueAtTime) {
         this.pannerNode.positionX.setValueAtTime(config.x, currentTime);
         this.pannerNode.positionY.setValueAtTime(config.y, currentTime);
         this.pannerNode.positionZ.setValueAtTime(config.z, currentTime);
-      } else if (typeof this.pannerNode.setPosition === "function") {
+      } else if (typeof this.pannerNode?.setPosition === "function") {
         this.pannerNode.setPosition(config.x, config.y, config.z);
-      }
-
-      if (this.reverbGain?.gain) {
-        this.reverbGain.gain.value = config.reverbWet;
-      }
-      if (this.directGain?.gain) {
-        this.directGain.gain.value = 1.0;
-      }
-    }
-
-    connectNodes() {
-      if (!this.input || !this.output) return;
-      try {
-        if (this.pannerNode) {
-          this.input.connect(this.pannerNode);
-
-          if (this.directGain) {
-            this.pannerNode.connect(this.directGain);
-            this.directGain.connect(this.output);
-          } else {
-            this.pannerNode.connect(this.output);
-          }
-
-          if (this.convolverNode && this.reverbGain) {
-            this.pannerNode.connect(this.convolverNode);
-            this.convolverNode.connect(this.reverbGain);
-            this.reverbGain.connect(this.output);
-          }
-        } else {
-          this.input.connect(this.output);
-        }
-      } catch {
-        try { this.input.connect(this.output); } catch {}
       }
     }
   }
