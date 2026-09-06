@@ -21,6 +21,8 @@
     sia_translate_en_pt: false,
     sia_ducking: true,
     sia_ducking_level: 0.15,
+    sia_spatial_audio: true,
+    sia_spatial_profile: "interpreter",
     sia_compact: false
   });
 
@@ -42,6 +44,10 @@
       duckingProfilesContainer: document.getElementById("ducking-profiles-container"),
       duckingProfiles: [...document.querySelectorAll('input[name="ducking-level"]')],
       duckingProfileHint: document.getElementById("ducking-profile-hint"),
+      spatialAudio: document.getElementById("spatial-audio"),
+      spatialProfilesContainer: document.getElementById("spatial-profiles-container"),
+      spatialProfiles: [...document.querySelectorAll('input[name="spatial-profile"]')],
+      spatialProfileHint: document.getElementById("spatial-profile-hint"),
       speed: document.getElementById("input-speed"),
       speedLabel: document.getElementById("label-speed"),
       pitch: document.getElementById("input-pitch"),
@@ -221,8 +227,9 @@
         ? "Neural local PT-BR"
         : selectedVoice.replace(/\s+—\s+.+$/, "");
       ui.summarySpeed.textContent = `${Number(settings.sia_speed).toFixed(1)}x`;
+      const spatialBadge = settings.sia_spatial_audio !== false ? " · 🎧 3D" : "";
       ui.summaryAudio.textContent =
-        `Pitch ${Number(settings.sia_pitch).toFixed(1)} · ${Number(settings.sia_volume)}%`;
+        `Pitch ${Number(settings.sia_pitch).toFixed(1)} · ${Number(settings.sia_volume)}%${spatialBadge}`;
       ui.summarySync.textContent =
         settings.sia_sync === "slow_video" ? "Desacelerar vídeo" : "Ajustar voz";
       if (ui.engine) {
@@ -252,6 +259,28 @@
       }
     }
 
+    function renderSpatialProfiles() {
+      const spatialEnabled = settings.sia_spatial_audio !== false;
+      if (ui.spatialProfilesContainer) {
+        ui.spatialProfilesContainer.style.display = spatialEnabled ? "flex" : "none";
+      }
+      const profile = String(settings.sia_spatial_profile || "interpreter");
+      ui.spatialProfiles?.forEach(radio => {
+        const isChecked = radio.value === profile;
+        radio.checked = isChecked;
+        radio.closest?.(".ducking-profile-pill")?.classList.toggle("is-active", isChecked);
+      });
+      if (ui.spatialProfileHint) {
+        if (profile === "stage") {
+          ui.spatialProfileHint.textContent = "Palco Frontal: voz ampla à sua frente, como um professor em auditório real.";
+        } else if (profile === "intimate") {
+          ui.spatialProfileHint.textContent = "Proximidade VIP: voz quente e encorpada a 60cm, presença máxima de estúdio.";
+        } else {
+          ui.spatialProfileHint.textContent = "Intérprete Particular: voz a +25° à direita, separando a S·IA do áudio original.";
+        }
+      }
+    }
+
     function renderCompactMode() {
       const compact = Boolean(settings.sia_compact);
       ui.container.classList.toggle("is-compact", compact);
@@ -268,6 +297,8 @@
       if (ui.translateEnglish) ui.translateEnglish.checked = Boolean(settings.sia_translate_en_pt);
       if (ui.audioDucking) ui.audioDucking.checked = settings.sia_ducking !== false;
       renderDuckingProfiles();
+      if (ui.spatialAudio) ui.spatialAudio.checked = settings.sia_spatial_audio !== false;
+      renderSpatialProfiles();
       if (ui.engine) ui.engine.value = settings.sia_voice_engine;
       ui.voice.disabled = settings.sia_voice_engine === "piper-local";
       ui.speed.value = settings.sia_speed;
@@ -652,6 +683,20 @@
         settings.sia_ducking_level = Number(radio.value);
         renderDuckingProfiles();
         void saveAndSend("sia_ducking_level", settings.sia_ducking_level);
+      }
+    }));
+    ui.spatialAudio?.addEventListener("change", () => {
+      settings.sia_spatial_audio = ui.spatialAudio.checked;
+      renderSpatialProfiles();
+      renderSummary();
+      void saveAndSend("sia_spatial_audio", settings.sia_spatial_audio);
+    });
+    ui.spatialProfiles?.forEach(radio => radio.addEventListener("change", () => {
+      if (radio.checked) {
+        settings.sia_spatial_profile = radio.value;
+        renderSpatialProfiles();
+        renderSummary();
+        void saveAndSend("sia_spatial_profile", settings.sia_spatial_profile);
       }
     }));
     ui.speed.addEventListener("input", () => {

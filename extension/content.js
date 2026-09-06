@@ -2314,6 +2314,15 @@
                 }
                 break;
             }
+            case "sia_spatial_audio":
+            case "sia_spatial_profile": {
+                if (globalThis.SiaPiperVoice?.setSpatialAudio) {
+                    const enabled = chave === "sia_spatial_audio" ? Boolean(valor) : undefined;
+                    const profile = chave === "sia_spatial_profile" ? String(valor) : undefined;
+                    globalThis.SiaPiperVoice.setSpatialAudio(enabled, profile);
+                }
+                break;
+            }
         }
     }
 
@@ -2329,7 +2338,9 @@
             "sia_voice_engine",
             "sia_translate_en_pt",
             "sia_ducking",
-            "sia_ducking_level"
+            "sia_ducking_level",
+            "sia_spatial_audio",
+            "sia_spatial_profile"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {

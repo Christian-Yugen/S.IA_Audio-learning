@@ -4,15 +4,42 @@
   const ENGINE_KEY = "sia_voice_engine";
   const ENGINE_PIPER = "piper-local";
   const ENGINE_BROWSER = "browser";
-const WORKER_PATH = "neural-tts/piper-worker.js";
-const RUNTIME_PATHS = Object.freeze({
-  worker: WORKER_PATH,
-  wasmRuntime: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.js",
-  ttsRuntime: "neural-tts/runtime/sherpa-onnx-tts.js",
-  wasm: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.wasm",
-  data: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.data"
-});
-const READY_TIMEOUT_MS = 30000;
+  const SPATIAL_KEY = "sia_spatial_audio";
+  const SPATIAL_PROFILE_KEY = "sia_spatial_profile";
+
+  const SPATIAL_PROFILES = Object.freeze({
+    interpreter: Object.freeze({
+      name: "Intérprete Particular",
+      x: 0.42,
+      y: 0.09,
+      z: -0.91,
+      reverbWet: 0.08
+    }),
+    stage: Object.freeze({
+      name: "Palco Frontal",
+      x: 0.00,
+      y: 0.28,
+      z: -1.58,
+      reverbWet: 0.12
+    }),
+    intimate: Object.freeze({
+      name: "Proximidade VIP",
+      x: 0.16,
+      y: 0.00,
+      z: -0.58,
+      reverbWet: 0.05
+    })
+  });
+
+  const WORKER_PATH = "neural-tts/piper-worker.js";
+  const RUNTIME_PATHS = Object.freeze({
+    worker: WORKER_PATH,
+    wasmRuntime: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.js",
+    ttsRuntime: "neural-tts/runtime/sherpa-onnx-tts.js",
+    wasm: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.wasm",
+    data: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.data"
+  });
+  const READY_TIMEOUT_MS = 30000;
   const GENERATE_TIMEOUT_MS = 20000;
   const AUDIO_RESUME_TIMEOUT_MS = 1200;
   const MAX_AUDIO_CACHE = 8;
@@ -54,6 +81,147 @@ const READY_TIMEOUT_MS = 30000;
     }
   }
 
+  class SiaSpatialStage {
+    constructor(audioContext) {
+      this.context = audioContext;
+      this.enabled = true;
+      this.profileKey = "interpreter";
+      this.input = null;
+      this.output = null;
+      this.pannerNode = null;
+      this.convolverNode = null;
+      this.reverbGain = null;
+      this.directGain = null;
+      this.initNodes();
+    }
+
+    initNodes() {
+      if (!this.context) return;
+      try {
+        this.input = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.output = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+
+        if (typeof this.context.createPanner === "function") {
+          this.pannerNode = this.context.createPanner();
+          this.pannerNode.panningModel = "HRTF";
+          this.pannerNode.distanceModel = "inverse";
+          this.pannerNode.refDistance = 1;
+          this.pannerNode.maxDistance = 10000;
+          this.pannerNode.rolloffFactor = 1;
+          this.pannerNode.coneInnerAngle = 360;
+        }
+
+        if (typeof this.context.createConvolver === "function") {
+          const impulse = this.generateStudioImpulse();
+          if (impulse) {
+            this.convolverNode = this.context.createConvolver();
+            this.convolverNode.buffer = impulse;
+          }
+        }
+
+        if (typeof this.context.createGain === "function") {
+          this.directGain = this.context.createGain();
+          this.reverbGain = this.context.createGain();
+        }
+
+        this.applyProfile(this.profileKey, this.enabled);
+        this.connectNodes();
+      } catch (err) {
+        console.warn("[S·IA Spatial Stage] inicialização fallback", err);
+      }
+    }
+
+    generateStudioImpulse() {
+      if (!this.context || typeof this.context.createBuffer !== "function") return null;
+      try {
+        const rate = Number(this.context.sampleRate) || 44100;
+        const length = Math.floor(rate * 0.045);
+        const buffer = this.context.createBuffer(2, length, rate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+        const decay = 0.018;
+
+        for (let i = 0; i < length; i++) {
+          const t = i / rate;
+          const envelope = Math.exp(-t / decay);
+          left[i] = (Math.random() * 2 - 1) * envelope * 0.5;
+          right[i] = (Math.random() * 2 - 1) * envelope * 0.5;
+        }
+        return buffer;
+      } catch {
+        return null;
+      }
+    }
+
+    applyProfile(profileKey, enabled = true) {
+      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "interpreter";
+      this.enabled = Boolean(enabled);
+      const config = SPATIAL_PROFILES[this.profileKey];
+
+      if (!this.pannerNode) return;
+
+      const currentTime = Number(this.context?.currentTime) || 0;
+
+      if (!this.enabled) {
+        if (this.pannerNode.positionX?.setValueAtTime) {
+          this.pannerNode.positionX.setValueAtTime(0, currentTime);
+          this.pannerNode.positionY.setValueAtTime(0, currentTime);
+          this.pannerNode.positionZ.setValueAtTime(-1, currentTime);
+        } else if (typeof this.pannerNode.setPosition === "function") {
+          this.pannerNode.setPosition(0, 0, -1);
+        }
+        if (this.reverbGain?.gain) {
+          this.reverbGain.gain.value = 0;
+        }
+        if (this.directGain?.gain) {
+          this.directGain.gain.value = 1.0;
+        }
+        return;
+      }
+
+      if (this.pannerNode.positionX?.setValueAtTime) {
+        this.pannerNode.positionX.setValueAtTime(config.x, currentTime);
+        this.pannerNode.positionY.setValueAtTime(config.y, currentTime);
+        this.pannerNode.positionZ.setValueAtTime(config.z, currentTime);
+      } else if (typeof this.pannerNode.setPosition === "function") {
+        this.pannerNode.setPosition(config.x, config.y, config.z);
+      }
+
+      if (this.reverbGain?.gain) {
+        this.reverbGain.gain.value = config.reverbWet;
+      }
+      if (this.directGain?.gain) {
+        this.directGain.gain.value = 1.0;
+      }
+    }
+
+    connectNodes() {
+      if (!this.input || !this.output) return;
+      try {
+        if (this.pannerNode) {
+          this.input.connect(this.pannerNode);
+
+          if (this.directGain) {
+            this.pannerNode.connect(this.directGain);
+            this.directGain.connect(this.output);
+          } else {
+            this.pannerNode.connect(this.output);
+          }
+
+          if (this.convolverNode && this.reverbGain) {
+            this.pannerNode.connect(this.convolverNode);
+            this.convolverNode.connect(this.reverbGain);
+            this.reverbGain.connect(this.output);
+          }
+        } else {
+          this.input.connect(this.output);
+        }
+      } catch {
+        try { this.input.connect(this.output); } catch {}
+      }
+    }
+  }
+
   class PiperLocalProvider {
     constructor() {
       this.worker = null;
@@ -77,6 +245,9 @@ const READY_TIMEOUT_MS = 30000;
       this.inflight = new Map();
       this.warmupPromise = null;
       this.runtimeWarmed = false;
+      this.spatialEnabled = true;
+      this.spatialProfile = "interpreter";
+      this.spatialStage = null;
     }
 
     isActive() {
@@ -109,8 +280,22 @@ const READY_TIMEOUT_MS = 30000;
         queued: this.queue.length + (this.currentRecord ? 1 : 0),
         ready: this.workerState === "ready",
         audioState: this.audioState,
-        audioError: this.audioError
+        audioError: this.audioError,
+        spatialAudio: this.spatialEnabled,
+        spatialProfile: this.spatialProfile
       };
+    }
+
+    setSpatialAudio(enabled, profile) {
+      if (typeof enabled === "boolean") {
+        this.spatialEnabled = enabled;
+      }
+      if (typeof profile === "string" && profile) {
+        this.spatialProfile = profile;
+      }
+      if (this.spatialStage) {
+        this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+      }
     }
 
     async carregarWorkerLocalComoBlob() {
@@ -357,6 +542,15 @@ const READY_TIMEOUT_MS = 30000;
           this.audioContext = new AudioContextCtor({ sampleRate });
         } catch {
           this.audioContext = new AudioContextCtor();
+        }
+      }
+      if (!this.spatialStage && this.audioContext) {
+        this.spatialStage = new SiaSpatialStage(this.audioContext);
+        this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+        if (this.spatialStage.output) {
+          try {
+            this.spatialStage.output.connect(this.audioContext.destination);
+          } catch {}
         }
       }
       if (this.audioContext.state === "suspended") {
@@ -609,7 +803,11 @@ const READY_TIMEOUT_MS = 30000;
         }
 
         source.connect(gain);
-        gain.connect(context.destination);
+        if (this.spatialStage && this.spatialStage.input) {
+          gain.connect(this.spatialStage.input);
+        } else {
+          gain.connect(context.destination);
+        }
         this.currentSource = source;
         this.currentGain = gain;
         this.currentRecord = record;
@@ -708,14 +906,24 @@ const READY_TIMEOUT_MS = 30000;
   const provider = new PiperLocalProvider();
   globalThis.SiaPiperVoice = provider;
 
-  chrome.storage.local.get(ENGINE_KEY, result => {
+  chrome.storage.local.get([ENGINE_KEY, SPATIAL_KEY, SPATIAL_PROFILE_KEY], result => {
     storageReady = true;
     provider.setActive(result[ENGINE_KEY]);
+    provider.setSpatialAudio(
+      result[SPATIAL_KEY] !== false,
+      result[SPATIAL_PROFILE_KEY] || "interpreter"
+    );
   });
 
   chrome.runtime.onMessage.addListener(message => {
-    if (message?.type === "SIA_CONFIG_UPDATE" && message.key === ENGINE_KEY) {
-      provider.setActive(message.value);
+    if (message?.type === "SIA_CONFIG_UPDATE") {
+      if (message.key === ENGINE_KEY) {
+        provider.setActive(message.value);
+      } else if (message.key === SPATIAL_KEY) {
+        provider.setSpatialAudio(message.value, provider.spatialProfile);
+      } else if (message.key === SPATIAL_PROFILE_KEY) {
+        provider.setSpatialAudio(provider.spatialEnabled, message.value);
+      }
     }
   });
 

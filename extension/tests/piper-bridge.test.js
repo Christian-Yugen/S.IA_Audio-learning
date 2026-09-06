@@ -135,6 +135,33 @@ function createHarness({ engine = "browser", failGeneration = false, audioBlocke
         connect() {}
       };
     }
+
+    createPanner() {
+      return {
+        panningModel: "HRTF",
+        distanceModel: "inverse",
+        refDistance: 1,
+        maxDistance: 10000,
+        rolloffFactor: 1,
+        coneInnerAngle: 360,
+        positionX: { value: 0, setValueAtTime(v) { this.value = v; } },
+        positionY: { value: 0, setValueAtTime(v) { this.value = v; } },
+        positionZ: { value: 0, setValueAtTime(v) { this.value = v; } },
+        setPosition(x, y, z) {
+          this.positionX.value = x;
+          this.positionY.value = y;
+          this.positionZ.value = z;
+        },
+        connect() {}
+      };
+    }
+
+    createConvolver() {
+      return {
+        buffer: null,
+        connect() {}
+      };
+    }
   }
 
   const context = {
@@ -370,5 +397,66 @@ test("transição suave entre legendas: não interrompe a fala anterior e reprod
 
   assert.deepEqual(events, ["start-1", "end-1", "start-2", "end-2"]);
   assert.equal(harness.played.length, 2);
+});
+
+test("configura e posiciona a voz 3D no espaço binaural HRTF com os presets corretos", async () => {
+  const harness = createHarness();
+  harness.provider.setActive("piper-local");
+  await harness.provider.ensureAudioContext(22050);
+
+  const status = harness.provider.status();
+  assert.equal(status.spatialAudio, true);
+  assert.equal(status.spatialProfile, "interpreter");
+
+  const stage = harness.provider.spatialStage;
+  assert.ok(stage);
+  assert.equal(stage.pannerNode.panningModel, "HRTF");
+
+  // Perfil padrão: Intérprete (+25° à direita, 1m)
+  assert.equal(stage.pannerNode.positionX.value, 0.42);
+  assert.equal(stage.pannerNode.positionY.value, 0.09);
+  assert.equal(stage.pannerNode.positionZ.value, -0.91);
+  assert.equal(stage.reverbGain.gain.value, 0.08);
+
+  // Alterna para Palco Frontal (0° frente, 1.6m)
+  harness.provider.setSpatialAudio(true, "stage");
+  assert.equal(stage.pannerNode.positionX.value, 0.00);
+  assert.equal(stage.pannerNode.positionY.value, 0.28);
+  assert.equal(stage.pannerNode.positionZ.value, -1.58);
+  assert.equal(stage.reverbGain.gain.value, 0.12);
+
+  // Alterna para Proximidade VIP (+15° direita, 0.6m)
+  harness.provider.setSpatialAudio(true, "intimate");
+  assert.equal(stage.pannerNode.positionX.value, 0.16);
+  assert.equal(stage.pannerNode.positionY.value, 0.00);
+  assert.equal(stage.pannerNode.positionZ.value, -0.58);
+  assert.equal(stage.reverbGain.gain.value, 0.05);
+
+  // Desativa o áudio 3D (modo flat bypass)
+  harness.provider.setSpatialAudio(false, "intimate");
+  assert.equal(stage.pannerNode.positionX.value, 0.00);
+  assert.equal(stage.pannerNode.positionY.value, 0.00);
+  assert.equal(stage.pannerNode.positionZ.value, -1.00);
+  assert.equal(stage.reverbGain.gain.value, 0);
+});
+
+test("atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE", async () => {
+  const harness = createHarness();
+  harness.provider.setActive("piper-local");
+  await harness.provider.ensureAudioContext(22050);
+
+  // Simula mensagem de atualização de perfil vinda do popup
+  harness.listeners.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_profile", value: "stage" });
+  });
+  assert.equal(harness.provider.status().spatialProfile, "stage");
+  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.00);
+
+  // Simula desativação do áudio 3D vinda do popup
+  harness.listeners.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_audio", value: false });
+  });
+  assert.equal(harness.provider.status().spatialAudio, false);
+  assert.equal(harness.provider.spatialStage.reverbGain.gain.value, 0);
 });
 
