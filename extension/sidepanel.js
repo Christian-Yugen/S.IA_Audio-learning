@@ -8,6 +8,7 @@
     count: document.getElementById("history-count"),
     exportSaved: document.getElementById("export-saved"),
     clearHistory: document.getElementById("clear-history"),
+    toggleHistoryExpand: document.getElementById("toggle-history-expand"),
     generateTranscript: document.getElementById("generate-transcript"),
     replayTranscript: document.getElementById("replay-transcript"),
     downloadTranscript: document.getElementById("download-transcript"),
@@ -22,8 +23,10 @@
     waveformStatusBadge: document.getElementById("waveform-status-badge"),
     waveformStatusText: document.getElementById("waveform-status-text"),
   };
+  const MAX_COLLAPSED_ITEMS = 4;
   let entries = [];
   let filter = "all";
+  let isHistoryExpanded = false;
   let transcript = null;
 
   class StudioGraphicEqualizer {
@@ -469,6 +472,9 @@
     renderTranscript();
 
     if (!visible.length) {
+      if (ui.toggleHistoryExpand) {
+        ui.toggleHistoryExpand.hidden = true;
+      }
       const empty = document.createElement("p");
       empty.className = "empty";
       empty.textContent = filter === "favorites"
@@ -478,7 +484,26 @@
       return;
     }
 
-    [...visible].reverse().forEach(entry => {
+    const reversed = [...visible].reverse();
+    const hasMore = reversed.length > MAX_COLLAPSED_ITEMS;
+    const itemsToRender = (!isHistoryExpanded && hasMore)
+      ? reversed.slice(0, MAX_COLLAPSED_ITEMS)
+      : reversed;
+
+    if (ui.toggleHistoryExpand) {
+      if (hasMore) {
+        ui.toggleHistoryExpand.hidden = false;
+        ui.toggleHistoryExpand.setAttribute("aria-expanded", isHistoryExpanded ? "true" : "false");
+        const remaining = reversed.length - MAX_COLLAPSED_ITEMS;
+        ui.toggleHistoryExpand.textContent = isHistoryExpanded
+          ? "↑ Recolher para 4 mais recentes"
+          : `↓ Ver frases anteriores (+${remaining})`;
+      } else {
+        ui.toggleHistoryExpand.hidden = true;
+      }
+    }
+
+    itemsToRender.forEach(entry => {
       const item = ui.template.content.firstElementChild.cloneNode(true);
       item.querySelector(".time").textContent = formatTime(entry.inicio);
       item.querySelector("p").textContent = entry.texto;
@@ -620,9 +645,16 @@
     if (result?.ok) {
       entries = [];
       transcript = null;
+      isHistoryExpanded = false;
       render();
     }
   });
+  if (ui.toggleHistoryExpand) {
+    ui.toggleHistoryExpand.addEventListener("click", () => {
+      isHistoryExpanded = !isHistoryExpanded;
+      render();
+    });
+  }
   ui.filters.forEach(button => button.addEventListener("click", () => {
     filter = button.dataset.filter;
     ui.filters.forEach(item => item.classList.toggle("active", item === button));

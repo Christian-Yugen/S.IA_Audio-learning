@@ -203,6 +203,37 @@ nav { justify-content: flex-start; gap: 8px; }
 .note-text:empty { display: none; }
 .empty { padding: 24px 10px; color: var(--muted); text-align: center; line-height: 1.5; }
 
+.history-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: rgb(24 24 24 / 70%);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.history-expand-toggle:hover {
+  background: rgb(46 204 113 / 10%);
+  border-color: rgb(46 204 113 / 40%);
+}
+
+.history-expand-toggle:active {
+  transform: scale(0.99);
+}
+
+.history-expand-toggle[hidden] {
+  display: none !important;
+}
+
 .transcript-card {
   border: 1px solid rgb(92 160 255 / 32%);
   border-radius: 12px;

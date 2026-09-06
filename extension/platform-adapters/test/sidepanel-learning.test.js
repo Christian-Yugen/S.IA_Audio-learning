@@ -96,7 +96,7 @@ function baseStudyContext(overrides = {}) {
 function createHarness({ context = baseStudyContext(), transcriptResponse = null, replayTranscriptResponse = null } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
-    "history-item-template",
+    "history-item-template", "toggle-history-expand",
     "generate-transcript", "replay-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
     "equalizer-canvas", "equalizer-stage", "waveform-status-badge", "waveform-status-text",
   ];
@@ -213,6 +213,43 @@ test("sidepanel limpa o histórico da aula ao confirmar", async () => {
   assert.deepEqual(lastMessage(harness, "SIA_CLEAR_HISTORY"), { type: "SIA_CLEAR_HISTORY" });
   await harness.flush();
   assert.equal(harness.elements.get("#history-count").textContent, "0 frases");
+});
+
+test("sidepanel exibe apenas os 4 trechos mais recentes por padrão e expande sob demanda", async () => {
+  const sixHistory = Array.from({ length: 6 }, (_, i) => ({
+    id: `history-${i + 1}`,
+    inicio: (i + 1) * 10,
+    texto: `Frase número ${i + 1}`,
+    favorito: false,
+    nota: "",
+    titulo: "Aula de teste",
+    url: "https://coursera.org/learn/test/lecture/1",
+  }));
+  const harness = createHarness({ context: baseStudyContext({ history: sixHistory }) });
+  await harness.flush();
+
+  const historyEl = harness.elements.get("#history");
+  const toggleBtn = harness.elements.get("#toggle-history-expand");
+
+  // Por padrão, deve exibir apenas os 4 mais recentes e o botão de expandir (+2)
+  assert.equal(historyEl.children.length, 4);
+  assert.equal(toggleBtn.hidden, false);
+  assert.match(toggleBtn.textContent, /Ver frases anteriores \(\+2\)/);
+
+  // A primeira frase renderizada no topo deve ser a mais recente (número 6)
+  assert.equal(historyEl.children[0].querySelector("p").textContent, "Frase número 6");
+
+  // Ao clicar em expandir, exibe todos os 6 cards
+  toggleBtn.listener("click")();
+  await harness.flush();
+  assert.equal(historyEl.children.length, 6);
+  assert.match(toggleBtn.textContent, /Recolher para 4 mais recentes/);
+
+  // Ao clicar novamente, recolhe de volta para os 4 mais recentes
+  toggleBtn.listener("click")();
+  await harness.flush();
+  assert.equal(historyEl.children.length, 4);
+  assert.match(toggleBtn.textContent, /Ver frases anteriores \(\+2\)/);
 });
 
 test("sidepanel explica quando não existe aula compatível e desabilita transcrição", async () => {
