@@ -36,7 +36,7 @@
     let ultimoIdEntregaTraducao = 0;
     let videoEstavaPausado = false;
     let duckingAtivo = true;
-    let duckingNivel = 0.15;
+    let duckingNivel = 0.0;
     let volumeBaseVideo = null;
     let duckingAnimId = null;
     let duckingHoldTimer = null;
@@ -2314,6 +2314,23 @@
                 }
                 break;
             }
+            case "sia_spatial_audio":
+            case "sia_spatial_profile":
+            case "sia_spatial_angle":
+            case "sia_spatial_distance": {
+                if (globalThis.SiaPiperVoice) {
+                    if (chave === "sia_spatial_audio" && globalThis.SiaPiperVoice.setSpatialAudio) {
+                        globalThis.SiaPiperVoice.setSpatialAudio(Boolean(valor), undefined);
+                    } else if (chave === "sia_spatial_profile" && globalThis.SiaPiperVoice.setSpatialAudio) {
+                        globalThis.SiaPiperVoice.setSpatialAudio(undefined, String(valor));
+                    } else if (chave === "sia_spatial_angle" && globalThis.SiaPiperVoice.setSpatialPosition) {
+                        globalThis.SiaPiperVoice.setSpatialPosition(Number(valor), undefined, undefined);
+                    } else if (chave === "sia_spatial_distance" && globalThis.SiaPiperVoice.setSpatialPosition) {
+                        globalThis.SiaPiperVoice.setSpatialPosition(undefined, Number(valor), undefined);
+                    }
+                }
+                break;
+            }
         }
     }
 
@@ -2329,7 +2346,11 @@
             "sia_voice_engine",
             "sia_translate_en_pt",
             "sia_ducking",
-            "sia_ducking_level"
+            "sia_ducking_level",
+            "sia_spatial_audio",
+            "sia_spatial_profile",
+            "sia_spatial_angle",
+            "sia_spatial_distance"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
@@ -2527,6 +2548,85 @@
                 return true;
             }
 
+            if (mensagem?.type === "SIA_TEST_SPATIAL_AUDIO") {
+                const provider = globalThis.SiaPiperVoice;
+                if (!provider?.isActive?.()) {
+                    provider?.setActive?.("piper-local");
+                }
+
+                const angle = Number.isFinite(Number(mensagem.angle)) ? Number(mensagem.angle) : 0;
+                const distance = Number.isFinite(Number(mensagem.distance)) ? Number(mensagem.distance) : 1.0;
+                const enabled = mensagem.enabled !== false;
+
+                if (provider?.setSpatialPosition) {
+                    provider.setSpatialPosition(angle, distance, enabled);
+                } else if (provider?.setSpatialAudio) {
+                    provider.setSpatialAudio(enabled, "stage");
+                }
+
+                provider?.cancel?.();
+                let respondeu = false;
+                let timeoutResposta = 0;
+                const responderUmaVez = resultado => {
+                    if (respondeu) return;
+                    respondeu = true;
+                    clearTimeout(timeoutResposta);
+                    responder(resultado);
+                };
+
+                const posTexto = angle === 0
+                    ? "no centro frontal"
+                    : (angle > 0 ? `${angle} graus à sua direita` : `${Math.abs(angle)} graus à sua esquerda`);
+                const textoTeste = mensagem.text || `Posicionamento acústico confirmado. A S·IA está falando ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
+
+                const utterance = {
+                    text: normalizarTexto(textoTeste),
+                    lang: idiomaFala,
+                    rate: velocidadeFala,
+                    pitch: tomFala,
+                    volume: volumeFala,
+                    onstart: () => {
+                        responderUmaVez({
+                            ok: true,
+                            started: true,
+                            angle,
+                            distance,
+                            state: "playing"
+                        });
+                    },
+                    onend: () => {
+                        responderUmaVez({
+                            ok: true,
+                            started: true,
+                            angle,
+                            distance,
+                            state: "finished"
+                        });
+                    },
+                    onerror: evento => {
+                        responderUmaVez({
+                            ok: false,
+                            reason: evento?.error || "spatial-error",
+                            message: evento?.message || "Falha ao reproduzir áudio espacial de teste"
+                        });
+                    }
+                };
+
+                const enfileirada = provider?.speak?.(utterance) === true;
+                if (!enfileirada) {
+                    responderUmaVez({ ok: false, reason: "speak-failed", message: "Não foi possível enfileirar áudio espacial" });
+                    return;
+                }
+                timeoutResposta = setTimeout(() => {
+                    responderUmaVez({
+                        ok: false,
+                        reason: "timeout",
+                        message: "Tempo limite na reprodução do áudio de teste"
+                    });
+                }, 20000);
+                return true;
+            }
+
             if (mensagem?.type === "SIA_GET_STATUS") {
                 const video = document.querySelector("video");
                 responder({
@@ -2562,6 +2662,10 @@
                     duckingActive: Boolean(duckingEmAndamento || volumeBaseVideo !== null),
                     duckingEnabled: duckingAtivo,
                     duckingLevel: duckingNivel,
+                    spatialAudio: globalThis.SiaPiperVoiceStatus?.().spatialAudio ?? true,
+                    spatialProfile: globalThis.SiaPiperVoiceStatus?.().spatialProfile || "stage",
+                    spatialAngle: globalThis.SiaPiperVoiceStatus?.().spatialAngle ?? 0,
+                    spatialDistance: globalThis.SiaPiperVoiceStatus?.().spatialDistance ?? 1.0,
                     platformId: PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera",
                     platformActive: plataformaAtiva,
                     platformDiagnostic: globalThis.SiaCoreDiagnostic?.get?.() || null

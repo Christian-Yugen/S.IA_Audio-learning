@@ -116,14 +116,14 @@
         <span class="ducking-profiles-title">Nível durante a fala</span>
         <div class="ducking-profile-options" role="radiogroup" aria-label="Perfil de atenuação do áudio do vídeo">
           <label class="ducking-profile-pill">
+            <input id="ducking-profile-focus" type="radio" name="ducking-level" value="0" checked>
+            <span class="pill-badge">Foco Total</span>
+            <span class="pill-desc">0% · Dublagem Limpa</span>
+          </label>
+          <label class="ducking-profile-pill">
             <input id="ducking-profile-cinema" type="radio" name="ducking-level" value="0.15">
             <span class="pill-badge">Cinema</span>
             <span class="pill-desc">15% · Suave</span>
-          </label>
-          <label class="ducking-profile-pill">
-            <input id="ducking-profile-focus" type="radio" name="ducking-level" value="0">
-            <span class="pill-badge">Foco Total</span>
-            <span class="pill-desc">0% · Mudo</span>
           </label>
           <label class="ducking-profile-pill">
             <input id="ducking-profile-bilingual" type="radio" name="ducking-level" value="0.4">
@@ -131,7 +131,33 @@
             <span class="pill-desc">40% · Audível</span>
           </label>
         </div>
-        <small id="ducking-profile-hint" class="ducking-profile-hint">O som original recua para 15% como fundo discreto.</small>
+        <small id="ducking-profile-hint" class="ducking-profile-hint">Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.</small>
+      </div>
+      <label class="platform-scope translation-toggle" style="margin-top: 14px;">
+        <input id="spatial-audio" type="checkbox" checked>
+        <span>Áudio Espacial 3D (Binaural HRTF) 🎧</span>
+      </label>
+      <small>Posiciona a voz da S·IA no espaço 3D para evitar cansaço auditivo e separar a fala do vídeo.</small>
+      <div id="spatial-profiles-container" class="ducking-profiles">
+        <span class="ducking-profiles-title">Palco Sonoro Tridimensional</span>
+        <div class="ducking-profile-options" role="radiogroup" aria-label="Perfil do palco sonoro 3D">
+          <label class="ducking-profile-pill">
+            <input id="spatial-profile-stage" type="radio" name="spatial-profile" value="stage" checked>
+            <span class="pill-badge">Palco Frontal</span>
+            <span class="pill-desc">Frente · Na Tela</span>
+          </label>
+          <label class="ducking-profile-pill">
+            <input id="spatial-profile-interpreter" type="radio" name="spatial-profile" value="interpreter">
+            <span class="pill-badge">Intérprete</span>
+            <span class="pill-desc">+25° · Ao seu lado</span>
+          </label>
+          <label class="ducking-profile-pill">
+            <input id="spatial-profile-intimate" type="radio" name="spatial-profile" value="intimate">
+            <span class="pill-badge">Proximidade</span>
+            <span class="pill-desc">+15° · Estúdio VIP</span>
+          </label>
+        </div>
+        <small id="spatial-profile-hint" class="ducking-profile-hint">Palco Frontal: voz alinhada diretamente com a tela da aula, com profundidade 3D natural.</small>
       </div>
     </section>
 

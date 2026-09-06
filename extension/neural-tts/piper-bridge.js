@@ -4,15 +4,68 @@
   const ENGINE_KEY = "sia_voice_engine";
   const ENGINE_PIPER = "piper-local";
   const ENGINE_BROWSER = "browser";
-const WORKER_PATH = "neural-tts/piper-worker.js";
-const RUNTIME_PATHS = Object.freeze({
-  worker: WORKER_PATH,
-  wasmRuntime: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.js",
-  ttsRuntime: "neural-tts/runtime/sherpa-onnx-tts.js",
-  wasm: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.wasm",
-  data: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.data"
-});
-const READY_TIMEOUT_MS = 30000;
+  const SPATIAL_KEY = "sia_spatial_audio";
+  const SPATIAL_PROFILE_KEY = "sia_spatial_profile";
+  const SPATIAL_ANGLE_KEY = "sia_spatial_angle";
+  const SPATIAL_DISTANCE_KEY = "sia_spatial_distance";
+
+  const SPATIAL_PROFILES = Object.freeze({
+    stage: Object.freeze({
+      name: "Palco Frontal",
+      angle: 0,
+      distance: 1.0,
+      x: 0.00,
+      y: 0.15,
+      z: -1.00,
+      clarityBoost: 1.5
+    }),
+    center: Object.freeze({
+      name: "Frente (0°)",
+      angle: 0,
+      distance: 1.0,
+      x: 0.00,
+      y: 0.15,
+      z: -1.00,
+      clarityBoost: 1.5
+    }),
+    interpreter: Object.freeze({
+      name: "Intérprete Particular",
+      angle: 25,
+      distance: 1.0,
+      x: 0.42,
+      y: 0.15,
+      z: -0.91,
+      clarityBoost: 1.5
+    }),
+    side: Object.freeze({
+      name: "Lado (+60°)",
+      angle: 60,
+      distance: 1.2,
+      x: 1.04,
+      y: 0.15,
+      z: -0.60,
+      clarityBoost: 1.5
+    }),
+    intimate: Object.freeze({
+      name: "Proximidade VIP",
+      angle: 15,
+      distance: 0.6,
+      x: 0.16,
+      y: 0.15,
+      z: -0.58,
+      clarityBoost: 2.0
+    })
+  });
+
+  const WORKER_PATH = "neural-tts/piper-worker.js";
+  const RUNTIME_PATHS = Object.freeze({
+    worker: WORKER_PATH,
+    wasmRuntime: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.js",
+    ttsRuntime: "neural-tts/runtime/sherpa-onnx-tts.js",
+    wasm: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.wasm",
+    data: "neural-tts/runtime/sherpa-onnx-wasm-main-tts.data"
+  });
+  const READY_TIMEOUT_MS = 30000;
   const GENERATE_TIMEOUT_MS = 20000;
   const AUDIO_RESUME_TIMEOUT_MS = 1200;
   const MAX_AUDIO_CACHE = 8;
@@ -54,6 +107,322 @@ const READY_TIMEOUT_MS = 30000;
     }
   }
 
+  class SiaSpatialStage {
+    constructor(audioContext) {
+      this.context = audioContext;
+      this.enabled = true;
+      this.profileKey = "stage";
+      this.angle = 0;
+      this.distance = 1.0;
+      this.input = null;
+      this.output = null;
+      this.pannerNode = null;
+      this.stereoPanner = null;
+      this.leftGain = null;
+      this.rightGain = null;
+      this.leftDelay = null;
+      this.rightDelay = null;
+      this.merger = null;
+      this.distanceFilter = null;
+      this.clarityFilter = null;
+      this.distanceGain = null;
+      this.spatialGain = null;
+      this.bypassGain = null;
+      this.initNodes();
+    }
+
+    initNodes() {
+      if (!this.context) return;
+      try {
+        const sampleRate = Number(this.context?.sampleRate) || 22050;
+        const nyquist = sampleRate / 2;
+        const maxFreq = Math.min(10000, Math.floor(nyquist * 0.92));
+
+        this.input = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.output = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.spatialGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.distanceGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        if (this.bypassGain) {
+          this.bypassGain.gain.value = 0.0;
+        }
+
+        // 1. Filtro de absorção do ar (seguro dentro do limite de Nyquist para evitar clamping)
+        if (typeof this.context.createBiquadFilter === "function") {
+          this.distanceFilter = this.context.createBiquadFilter();
+          this.distanceFilter.type = "lowpass";
+          this.distanceFilter.frequency.value = maxFreq;
+          this.distanceFilter.Q.value = 0.7;
+
+          // 2. Filtro de presença vocal e brilho cristalino 4K (peaking em 3.8kHz)
+          this.clarityFilter = this.context.createBiquadFilter();
+          this.clarityFilter.type = "peaking";
+          this.clarityFilter.frequency.value = 3800;
+          this.clarityFilter.Q.value = 0.9;
+          this.clarityFilter.gain.value = 1.5;
+        }
+
+        // 3. Estágio Binaural Cirúrgico para Fones de Ouvido (ILD + ITD discretos por canal)
+        if (typeof this.context.createGain === "function") {
+          this.leftGain = this.context.createGain();
+          this.rightGain = this.context.createGain();
+        }
+        if (typeof this.context.createDelay === "function") {
+          this.leftDelay = this.context.createDelay(0.01);
+          this.rightDelay = this.context.createDelay(0.01);
+        }
+        if (typeof this.context.createChannelMerger === "function") {
+          this.merger = this.context.createChannelMerger(2);
+        }
+
+        // Nós padrão mantidos para compatibilidade com a Web Audio API e testes
+        if (typeof this.context.createPanner === "function") {
+          this.pannerNode = this.context.createPanner();
+          this.pannerNode.panningModel = "equalpower";
+          this.pannerNode.distanceModel = "inverse";
+          this.pannerNode.refDistance = 1.0;
+          this.pannerNode.maxDistance = 10000;
+          this.pannerNode.rolloffFactor = 0.5;
+          this.pannerNode.coneInnerAngle = 360;
+        }
+
+        if (typeof this.context.createStereoPanner === "function") {
+          this.stereoPanner = this.context.createStereoPanner();
+        }
+
+        this.connectNodes();
+        this.applyPosition(this.angle, this.distance, this.enabled);
+      } catch (err) {
+        console.warn("[S·IA Spatial Stage] inicialização fallback", err);
+      }
+    }
+
+    connectNodes() {
+      if (!this.input || !this.output) return;
+      try {
+        // 1. Rota Bypass direto (ativada somente quando o áudio 3D estiver desligado)
+        if (this.bypassGain) {
+          this.input.connect(this.bypassGain);
+          this.bypassGain.connect(this.output);
+        }
+
+        // 2. Cadeia mono acústica: input -> distanceFilter -> clarityFilter
+        let monoChain = this.input;
+        if (this.distanceFilter) {
+          monoChain.connect(this.distanceFilter);
+          monoChain = this.distanceFilter;
+        }
+        if (this.clarityFilter) {
+          monoChain.connect(this.clarityFilter);
+          monoChain = this.clarityFilter;
+        }
+
+        // 3. Rota Espacial Binaural para Fones de Ouvido (ILD + ITD discretos por canal):
+        if (this.merger && this.leftGain && this.rightGain) {
+          // Ramo Esquerdo: monoChain -> (leftDelay) -> leftGain -> merger canal 0
+          if (this.leftDelay) {
+            monoChain.connect(this.leftDelay);
+            this.leftDelay.connect(this.leftGain);
+          } else {
+            monoChain.connect(this.leftGain);
+          }
+          this.leftGain.connect(this.merger, 0, 0);
+
+          // Ramo Direito: monoChain -> (rightDelay) -> rightGain -> merger canal 1
+          if (this.rightDelay) {
+            monoChain.connect(this.rightDelay);
+            this.rightDelay.connect(this.rightGain);
+          } else {
+            monoChain.connect(this.rightGain);
+          }
+          this.rightGain.connect(this.merger, 0, 1);
+
+          // Pós-Merger Estéreo: merger -> distanceGain -> spatialGain -> output
+          let stereo = this.merger;
+          if (this.distanceGain) {
+            stereo.connect(this.distanceGain);
+            stereo = this.distanceGain;
+          }
+          if (this.spatialGain) {
+            stereo.connect(this.spatialGain);
+            this.spatialGain.connect(this.output);
+          } else {
+            stereo.connect(this.output);
+          }
+        } else if (this.stereoPanner) {
+          // Fallback se ChannelMerger indisponível
+          let current = monoChain;
+          current.connect(this.stereoPanner);
+          current = this.stereoPanner;
+          if (this.distanceGain) {
+            current.connect(this.distanceGain);
+            current = this.distanceGain;
+          }
+          if (this.spatialGain) {
+            current.connect(this.spatialGain);
+            this.spatialGain.connect(this.output);
+          } else {
+            current.connect(this.output);
+          }
+        } else {
+          monoChain.connect(this.output);
+        }
+      } catch (err) {
+        try { this.input.connect(this.output); } catch {}
+      }
+    }
+
+    applyPosition(angle = 0, distance = 1.0, enabled = true) {
+      this.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+      this.distance = Math.max(0.3, Math.min(2.5, Number.isFinite(Number(distance)) ? Number(distance) : 1.0));
+      this.enabled = Boolean(enabled);
+
+      const currentTime = Number(this.context?.currentTime) || 0;
+
+      if (!this.enabled) {
+        // Modo Desativado: Bypass 100% aberto, canal espacial zerado
+        if (this.bypassGain?.gain) {
+          this.bypassGain.gain.value = 1.0;
+          try { this.bypassGain.gain.setValueAtTime(1.0, currentTime); } catch {}
+        }
+        if (this.spatialGain?.gain) {
+          this.spatialGain.gain.value = 0.0;
+          try { this.spatialGain.gain.setValueAtTime(0.0, currentTime); } catch {}
+        }
+        if (this.leftGain?.gain) this.leftGain.gain.value = 1.0;
+        if (this.rightGain?.gain) this.rightGain.gain.value = 1.0;
+        if (this.leftDelay?.delayTime) this.leftDelay.delayTime.value = 0;
+        if (this.rightDelay?.delayTime) this.rightDelay.delayTime.value = 0;
+        if (this.stereoPanner?.pan) {
+          this.stereoPanner.pan.value = 0;
+          try { this.stereoPanner.pan.setValueAtTime(0, currentTime); } catch {}
+        }
+        if (this.pannerNode?.positionX) {
+          this.pannerNode.positionX.value = 0;
+          this.pannerNode.positionY.value = 0;
+          this.pannerNode.positionZ.value = -1;
+          try {
+            this.pannerNode.positionX.setValueAtTime(0, currentTime);
+            this.pannerNode.positionY.setValueAtTime(0, currentTime);
+            this.pannerNode.positionZ.setValueAtTime(-1, currentTime);
+          } catch {}
+        } else if (typeof this.pannerNode?.setPosition === "function") {
+          this.pannerNode.setPosition(0, 0, -1);
+        }
+        return;
+      }
+
+      // Modo Espacial 4K Ativo: isola bypass para evitar qualquer vazamento de áudio plano
+      if (this.bypassGain?.gain) {
+        this.bypassGain.gain.value = 0.0;
+        try { this.bypassGain.gain.setValueAtTime(0.0, currentTime); } catch {}
+      }
+      if (this.spatialGain?.gain) {
+        this.spatialGain.gain.value = 1.15;
+        try { this.spatialGain.gain.setValueAtTime(1.15, currentTime); } catch {}
+      }
+
+      // 1. Atenuação e Proximidade de Distância (Volume perceptível e marcante)
+      let distVol;
+      if (this.distance <= 1.0) {
+        distVol = 1.0 + (1.0 - this.distance) * 0.45; // 0.3m -> 1.31x (+2.4dB) | 1.0m -> 1.00x
+      } else {
+        const norm = (this.distance - 1.0) / 1.5;
+        distVol = Math.max(0.40, 1.0 - norm * 0.55); // 1.0m -> 1.00x | 2.5m -> 0.45x (-7dB)
+      }
+      const distVal = Number(distVol.toFixed(3));
+      if (this.distanceGain?.gain) {
+        this.distanceGain.gain.value = distVal;
+        try { this.distanceGain.gain.setValueAtTime(distVal, currentTime); } catch {}
+      }
+
+      // 2. Absorção Acústica do Ar (Corte seguro dentro da faixa de Nyquist: [3000, 10000] Hz)
+      const sampleRate = Number(this.context?.sampleRate) || 22050;
+      const nyquist = sampleRate / 2;
+      const maxFreq = Math.min(10000, Math.floor(nyquist * 0.92));
+      const minFreq = Math.max(3000, Math.floor(maxFreq * 0.42));
+      const normDist = Math.max(0, Math.min(1, (this.distance - 0.3) / 2.2));
+      const cutoff = Math.round(maxFreq - normDist * (maxFreq - minFreq));
+      if (this.distanceFilter?.frequency) {
+        this.distanceFilter.frequency.value = cutoff;
+        try { this.distanceFilter.frequency.setValueAtTime(cutoff, currentTime); } catch {}
+      }
+
+      // 3. Realce de presença vocal em 3.8kHz (intenso de perto, natural de longe)
+      const clarity = Math.max(0.5, 2.5 * (1 - normDist * 0.8));
+      const clarityVal = Number(clarity.toFixed(2));
+      if (this.clarityFilter?.gain) {
+        this.clarityFilter.gain.value = clarityVal;
+        try { this.clarityFilter.gain.setValueAtTime(clarityVal, currentTime); } catch {}
+      }
+
+      // 4. Posicionamento de referência no PannerNode e StereoPanner
+      const rad = (this.angle * Math.PI) / 180;
+      const x = Number((this.distance * Math.sin(rad)).toFixed(2));
+      const y = 0.15;
+      const z = Number((-this.distance * Math.cos(rad)).toFixed(2));
+
+      if (this.pannerNode?.positionX) {
+        this.pannerNode.positionX.value = x;
+        this.pannerNode.positionY.value = y;
+        this.pannerNode.positionZ.value = z;
+        try {
+          this.pannerNode.positionX.setValueAtTime(x, currentTime);
+          this.pannerNode.positionY.setValueAtTime(y, currentTime);
+          this.pannerNode.positionZ.setValueAtTime(z, currentTime);
+        } catch {}
+      } else if (typeof this.pannerNode?.setPosition === "function") {
+        this.pannerNode.setPosition(x, y, z);
+      }
+
+      const pan = Math.max(-1.0, Math.min(1.0, Math.sin(rad)));
+      const panVal = Number(pan.toFixed(3));
+      if (this.stereoPanner?.pan) {
+        this.stereoPanner.pan.value = panVal;
+        try { this.stereoPanner.pan.setValueAtTime(panVal, currentTime); } catch {}
+      }
+
+      // 5. Separação Binaural Cirúrgica para Fones de Ouvido (ILD + ITD)
+      // Normalização: u de -1.0 (-90° total esq) a +1.0 (+90° total dir)
+      const u = Math.max(-1.0, Math.min(1.0, this.angle / 90));
+      let lGain, rGain;
+      if (u <= 0) {
+        lGain = 1.0;
+        rGain = Math.pow(Math.max(0, 1.0 + u), 1.5);
+      } else {
+        lGain = Math.pow(Math.max(0, 1.0 - u), 1.5);
+        rGain = 1.0;
+      }
+      const lDelay = u > 0 ? u * 0.0006 : 0;
+      const rDelay = u < 0 ? Math.abs(u) * 0.0006 : 0;
+
+      if (this.leftGain?.gain) {
+        const val = Number(lGain.toFixed(3));
+        this.leftGain.gain.value = val;
+        try { this.leftGain.gain.setValueAtTime(val, currentTime); } catch {}
+      }
+      if (this.rightGain?.gain) {
+        const val = Number(rGain.toFixed(3));
+        this.rightGain.gain.value = val;
+        try { this.rightGain.gain.setValueAtTime(val, currentTime); } catch {}
+      }
+      if (this.leftDelay?.delayTime) {
+        this.leftDelay.delayTime.value = lDelay;
+        try { this.leftDelay.delayTime.setValueAtTime(lDelay, currentTime); } catch {}
+      }
+      if (this.rightDelay?.delayTime) {
+        this.rightDelay.delayTime.value = rDelay;
+        try { this.rightDelay.delayTime.setValueAtTime(rDelay, currentTime); } catch {}
+      }
+    }
+
+    applyProfile(profileKey, enabled = true) {
+      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "stage";
+      const config = SPATIAL_PROFILES[this.profileKey];
+      this.applyPosition(config.angle, config.distance, enabled);
+    }
+  }
+
   class PiperLocalProvider {
     constructor() {
       this.worker = null;
@@ -77,6 +446,11 @@ const READY_TIMEOUT_MS = 30000;
       this.inflight = new Map();
       this.warmupPromise = null;
       this.runtimeWarmed = false;
+      this.spatialEnabled = true;
+      this.spatialProfile = "stage";
+      this.spatialAngle = 0;
+      this.spatialDistance = 1.0;
+      this.spatialStage = null;
     }
 
     isActive() {
@@ -109,8 +483,44 @@ const READY_TIMEOUT_MS = 30000;
         queued: this.queue.length + (this.currentRecord ? 1 : 0),
         ready: this.workerState === "ready",
         audioState: this.audioState,
-        audioError: this.audioError
+        audioError: this.audioError,
+        spatialAudio: this.spatialEnabled,
+        spatialProfile: this.spatialProfile,
+        spatialAngle: this.spatialAngle,
+        spatialDistance: this.spatialDistance
       };
+    }
+
+    setSpatialAudio(enabled, profile) {
+      if (typeof enabled === "boolean") {
+        this.spatialEnabled = enabled;
+      }
+      if (typeof profile === "string" && profile) {
+        this.spatialProfile = profile;
+        const cfg = SPATIAL_PROFILES[profile];
+        if (cfg) {
+          this.spatialAngle = cfg.angle;
+          this.spatialDistance = cfg.distance;
+        }
+      }
+      if (this.spatialStage) {
+        this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+      }
+    }
+
+    setSpatialPosition(angle, distance, enabled) {
+      if (Number.isFinite(Number(angle))) {
+        this.spatialAngle = Number(angle);
+      }
+      if (Number.isFinite(Number(distance))) {
+        this.spatialDistance = Math.max(0.3, Math.min(2.5, Number(distance)));
+      }
+      if (typeof enabled === "boolean") {
+        this.spatialEnabled = enabled;
+      }
+      if (this.spatialStage) {
+        this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
+      }
     }
 
     async carregarWorkerLocalComoBlob() {
@@ -357,6 +767,15 @@ const READY_TIMEOUT_MS = 30000;
           this.audioContext = new AudioContextCtor({ sampleRate });
         } catch {
           this.audioContext = new AudioContextCtor();
+        }
+      }
+      if (!this.spatialStage && this.audioContext) {
+        this.spatialStage = new SiaSpatialStage(this.audioContext);
+        this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
+        if (this.spatialStage.output) {
+          try {
+            this.spatialStage.output.connect(this.audioContext.destination);
+          } catch {}
         }
       }
       if (this.audioContext.state === "suspended") {
@@ -609,7 +1028,11 @@ const READY_TIMEOUT_MS = 30000;
         }
 
         source.connect(gain);
-        gain.connect(context.destination);
+        if (this.spatialStage && this.spatialStage.input) {
+          gain.connect(this.spatialStage.input);
+        } else {
+          gain.connect(context.destination);
+        }
         this.currentSource = source;
         this.currentGain = gain;
         this.currentRecord = record;
@@ -708,14 +1131,34 @@ const READY_TIMEOUT_MS = 30000;
   const provider = new PiperLocalProvider();
   globalThis.SiaPiperVoice = provider;
 
-  chrome.storage.local.get(ENGINE_KEY, result => {
+  chrome.storage.local.get([ENGINE_KEY, SPATIAL_KEY, SPATIAL_PROFILE_KEY, SPATIAL_ANGLE_KEY, SPATIAL_DISTANCE_KEY], result => {
     storageReady = true;
     provider.setActive(result[ENGINE_KEY]);
+    if (result[SPATIAL_ANGLE_KEY] !== undefined || result[SPATIAL_DISTANCE_KEY] !== undefined) {
+      const angle = result[SPATIAL_ANGLE_KEY] !== undefined ? Number(result[SPATIAL_ANGLE_KEY]) : 0;
+      const dist = result[SPATIAL_DISTANCE_KEY] !== undefined ? Number(result[SPATIAL_DISTANCE_KEY]) : 1.0;
+      provider.setSpatialPosition(angle, dist, result[SPATIAL_KEY] !== false);
+    } else {
+      provider.setSpatialAudio(
+        result[SPATIAL_KEY] !== false,
+        result[SPATIAL_PROFILE_KEY] || "stage"
+      );
+    }
   });
 
   chrome.runtime.onMessage.addListener(message => {
-    if (message?.type === "SIA_CONFIG_UPDATE" && message.key === ENGINE_KEY) {
-      provider.setActive(message.value);
+    if (message?.type === "SIA_CONFIG_UPDATE") {
+      if (message.key === ENGINE_KEY) {
+        provider.setActive(message.value);
+      } else if (message.key === SPATIAL_KEY) {
+        provider.setSpatialAudio(message.value, provider.spatialProfile);
+      } else if (message.key === SPATIAL_PROFILE_KEY) {
+        provider.setSpatialAudio(provider.spatialEnabled, message.value);
+      } else if (message.key === SPATIAL_ANGLE_KEY) {
+        provider.setSpatialPosition(Number(message.value), provider.spatialDistance, provider.spatialEnabled);
+      } else if (message.key === SPATIAL_DISTANCE_KEY) {
+        provider.setSpatialPosition(provider.spatialAngle, Number(message.value), provider.spatialEnabled);
+      }
     }
   });
 

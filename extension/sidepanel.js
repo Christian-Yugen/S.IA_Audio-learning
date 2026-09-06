@@ -8,7 +8,7 @@
     count: document.getElementById("history-count"),
     exportSaved: document.getElementById("export-saved"),
     clearHistory: document.getElementById("clear-history"),
-    clearStudy: document.getElementById("clear-study"),
+    toggleHistoryExpand: document.getElementById("toggle-history-expand"),
     generateTranscript: document.getElementById("generate-transcript"),
     replayTranscript: document.getElementById("replay-transcript"),
     downloadTranscript: document.getElementById("download-transcript"),
@@ -18,32 +18,15 @@
     lessonTranscript: document.getElementById("lesson-transcript"),
     template: document.getElementById("history-item-template"),
     filters: [...document.querySelectorAll(".filter")],
-    studyProgress: document.getElementById("study-progress"),
-    dueCount: document.getElementById("due-count"),
-    bookmarkType: document.getElementById("bookmark-type"),
-    bookmarkCurrent: document.getElementById("bookmark-current"),
-    studyFeedback: document.getElementById("study-feedback"),
-    recallQuestion: document.getElementById("recall-question"),
-    recallAnswer: document.getElementById("recall-answer"),
-    revealRecall: document.getElementById("reveal-recall"),
-    recallSource: document.getElementById("recall-source"),
-    reviewRatings: [...document.querySelectorAll("[data-rating]")],
     equalizerCanvas: document.getElementById("equalizer-canvas"),
     equalizerStage: document.getElementById("equalizer-stage"),
     waveformStatusBadge: document.getElementById("waveform-status-badge"),
     waveformStatusText: document.getElementById("waveform-status-text"),
   };
+  const MAX_COLLAPSED_ITEMS = 4;
   let entries = [];
-  let study = {
-    enabled: false,
-    currentCue: null,
-    bookmarks: [],
-    cards: [],
-    dueCards: [],
-    progress: null,
-  };
   let filter = "all";
-  let revealedCardId = "";
+  let isHistoryExpanded = false;
   let transcript = null;
 
   class StudioGraphicEqualizer {
@@ -435,58 +418,12 @@
     await send({ type: "SIA_REPLAY_LAST", id });
   }
 
-  async function replayStudyBookmark(id = "") {
-    await send({ type: "SIA_REPLAY_STUDY_BOOKMARK", bookmarkId: id });
-  }
-
   async function updateEntry(id, changes) {
     const result = await send({ type: "SIA_UPDATE_HISTORY_ENTRY", id, ...changes });
     if (!result?.ok) return;
     const index = entries.findIndex(item => item.id === id);
     if (index >= 0) entries[index] = result.entry;
     render();
-  }
-
-  function renderStudy() {
-    const progress = study.progress || {};
-    const due = Array.isArray(study.dueCards) ? study.dueCards : [];
-    const card = due[0] || null;
-    const start = Number(study.currentCue?.startTime);
-    const end = Number(study.currentCue?.endTime);
-    const hasCue = Boolean(
-      study.currentCue?.text
-      && Number.isFinite(start)
-      && Number.isFinite(end)
-      && end > start
-    );
-
-    ui.studyProgress.textContent = progress.total
-      ? `${Number(progress.revisados || 0)} de ${Number(progress.total || 0)} revisados`
-      : "Nenhum cartão ainda";
-    ui.dueCount.textContent = due.length
-      ? `${due.length} ${due.length === 1 ? "cartão agora" : "cartões agora"}`
-      : "0 cartões agora";
-    ui.bookmarkCurrent.disabled = !hasCue;
-    ui.clearStudy.disabled = !study.enabled || (!study.bookmarks.length && !study.cards.length);
-    if (!hasCue && !study.bookmarks.length) {
-      ui.studyFeedback.textContent = "Aguarde uma frase da aula para começar.";
-    } else if (!hasCue) {
-      ui.studyFeedback.textContent = "A marcação aparece quando a S·IA estiver lendo uma frase segura.";
-    }
-
-    ui.recallQuestion.textContent = card?.pergunta
-      || (study.cards.length
-        ? "Você já respondeu tudo por enquanto. Os cartões voltarão no momento certo."
-        : "Ainda não há nada para responder. Guarde um trecho acima e a pergunta aparecerá aqui.");
-    ui.recallAnswer.disabled = !card;
-    ui.revealRecall.disabled = !card;
-    ui.reviewRatings.forEach(button => {
-      button.disabled = !card;
-    });
-
-    const revealed = Boolean(card && revealedCardId === card.id);
-    ui.recallSource.hidden = !revealed;
-    ui.recallSource.textContent = revealed ? card.texto : "";
   }
 
   function transcriptHasSafeTiming() {
@@ -533,9 +470,11 @@
     ui.count.textContent = `${visible.length} ${visible.length === 1 ? "frase" : "frases"}`;
     ui.history.replaceChildren();
     renderTranscript();
-    renderStudy();
 
     if (!visible.length) {
+      if (ui.toggleHistoryExpand) {
+        ui.toggleHistoryExpand.hidden = true;
+      }
       const empty = document.createElement("p");
       empty.className = "empty";
       empty.textContent = filter === "favorites"
@@ -545,7 +484,26 @@
       return;
     }
 
-    [...visible].reverse().forEach(entry => {
+    const reversed = [...visible].reverse();
+    const hasMore = reversed.length > MAX_COLLAPSED_ITEMS;
+    const itemsToRender = (!isHistoryExpanded && hasMore)
+      ? reversed.slice(0, MAX_COLLAPSED_ITEMS)
+      : reversed;
+
+    if (ui.toggleHistoryExpand) {
+      if (hasMore) {
+        ui.toggleHistoryExpand.hidden = false;
+        ui.toggleHistoryExpand.setAttribute("aria-expanded", isHistoryExpanded ? "true" : "false");
+        const remaining = reversed.length - MAX_COLLAPSED_ITEMS;
+        ui.toggleHistoryExpand.textContent = isHistoryExpanded
+          ? "↑ Recolher para 4 mais recentes"
+          : `↓ Ver frases anteriores (+${remaining})`;
+      } else {
+        ui.toggleHistoryExpand.hidden = true;
+      }
+    }
+
+    itemsToRender.forEach(entry => {
       const item = ui.template.content.firstElementChild.cloneNode(true);
       item.querySelector(".time").textContent = formatTime(entry.inicio);
       item.querySelector("p").textContent = entry.texto;
@@ -576,56 +534,21 @@
     const context = await send({ type: "SIA_GET_LEARNING_CONTEXT" });
     if (!context?.ok) {
       setWaveformState("disconnected");
-      study = {
-        enabled: false,
-        currentCue: null,
-        bookmarks: [],
-        cards: [],
-        dueCards: [],
-        progress: null,
-      };
-      revealedCardId = "";
-      ui.current.textContent = "Abra uma aula compatível para acompanhar e revisar a leitura.";
-      ui.bookmarkCurrent.disabled = true;
-      ui.clearStudy.disabled = true;
+      ui.current.textContent = "Abra uma aula compatível para acompanhar a leitura.";
       ui.generateTranscript.disabled = true;
       ui.replayTranscript.disabled = true;
       ui.downloadTranscript.disabled = true;
-      ui.recallAnswer.disabled = true;
-      ui.revealRecall.disabled = true;
-      ui.reviewRatings.forEach(button => { button.disabled = true; });
       transcript = null;
       renderTranscript();
-      ui.studyFeedback.textContent = "Abra uma aula compatível para guardar trechos de estudo.";
-      ui.recallQuestion.textContent = "O estudo começa quando você abrir uma aula compatível.";
       return;
     }
     entries = Array.isArray(context.history) ? context.history : [];
-    study = context.study || study;
     if (context.isSpeaking) {
       setWaveformState("speaking", null, context.currentSpeechText || ui.current?.textContent);
     } else {
       setWaveformState("idle");
     }
     render();
-  }
-
-  async function markCurrent() {
-    const result = await send({
-      type: "SIA_CREATE_STUDY_BOOKMARK",
-      bookmarkType: ui.bookmarkType.value,
-    });
-    if (!result?.ok) {
-      ui.studyFeedback.textContent = result?.reason === "no-temporal-cue"
-        ? "Ainda não há uma frase segura para guardar. Aguarde a próxima leitura."
-        : "Não foi possível guardar este trecho agora. Tente novamente na próxima frase.";
-      return;
-    }
-    const feedback = result.duplicate
-      ? "Este trecho já está guardado. Ele voltará como pergunta na revisão."
-      : "Trecho guardado. Ele virou uma pergunta para você revisar depois.";
-    await refresh();
-    ui.studyFeedback.textContent = feedback;
   }
 
   async function generateTranscript() {
@@ -683,51 +606,10 @@
     ui.transcriptStatus.textContent = "Legenda lida salva no dispositivo.";
   }
 
-  async function reviewCurrent(rating) {
-    const card = study.dueCards?.[0];
-    if (!card) return;
-    const answer = ui.recallAnswer.value.trim();
-    if (rating !== "forgot" && !answer) {
-      ui.studyFeedback.textContent = "Antes de escolher, escreva o que você lembra. É assim que a revisão fortalece a memória.";
-      ui.recallAnswer.focus();
-      return;
-    }
-    const result = await send({
-      type: "SIA_REVIEW_STUDY_CARD",
-      cardId: card.id,
-      rating,
-      answer,
-    });
-    if (!result?.ok) {
-      ui.studyFeedback.textContent = "Não foi possível registrar esta revisão.";
-      return;
-    }
-    revealedCardId = "";
-    ui.recallAnswer.value = "";
-    const feedback = rating === "remembered"
-      ? "Você marcou que lembrou. Este cartão voltará mais tarde para confirmar o aprendizado."
-      : rating === "partial"
-        ? "Você marcou que lembrou uma parte. Este cartão voltará em breve para reforçar o ponto."
-        : "Você marcou que não lembrou. Tudo bem: este cartão voltará em breve para uma nova tentativa.";
-    await refresh();
-    ui.studyFeedback.textContent = feedback;
-  }
-
   ui.replayCurrent.addEventListener("click", () => replay());
   ui.generateTranscript.addEventListener("click", () => void generateTranscript());
   ui.replayTranscript.addEventListener("click", () => void replayTranscript());
   ui.downloadTranscript.addEventListener("click", downloadTranscriptFile);
-  ui.bookmarkCurrent.addEventListener("click", () => void markCurrent());
-  ui.revealRecall.addEventListener("click", () => {
-    const card = study.dueCards?.[0];
-    if (!card) return;
-    revealedCardId = revealedCardId === card.id ? "" : card.id;
-    ui.recallSource.hidden = revealedCardId !== card.id;
-    ui.recallSource.textContent = revealedCardId === card.id ? card.texto : "";
-  });
-  ui.reviewRatings.forEach(button => {
-    button.addEventListener("click", () => void reviewCurrent(button.dataset.rating));
-  });
   ui.exportSaved.addEventListener("click", () => {
     const saved = entries.filter(item => item.favorito);
     if (!saved.length) {
@@ -755,18 +637,6 @@
     link.click();
     URL.revokeObjectURL(url);
   });
-  ui.clearStudy.addEventListener("click", async () => {
-    if (!confirm("Apagar todas as marcações e cartões desta aula? O histórico de fala será preservado.")) {
-      return;
-    }
-    const result = await send({ type: "SIA_CLEAR_STUDY" });
-    if (result?.ok) {
-      revealedCardId = "";
-      ui.recallAnswer.value = "";
-      await refresh();
-      ui.studyFeedback.textContent = "Estudo local apagado para esta aula.";
-    }
-  });
   ui.clearHistory.addEventListener("click", async () => {
     if (!confirm("Remover o histórico desta aula? Os trechos salvos também serão apagados.")) {
       return;
@@ -775,9 +645,16 @@
     if (result?.ok) {
       entries = [];
       transcript = null;
+      isHistoryExpanded = false;
       render();
     }
   });
+  if (ui.toggleHistoryExpand) {
+    ui.toggleHistoryExpand.addEventListener("click", () => {
+      isHistoryExpanded = !isHistoryExpanded;
+      render();
+    });
+  }
   ui.filters.forEach(button => button.addEventListener("click", () => {
     filter = button.dataset.filter;
     ui.filters.forEach(item => item.classList.toggle("active", item === button));
@@ -798,6 +675,238 @@
       }
     });
   }
+
+  // ==========================================================================
+  // Controle do Palco Sonoro 3D Espacial (dearVR PRO Style)
+  // ==========================================================================
+  const spatialUi = {
+    radar: document.getElementById("spatial-radar"),
+    puck: document.getElementById("spatial-puck"),
+    posBadge: document.getElementById("spatial-pos-badge"),
+    posText: document.getElementById("spatial-pos-text"),
+    angleSlider: document.getElementById("spatial-angle-slider"),
+    distSlider: document.getElementById("spatial-dist-slider"),
+    angleValue: document.getElementById("spatial-angle-value"),
+    distValue: document.getElementById("spatial-dist-value"),
+    presetButtons: [...document.querySelectorAll(".preset-pill")],
+    duckingButtons: [...document.querySelectorAll(".ducking-btn")],
+    duckingModeStatus: document.getElementById("ducking-mode-status"),
+    testBtn: document.getElementById("spatial-test-headphone"),
+    testStatus: document.getElementById("spatial-test-status"),
+  };
+
+  let currentAngle = 0;
+  let currentDistance = 1.0;
+  let currentDucking = 0;
+  let isDraggingPuck = false;
+
+  function updateSpatialPosition(angle, distance, persist = true) {
+    currentAngle = Math.max(-90, Math.min(90, Math.round(Number(angle) || 0)));
+    currentDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
+
+    if (spatialUi.puck) {
+      const rPct = Math.min(45, (currentDistance / 2.0) * 44);
+      const rad = (currentAngle * Math.PI) / 180;
+      const leftPct = 50 + rPct * Math.sin(rad);
+      const topPct = 50 - rPct * Math.cos(rad);
+      spatialUi.puck.style.left = `${leftPct}%`;
+      spatialUi.puck.style.top = `${topPct}%`;
+    }
+
+    if (spatialUi.posText) {
+      const dir = currentAngle === 0
+        ? "Frente"
+        : (currentAngle > 0 ? `+${currentAngle}° Direita` : `${currentAngle}° Esquerda`);
+      spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
+    }
+
+    if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
+    if (spatialUi.distSlider) spatialUi.distSlider.value = currentDistance;
+    if (spatialUi.angleValue) {
+      const dirName = currentAngle === 0 ? "Frente" : (currentAngle > 0 ? "Direita" : "Esquerda");
+      spatialUi.angleValue.textContent = `${currentAngle}° (${dirName})`;
+    }
+    if (spatialUi.distValue) spatialUi.distValue.textContent = `${currentDistance.toFixed(1)} m`;
+
+    spatialUi.presetButtons.forEach(btn => {
+      const bAngle = Number(btn.dataset.angle);
+      const bDist = Number(btn.dataset.dist);
+      const match = Math.abs(bAngle - currentAngle) <= 2 && Math.abs(bDist - currentDistance) <= 0.15;
+      btn.classList.toggle("active", match);
+    });
+
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({
+          sia_spatial_angle: currentAngle,
+          sia_spatial_distance: currentDistance,
+        });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
+    }
+  }
+
+  function updateDuckingUI(level, persist = true) {
+    currentDucking = Math.max(0, Math.min(100, Number(level) || 0));
+    spatialUi.duckingButtons.forEach(btn => {
+      const val = Number(btn.dataset.ducking);
+      btn.classList.toggle("active", val === currentDucking);
+    });
+
+    if (spatialUi.duckingModeStatus) {
+      if (currentDucking === 0) {
+        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo durante fala)";
+      } else if (currentDucking <= 20) {
+        spatialUi.duckingModeStatus.textContent = `Fundo Suave (${currentDucking}% vídeo durante fala)`;
+      } else {
+        spatialUi.duckingModeStatus.textContent = `Bilíngue (${currentDucking}% vídeo durante fala)`;
+      }
+    }
+
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({ sia_ducking_level: currentDucking });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_ducking_level", value: currentDucking });
+    }
+  }
+
+  function setupSpatialControls() {
+    if (!spatialUi.radar || !spatialUi.puck) return;
+
+    function handlePointerCoord(clientX, clientY) {
+      const rect = spatialUi.radar.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+
+      const distPx = Math.sqrt(dx * dx + dy * dy);
+      const maxR = rect.width * 0.44;
+      const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
+      const dist = Math.round(normDist * 2.0 * 10) / 10;
+
+      const angleRad = Math.atan2(dx, -dy);
+      let angleDeg = Math.round((angleRad * 180) / Math.PI);
+      angleDeg = Math.max(-90, Math.min(90, angleDeg));
+
+      updateSpatialPosition(angleDeg, dist, true);
+    }
+
+    spatialUi.puck.addEventListener("pointerdown", e => {
+      isDraggingPuck = true;
+      spatialUi.puck.classList.add("is-dragging");
+      try { spatialUi.puck.setPointerCapture?.(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+
+    spatialUi.puck.addEventListener("pointermove", e => {
+      if (!isDraggingPuck) return;
+      handlePointerCoord(e.clientX, e.clientY);
+    });
+
+    const finishDrag = e => {
+      if (!isDraggingPuck) return;
+      isDraggingPuck = false;
+      spatialUi.puck.classList.remove("is-dragging");
+      try { spatialUi.puck.releasePointerCapture?.(e.pointerId); } catch {}
+    };
+
+    spatialUi.puck.addEventListener("pointerup", finishDrag);
+    spatialUi.puck.addEventListener("pointercancel", finishDrag);
+
+    spatialUi.radar.addEventListener("click", e => {
+      if (e.target === spatialUi.puck || spatialUi.puck.contains(e.target)) return;
+      handlePointerCoord(e.clientX, e.clientY);
+    });
+
+    spatialUi.presetButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const angle = Number(btn.dataset.angle);
+        const dist = Number(btn.dataset.dist);
+        updateSpatialPosition(angle, dist, true);
+      });
+    });
+
+    if (spatialUi.angleSlider) {
+      spatialUi.angleSlider.addEventListener("input", () => {
+        updateSpatialPosition(Number(spatialUi.angleSlider.value), currentDistance, true);
+      });
+    }
+    if (spatialUi.distSlider) {
+      spatialUi.distSlider.addEventListener("input", () => {
+        updateSpatialPosition(currentAngle, Number(spatialUi.distSlider.value), true);
+      });
+    }
+
+    spatialUi.duckingButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        updateDuckingUI(Number(btn.dataset.ducking), true);
+      });
+    });
+
+    if (spatialUi.testBtn) {
+      spatialUi.testBtn.addEventListener("click", async () => {
+        if (spatialUi.testBtn.classList.contains("is-testing")) return;
+        spatialUi.testBtn.classList.add("is-testing");
+        if (spatialUi.testStatus) spatialUi.testStatus.textContent = "Sintetizando e tocando no fone de ouvido...";
+
+        try {
+          const res = await send({
+            type: "SIA_TEST_SPATIAL_AUDIO",
+            angle: currentAngle,
+            distance: currentDistance,
+          });
+
+          if (spatialUi.testStatus) {
+            if (res?.ok) {
+              spatialUi.testStatus.textContent = "✓ Posição confirmada no fone de ouvido!";
+            } else {
+              spatialUi.testStatus.textContent = res?.message || "Abra uma aula com a S·IA ativa para testar.";
+            }
+          }
+        } catch {
+          if (spatialUi.testStatus) {
+            spatialUi.testStatus.textContent = "Não foi possível reproduzir teste na página.";
+          }
+        } finally {
+          spatialUi.testBtn.classList.remove("is-testing");
+          setTimeout(() => {
+            if (spatialUi.testStatus && spatialUi.testStatus.textContent.includes("✓")) {
+              spatialUi.testStatus.textContent = "";
+            }
+          }, 4000);
+        }
+      });
+    }
+
+    try {
+      chrome?.storage?.local?.get?.(
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level"],
+        res => {
+          if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
+            updateSpatialPosition(angle, dist, false);
+          } else {
+            updateSpatialPosition(0, 1.0, false);
+          }
+
+          if (res?.sia_ducking_level !== undefined) {
+            updateDuckingUI(Number(res.sia_ducking_level), false);
+          } else {
+            updateDuckingUI(0, false);
+          }
+        }
+      );
+    } catch {
+      updateSpatialPosition(0, 1.0, false);
+      updateDuckingUI(0, false);
+    }
+  }
+
+  setupSpatialControls();
 
   void refresh();
   setInterval(refresh, 1000);

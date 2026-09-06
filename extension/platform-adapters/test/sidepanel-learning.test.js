@@ -89,43 +89,29 @@ function baseStudyContext(overrides = {}) {
       titulo: "Aula de teste",
       url: "https://coursera.org/learn/test/lecture/1",
     }],
-    study: {
-      enabled: true,
-      currentCue: null,
-      bookmarks: [],
-      cards: [],
-      dueCards: [],
-      progress: { total: 0, revisados: 0, pendentes: 0 },
-    },
     ...overrides,
   };
 }
 
-function createHarness({ context = baseStudyContext(), createResponse = null, reviewResponse = null, transcriptResponse = null, replayTranscriptResponse = null } = {}) {
+function createHarness({ context = baseStudyContext(), transcriptResponse = null, replayTranscriptResponse = null } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
-    "history-item-template", "study-progress", "due-count", "bookmark-type", "bookmark-current", "clear-study",
+    "history-item-template", "toggle-history-expand",
     "generate-transcript", "replay-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
-    "study-feedback", "recall-question", "recall-answer", "reveal-recall", "recall-source",
     "equalizer-canvas", "equalizer-stage", "waveform-status-badge", "waveform-status-text",
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createElement(id)]));
   elements.get("#history-item-template").content = { firstElementChild: createHistoryItem() };
-  elements.get("#bookmark-type").value = "concept";
   const filters = [
     createElement("filter-all", { dataset: { filter: "all" } }),
     createElement("filter-favorites", { dataset: { filter: "favorites" } }),
   ];
   filters[0].classList.add("active");
-  const ratings = ["remembered", "partial", "forgot"].map(rating =>
-    createElement(`rating-${rating}`, { dataset: { rating } })
-  );
   const createdLinks = [];
   const documentRef = {
     getElementById(id) { return elements.get(`#${id}`) || null; },
     querySelectorAll(selector) {
       if (selector === ".filter") return filters;
-      if (selector === "[data-rating]") return ratings;
       return [];
     },
     createElement(tag) {
@@ -171,24 +157,12 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
           fonte: "historico-local",
         };
         if (message.type === "SIA_REPLAY_LESSON_TRANSCRIPT") return replayTranscriptResponse || { ok: true, reason: "transcript-replay-started", inicio: 11.95, fim: 21, totalFrases: 2 };
-        if (message.type === "SIA_CREATE_STUDY_BOOKMARK") return createResponse || { ok: true, duplicate: false };
-        if (message.type === "SIA_REVIEW_STUDY_CARD") return reviewResponse || { ok: true };
-        if (message.type === "SIA_CLEAR_STUDY") {
-          state.context = {
-            ...state.context,
-            study: {
-              enabled: true,
-              currentCue: null,
-              bookmarks: [],
-              cards: [],
-              dueCards: [],
-              progress: { total: 0, revisados: 0, pendentes: 0 },
-            },
-          };
-          return { ok: true };
-        }
         if (message.type === "SIA_UPDATE_HISTORY_ENTRY") {
           return { ok: true, entry: { ...state.context.history[0], favorito: message.favorite, nota: message.note } };
+        }
+        if (message.type === "SIA_CLEAR_HISTORY") {
+          state.context = { ...state.context, history: [] };
+          return { ok: true };
         }
         return { ok: true };
       },
@@ -202,7 +176,7 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
   const onMessageListeners = [];
   vm.runInContext(sidepanelSource, contextVm, { filename: "sidepanel.js" });
   const flush = () => new Promise(resolve => setImmediate(resolve));
-  return { elements, filters, ratings, sentMessages, intervals, state, createdLinks, onMessageListeners, flush };
+  return { elements, filters, sentMessages, intervals, state, createdLinks, onMessageListeners, flush };
 }
 
 function messagesOf(harness, type) {
@@ -214,142 +188,93 @@ function lastMessage(harness, type) {
   return message ? JSON.parse(JSON.stringify(message)) : undefined;
 }
 
-test("sidepanel desabilita marcação sem cue temporal atual", async () => {
+test("sidepanel preserva replay, atualização de favorito/nota e exportação markdown", async () => {
   const harness = createHarness();
   await harness.flush();
-  assert.equal(harness.elements.get("#bookmark-current").disabled, true);
-  assert.match(harness.elements.get("#recall-question").textContent, /Guarde um trecho acima/);
-});
-
-test("sidepanel marca a cue atual usando o tipo escolhido", async () => {
-  const context = baseStudyContext({
-    study: {
-      enabled: true,
-      currentCue: { text: "Definição importante", startTime: 10, endTime: 14 },
-      bookmarks: [], cards: [], dueCards: [], progress: { total: 0, revisados: 0, pendentes: 0 },
-    },
-  });
-  const harness = createHarness({ context });
-  await harness.flush();
-  const bookmark = harness.elements.get("#bookmark-current");
-  assert.equal(bookmark.disabled, false);
-  harness.elements.get("#bookmark-type").value = "important";
-  bookmark.listener("click")();
-  await harness.flush();
-  assert.deepEqual(lastMessage(harness, "SIA_CREATE_STUDY_BOOKMARK"), {
-    type: "SIA_CREATE_STUDY_BOOKMARK",
-    bookmarkType: "important",
-  });
-  assert.match(harness.elements.get("#study-feedback").textContent, /virou uma pergunta/);
-});
-
-test("sidepanel revela o texto original do cartão pendente", async () => {
-  const card = { id: "card-1", pergunta: "O que é recuperação?", texto: "Recuperar é tentar lembrar." };
-  const context = baseStudyContext({ study: {
-    enabled: true,
-    currentCue: null,
-    bookmarks: [{ id: "mark-1", texto: card.texto }],
-    cards: [card],
-    dueCards: [card],
-    progress: { total: 1, revisados: 0, pendentes: 1 },
-  } });
-  const harness = createHarness({ context });
-  await harness.flush();
-  const reveal = harness.elements.get("#reveal-recall");
-  assert.equal(reveal.disabled, false);
-  await reveal.listener("click")();
-  assert.equal(harness.elements.get("#recall-source").hidden, false);
-  assert.equal(harness.elements.get("#recall-source").textContent, card.texto);
-});
-
-test("sidepanel exige resposta para lembrei e envia resposta quando preenchida", async () => {
-  const card = { id: "card-2", pergunta: "Explique o conceito", texto: "Texto do conceito" };
-  const context = baseStudyContext({ study: {
-    enabled: true, currentCue: null, bookmarks: [], cards: [card], dueCards: [card],
-    progress: { total: 1, revisados: 0, pendentes: 1 },
-  } });
-  const harness = createHarness({ context });
-  await harness.flush();
-  harness.ratings[0].listener("click")();
-  await harness.flush();
-  assert.equal(messagesOf(harness, "SIA_REVIEW_STUDY_CARD").length, 0);
-  assert.match(harness.elements.get("#study-feedback").textContent, /Antes de escolher/);
-  harness.elements.get("#recall-answer").value = "Minha resposta local";
-  harness.ratings[0].listener("click")();
-  await harness.flush();
-  assert.deepEqual(lastMessage(harness, "SIA_REVIEW_STUDY_CARD"), {
-    type: "SIA_REVIEW_STUDY_CARD",
-    cardId: card.id,
-    rating: "remembered",
-    answer: "Minha resposta local",
-  });
-  assert.match(harness.elements.get("#study-feedback").textContent, /Você marcou que lembrou/);
-});
-
-test("sidepanel permite esqueci sem resposta e preserva replay, atualização e exportação", async () => {
-  const card = { id: "card-3", pergunta: "Lembre?", texto: "Trecho temporal" };
-  const context = baseStudyContext({ study: {
-    enabled: true, currentCue: null, bookmarks: [], cards: [card], dueCards: [card],
-    progress: { total: 1, revisados: 0, pendentes: 1 },
-  } });
-  const harness = createHarness({ context });
-  await harness.flush();
-  harness.ratings[2].listener("click")();
-  await harness.flush();
-  assert.deepEqual(lastMessage(harness, "SIA_REVIEW_STUDY_CARD"), {
-    type: "SIA_REVIEW_STUDY_CARD",
-    cardId: card.id,
-    rating: "forgot",
-    answer: "",
-  });
 
   await harness.elements.get("#replay-current").listener("click")();
   assert.equal(messagesOf(harness, "SIA_REPLAY_LAST").length, 1);
+
   harness.elements.get("#export-saved").listener("click")();
   assert.equal(harness.state.alert, undefined);
   assert.equal(harness.createdLinks.at(-1)?.clicked, true);
+
   const favorite = harness.elements.get("#history").children[0].querySelector(".favorite");
   await favorite.listener("click")();
   assert.equal(messagesOf(harness, "SIA_UPDATE_HISTORY_ENTRY").length, 1);
 });
 
-test("sidepanel limpa apenas o estudo e preserva o histórico da aula", async () => {
-  const card = { id: "card-clear", pergunta: "Pergunta local", texto: "Trecho salvo" };
-  const context = baseStudyContext({ study: {
-    enabled: true, currentCue: null, bookmarks: [{ id: "mark-clear", texto: card.texto }],
-    cards: [card], dueCards: [card], progress: { total: 1, revisados: 0, pendentes: 1 },
-  } });
-  const harness = createHarness({ context });
+test("sidepanel limpa o histórico da aula ao confirmar", async () => {
+  const harness = createHarness();
   await harness.flush();
-  await harness.elements.get("#clear-study").listener("click")();
-  assert.deepEqual(lastMessage(harness, "SIA_CLEAR_STUDY"), { type: "SIA_CLEAR_STUDY" });
-  assert.match(harness.elements.get("#study-feedback").textContent, /Estudo local apagado/);
-  assert.match(harness.elements.get("#recall-question").textContent, /Guarde um trecho acima/);
   assert.equal(harness.elements.get("#history").children.length, 1);
+
+  await harness.elements.get("#clear-history").listener("click")();
+  assert.deepEqual(lastMessage(harness, "SIA_CLEAR_HISTORY"), { type: "SIA_CLEAR_HISTORY" });
+  await harness.flush();
+  assert.equal(harness.elements.get("#history-count").textContent, "0 frases");
 });
 
-test("sidepanel explica quando não existe aula compatível e desabilita o estudo", async () => {
+test("sidepanel exibe apenas os 4 trechos mais recentes por padrão e expande sob demanda", async () => {
+  const sixHistory = Array.from({ length: 6 }, (_, i) => ({
+    id: `history-${i + 1}`,
+    inicio: (i + 1) * 10,
+    texto: `Frase número ${i + 1}`,
+    favorito: false,
+    nota: "",
+    titulo: "Aula de teste",
+    url: "https://coursera.org/learn/test/lecture/1",
+  }));
+  const harness = createHarness({ context: baseStudyContext({ history: sixHistory }) });
+  await harness.flush();
+
+  const historyEl = harness.elements.get("#history");
+  const toggleBtn = harness.elements.get("#toggle-history-expand");
+
+  // Por padrão, deve exibir apenas os 4 mais recentes e o botão de expandir (+2)
+  assert.equal(historyEl.children.length, 4);
+  assert.equal(toggleBtn.hidden, false);
+  assert.match(toggleBtn.textContent, /Ver frases anteriores \(\+2\)/);
+
+  // A primeira frase renderizada no topo deve ser a mais recente (número 6)
+  assert.equal(historyEl.children[0].querySelector("p").textContent, "Frase número 6");
+
+  // Ao clicar em expandir, exibe todos os 6 cards
+  toggleBtn.listener("click")();
+  await harness.flush();
+  assert.equal(historyEl.children.length, 6);
+  assert.match(toggleBtn.textContent, /Recolher para 4 mais recentes/);
+
+  // Ao clicar novamente, recolhe de volta para os 4 mais recentes
+  toggleBtn.listener("click")();
+  await harness.flush();
+  assert.equal(historyEl.children.length, 4);
+  assert.match(toggleBtn.textContent, /Ver frases anteriores \(\+2\)/);
+});
+
+test("sidepanel explica quando não existe aula compatível e desabilita transcrição", async () => {
   const harness = createHarness({ context: { ok: false } });
   await harness.flush();
   assert.match(harness.elements.get("#current-sentence").textContent, /Abra uma aula compatível/);
-  assert.equal(harness.elements.get("#bookmark-current").disabled, true);
-  assert.equal(harness.elements.get("#clear-study").disabled, true);
-  assert.equal(harness.elements.get("#recall-answer").disabled, true);
-  assert.equal(harness.elements.get("#reveal-recall").disabled, true);
-  assert.equal(harness.ratings.every(button => button.disabled), true);
+  assert.equal(harness.elements.get("#generate-transcript").disabled, true);
+  assert.equal(harness.elements.get("#replay-transcript").disabled, true);
+  assert.equal(harness.elements.get("#download-transcript").disabled, true);
 });
 
-test("sidepanel apresenta a jornada autoexplicativa no próprio HTML", () => {
+test("sidepanel apresenta estrutura limpa em 3 seções sem cartões confusos", () => {
   const html = fs.readFileSync(path.join(extensionRoot, "sidepanel.html"), "utf8");
-  assert.match(html, /Ouça, guarde, lembre/);
   assert.match(html, /1 · AGORA/);
   assert.match(html, /Acompanhar a aula/);
-  assert.match(html, /2 · Legenda lida da aula/);
-  assert.match(html, /3 · Guardar para aprender/);
-  assert.match(html, /4 · Responder para memorizar/);
-  assert.match(html, /5 · Linha do tempo da aula/);
-  assert.match(html, /Guardar este trecho/);
-  assert.match(html, /Lembrei uma parte/);
+  assert.match(html, /2 · Linha do tempo da aula/);
+  assert.match(html, /3 · Legenda lida da aula/);
+
+  // Garante que as seções confusas e desnecessárias foram completamente removidas
+  assert.doesNotMatch(html, /COMO APRENDER COM A S·IA/);
+  assert.doesNotMatch(html, /Ouça, guarde, lembre/);
+  assert.doesNotMatch(html, /Guardar para aprender/);
+  assert.doesNotMatch(html, /Responder para memorizar/);
+  assert.doesNotMatch(html, /recall-answer/);
+  assert.doesNotMatch(html, /bookmark-type/);
 });
 
 test("sidepanel orienta a aguardar frases antes de montar o arquivo", async () => {

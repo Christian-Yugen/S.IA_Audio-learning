@@ -131,7 +131,57 @@ function createHarness({ engine = "browser", failGeneration = false, audioBlocke
 
     createGain() {
       return {
-        gain: { value: 1 },
+        gain: { value: 1, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createBiquadFilter() {
+      return {
+        type: "peaking",
+        frequency: { value: 3800, setValueAtTime(v) { this.value = v; } },
+        Q: { value: 0.9, setValueAtTime(v) { this.value = v; } },
+        gain: { value: 2.5, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createDelay() {
+      return {
+        delayTime: { value: 0, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createChannelMerger() {
+      return {
+        connect() {}
+      };
+    }
+
+    createStereoPanner() {
+      return {
+        pan: { value: 0, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createPanner() {
+      return {
+        panningModel: "equalpower",
+        distanceModel: "inverse",
+        refDistance: 1,
+        maxDistance: 10000,
+        rolloffFactor: 0.5,
+        coneInnerAngle: 360,
+        positionX: { value: 0, setValueAtTime(v) { this.value = v; } },
+        positionY: { value: 0, setValueAtTime(v) { this.value = v; } },
+        positionZ: { value: 0, setValueAtTime(v) { this.value = v; } },
+        setPosition(x, y, z) {
+          this.positionX.value = x;
+          this.positionY.value = y;
+          this.positionZ.value = z;
+        },
         connect() {}
       };
     }
@@ -370,5 +420,108 @@ test("transição suave entre legendas: não interrompe a fala anterior e reprod
 
   assert.deepEqual(events, ["start-1", "end-1", "start-2", "end-2"]);
   assert.equal(harness.played.length, 2);
+});
+
+test("configura e posiciona a voz 3D no espaço com áudio cristalino 4K transparente (equalpower) e livre de abafamento", async () => {
+  const harness = createHarness();
+  harness.provider.setActive("piper-local");
+  await harness.provider.ensureAudioContext(22050);
+
+  const status = harness.provider.status();
+  assert.equal(status.spatialAudio, true);
+  assert.equal(status.spatialProfile, "stage");
+  assert.equal(status.spatialAngle, 0);
+  assert.equal(status.spatialDistance, 1.0);
+
+  const stage = harness.provider.spatialStage;
+  assert.ok(stage);
+  assert.equal(stage.pannerNode.panningModel, "equalpower");
+  assert.equal(stage.pannerNode.distanceModel, "inverse");
+  assert.equal(stage.spatialGain.gain.value, 1.15);
+  assert.equal(stage.bypassGain.gain.value, 0.0);
+  assert.equal(stage.stereoPanner.pan.value, 0);
+  assert.equal(stage.distanceGain.gain.value, 1.0);
+
+  // Perfil padrão: Palco Frontal (0° frente, na tela)
+  assert.equal(stage.pannerNode.positionX.value, 0.00);
+  assert.equal(stage.pannerNode.positionY.value, 0.15);
+  assert.equal(stage.pannerNode.positionZ.value, -1.00);
+  assert.equal(stage.clarityFilter.gain.value, 1.86);
+
+  // Alterna para Intérprete (+25° à direita, 1m)
+  harness.provider.setSpatialAudio(true, "interpreter");
+  assert.equal(stage.pannerNode.positionX.value, 0.42);
+  assert.equal(stage.pannerNode.positionY.value, 0.15);
+  assert.equal(stage.pannerNode.positionZ.value, -0.91);
+  assert.equal(stage.stereoPanner.pan.value, 0.423);
+  assert.equal(stage.clarityFilter.gain.value, 1.86);
+
+  // Alterna para Proximidade VIP (+15° direita, 0.6m)
+  harness.provider.setSpatialAudio(true, "intimate");
+  assert.equal(stage.pannerNode.positionX.value, 0.16);
+  assert.equal(stage.pannerNode.positionY.value, 0.15);
+  assert.equal(stage.pannerNode.positionZ.value, -0.58);
+  assert.equal(stage.stereoPanner.pan.value, 0.259);
+  assert.equal(stage.distanceGain.gain.value, 1.18);
+  assert.equal(stage.clarityFilter.gain.value, 2.23);
+
+  // Posicionamento contínuo preciso (ex: 45° direita, 1.5m)
+  harness.provider.setSpatialPosition(45, 1.5, true);
+  assert.equal(stage.pannerNode.positionX.value, 1.06);
+  assert.equal(stage.pannerNode.positionY.value, 0.15);
+  assert.equal(stage.pannerNode.positionZ.value, -1.06);
+  assert.equal(stage.stereoPanner.pan.value, 0.707);
+  assert.equal(stage.distanceGain.gain.value, 0.817);
+  assert.equal(stage.leftGain.gain.value, 0.354);
+  assert.equal(stage.rightGain.gain.value, 1.0);
+
+  // Posicionamento extremo à esquerda (-90° esquerda, 1.0m): isolamento cirúrgico de ouvido
+  harness.provider.setSpatialPosition(-90, 1.0, true);
+  assert.equal(stage.leftGain.gain.value, 1.0);
+  assert.equal(stage.rightGain.gain.value, 0.0);
+
+  // Desativa o áudio 3D (modo bypass transparente 1:1)
+  harness.provider.setSpatialAudio(false, "intimate");
+  assert.equal(stage.pannerNode.positionX.value, 0.00);
+  assert.equal(stage.pannerNode.positionY.value, 0.00);
+  assert.equal(stage.pannerNode.positionZ.value, -1.00);
+  assert.equal(stage.stereoPanner.pan.value, 0);
+  assert.equal(stage.spatialGain.gain.value, 0.0);
+  assert.equal(stage.bypassGain.gain.value, 1.0);
+});
+
+test("atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE", async () => {
+  const harness = createHarness();
+  harness.provider.setActive("piper-local");
+  await harness.provider.ensureAudioContext(22050);
+
+  // Simula mensagem de atualização de perfil vinda do sidepanel/popup
+  harness.messages.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_profile", value: "interpreter" });
+  });
+  assert.equal(harness.provider.status().spatialProfile, "interpreter");
+  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.42);
+
+  // Simula atualização contínua de ângulo vinda do radar 3D
+  harness.messages.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: 30 });
+  });
+  assert.equal(harness.provider.status().spatialAngle, 30);
+  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.5);
+
+  // Simula atualização contínua de distância
+  harness.messages.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: 2.0 });
+  });
+  assert.equal(harness.provider.status().spatialDistance, 2.0);
+  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 1.0);
+
+  // Simula desativação do áudio 3D
+  harness.messages.forEach(fn => {
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_audio", value: false });
+  });
+  assert.equal(harness.provider.status().spatialAudio, false);
+  assert.equal(harness.provider.spatialStage.spatialGain.gain.value, 0.0);
+  assert.equal(harness.provider.spatialStage.bypassGain.gain.value, 1.0);
 });
 

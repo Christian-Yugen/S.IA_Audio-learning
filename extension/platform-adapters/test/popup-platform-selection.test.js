@@ -53,6 +53,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     "input-volume", "label-volume", "replay-last", "open-companion", "test-voice", "reset-settings",
     "connection-status", "save-feedback", "version-label", "select-platform", "platform-scope",
     "apply-platform", "platform-diagnostic", "audio-ducking", "ducking-profiles-container", "ducking-profile-hint",
+    "spatial-audio", "spatial-profiles-container", "spatial-profile-hint",
   ];
   for (const id of ids) elements.set(`#${id}`, createElement(id));
   elements.set(".container", createElement("container"));
@@ -72,9 +73,14 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     radio.checked = value === "accelerate_voice";
     return radio;
   });
-  const duckingRadios = ["0.15", "0", "0.4"].map(value => {
+  const duckingRadios = ["0", "0.15", "0.4"].map(value => {
     const radio = createElement(`ducking-${value}`, value);
-    radio.checked = value === "0.15";
+    radio.checked = value === "0";
+    return radio;
+  });
+  const spatialRadios = ["stage", "interpreter", "intimate"].map(value => {
+    const radio = createElement(`spatial-${value}`, value);
+    radio.checked = value === "stage";
     return radio;
   });
   const intervals = [];
@@ -88,6 +94,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     querySelectorAll(selector) {
       if (selector === 'input[name="sync-behavior"]') return radios;
       if (selector === 'input[name="ducking-level"]') return duckingRadios;
+      if (selector === 'input[name="spatial-profile"]') return spatialRadios;
       return [];
     },
   };
@@ -149,7 +156,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     sidePanel: { async open() {} },
   };
   vm.runInContext(popupSource, context, { filename: "popup.js" });
-  return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan, local, duckingRadios };
+  return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan, local, duckingRadios, spatialRadios };
 }
 
 test("popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica", async () => {
@@ -258,16 +265,16 @@ test("popup gerencia perfis de dublagem do audio ducking e persiste o nível sel
   const hint = harness.elements.get("#ducking-profile-hint");
 
   assert.equal(duckingToggle.checked, true);
-  assert.equal(duckingRadios[0].checked, true); // 0.15 Cinema padrão
+  assert.equal(duckingRadios[0].checked, true); // 0 Foco Total padrão
 
-  // Seleciona Foco Total (0%)
+  // Seleciona Cinema (15%)
   duckingRadios[0].checked = false;
   duckingRadios[1].checked = true;
   duckingRadios[1].listener("change")();
   await new Promise(resolve => setImmediate(resolve));
 
-  assert.equal(harness.local.sia_ducking_level, 0);
-  assert.match(hint.textContent, /100%/);
+  assert.equal(harness.local.sia_ducking_level, 0.15);
+  assert.match(hint.textContent, /Cinema/);
 
   // Seleciona Bilíngue (40%)
   duckingRadios[1].checked = false;
@@ -276,7 +283,7 @@ test("popup gerencia perfis de dublagem do audio ducking e persiste o nível sel
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(harness.local.sia_ducking_level, 0.4);
-  assert.match(hint.textContent, /40%/);
+  assert.match(hint.textContent, /Bilíngue/);
 
   // Desativa Audio Ducking no toggle
   duckingToggle.checked = false;
@@ -287,3 +294,44 @@ test("popup gerencia perfis de dublagem do audio ducking e persiste o nível sel
   const container = harness.elements.get("#ducking-profiles-container");
   assert.equal(container.style.display, "none");
 });
+
+test("popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado", async () => {
+  const harness = createHarness();
+  await harness.domReady();
+  await new Promise(resolve => setImmediate(resolve));
+
+  const spatialToggle = harness.elements.get("#spatial-audio");
+  const spatialRadios = harness.spatialRadios;
+  const hint = harness.elements.get("#spatial-profile-hint");
+
+  assert.equal(spatialToggle.checked, true);
+  assert.equal(spatialRadios[0].checked, true); // stage padrão
+
+  // Seleciona Intérprete (interpreter)
+  spatialRadios[0].checked = false;
+  spatialRadios[1].checked = true;
+  spatialRadios[1].listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_spatial_profile, "interpreter");
+  assert.match(hint.textContent, /Intérprete/);
+
+  // Seleciona Proximidade VIP (intimate)
+  spatialRadios[1].checked = false;
+  spatialRadios[2].checked = true;
+  spatialRadios[2].listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_spatial_profile, "intimate");
+  assert.match(hint.textContent, /Proximidade VIP/);
+
+  // Desativa Áudio Espacial no toggle
+  spatialToggle.checked = false;
+  spatialToggle.listener("change")();
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(harness.local.sia_spatial_audio, false);
+  const container = harness.elements.get("#spatial-profiles-container");
+  assert.equal(container.style.display, "none");
+});
+
