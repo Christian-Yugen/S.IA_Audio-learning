@@ -333,9 +333,9 @@ button:focus-visible {
 
 .spatial-card {
   padding: 16px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgb(46 204 113 / 30%);
   border-radius: 12px;
-  background: linear-gradient(165deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.6) 40%, #11141d 100%);
+  background: linear-gradient(165deg, rgb(46 204 113 / 10%) 0%, #151515 40%, #101010 100%);
   display: grid;
   gap: 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
@@ -352,7 +352,7 @@ button:focus-visible {
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #38bdf8;
+  color: var(--accent);
   display: block;
 }
 
@@ -368,9 +368,9 @@ button:focus-visible {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(14, 165, 233, 0.12);
-  color: #7dd3fc;
+  border: 1px solid rgb(46 204 113 / 35%);
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -788,4 +788,58 @@ button:focus-visible {
   font-size: 10px;
   color: var(--muted);
   text-align: center;
+}
+
+/* Checagem de Isolamento Físico de Hardware */
+.spatial-hardware-check {
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(46, 204, 113, 0.2);
+  display: grid;
+  gap: 6px;
+}
+
+.check-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.check-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ear-check-btn {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.08);
+  color: #f1f1f1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.ear-check-btn:hover {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: #2ecc71;
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.25);
+}
+
+.ear-check-btn:active {
+  transform: scale(0.98);
+}
+
+.check-hint {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.35;
 }

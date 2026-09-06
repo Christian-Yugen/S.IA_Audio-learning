@@ -76,7 +76,10 @@
 
           <!-- Cabeça do ouvinte no centro (você com fone de ouvido) -->
           <div class="listener-center" id="listener-center" title="Você (Fone de Ouvido)">
-            <span class="listener-avatar">👤</span>
+            <svg class="listener-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
             <span class="listener-tag">Você</span>
           </div>
 
@@ -143,9 +146,23 @@
       <div class="spatial-test-wrapper">
         <button type="button" id="spatial-test-headphone" class="spatial-test-headphone-btn" title="Ouvir teste acústico em tempo real">
           <span class="test-icon">🎧</span>
-          <span class="test-text">Testar Posição no Fone de Ouvido</span>
+          <span class="test-text">Testar Posição 3D no Fone de Ouvido</span>
         </button>
         <p id="spatial-test-status" class="spatial-test-status" aria-live="polite"></p>
+
+        <!-- Checagem Imediata de Isolamento de Hardware (Esquerda vs Direita) -->
+        <div class="spatial-hardware-check">
+          <span class="check-label">Checagem de Isolamento Físico:</span>
+          <div class="check-btn-row">
+            <button type="button" id="check-ear-left" class="ear-check-btn" title="Emite sinal exclusivo no canal esquerdo">
+              ◀ Tocar Apenas no Esquerdo
+            </button>
+            <button type="button" id="check-ear-right" class="ear-check-btn" title="Emite sinal exclusivo no canal direito">
+              Tocar Apenas no Direito ▶
+            </button>
+          </div>
+          <small id="check-ear-hint" class="check-hint">Se ouvir nos dois lados ao clicar acima, o Windows está com 'Áudio Mono' ativado.</small>
+        </div>
       </div>
     </section>
 

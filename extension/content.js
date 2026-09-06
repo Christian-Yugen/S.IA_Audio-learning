@@ -2328,6 +2328,9 @@
                     } else if (chave === "sia_spatial_distance" && globalThis.SiaPiperVoice.setSpatialPosition) {
                         globalThis.SiaPiperVoice.setSpatialPosition(undefined, Number(valor), undefined);
                     }
+                    if (!globalThis.SiaPiperVoice.isActive?.()) {
+                        globalThis.SiaPiperVoice.setActive?.("piper-local");
+                    }
                 }
                 break;
             }

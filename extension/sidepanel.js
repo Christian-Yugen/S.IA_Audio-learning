@@ -693,6 +693,8 @@
     duckingModeStatus: document.getElementById("ducking-mode-status"),
     testBtn: document.getElementById("spatial-test-headphone"),
     testStatus: document.getElementById("spatial-test-status"),
+    checkLeft: document.getElementById("check-ear-left"),
+    checkRight: document.getElementById("check-ear-right"),
   };
 
   let currentAngle = 0;
@@ -753,10 +755,12 @@
         chrome?.storage?.local?.set?.({
           sia_spatial_angle: currentAngle,
           sia_spatial_distance: currentDistance,
+          sia_voice_engine: "piper-local",
         });
       } catch {}
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_voice_engine", value: "piper-local" });
     }
   }
 
@@ -891,6 +895,59 @@
               spatialUi.testStatus.textContent = "";
             }
           }, 4000);
+        }
+      });
+    }
+
+    function playChannelBeep(channelIndex) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const sampleRate = ctx.sampleRate;
+        const duration = 0.55;
+        const length = Math.floor(sampleRate * duration);
+        const buffer = ctx.createBuffer(2, length, sampleRate);
+        const targetChannel = buffer.getChannelData(channelIndex); // 0 = Esquerdo, 1 = Direito
+        const baseFreq = channelIndex === 0 ? 523.25 : 659.25;
+
+        for (let i = 0; i < length; i++) {
+          const t = i / sampleRate;
+          const envelope = Math.max(0, 1 - t / duration) * Math.min(1, t / 0.015);
+          targetChannel[i] = envelope * 0.45 * (
+            Math.sin(2 * Math.PI * baseFreq * t) +
+            0.35 * Math.sin(4 * Math.PI * baseFreq * t)
+          );
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start();
+        source.onended = () => {
+          try { ctx.close(); } catch {}
+        };
+      } catch (e) {
+        console.warn("Falha ao tocar teste de canal", e);
+      }
+    }
+
+    if (spatialUi.checkLeft) {
+      spatialUi.checkLeft.addEventListener("click", () => {
+        playChannelBeep(0);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🔊 Emitindo som 100% no canal ESQUERDO";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
+        }
+      });
+    }
+
+    if (spatialUi.checkRight) {
+      spatialUi.checkRight.addEventListener("click", () => {
+        playChannelBeep(1);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🔊 Emitindo som 100% no canal DIREITO";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
         }
       });
     }
