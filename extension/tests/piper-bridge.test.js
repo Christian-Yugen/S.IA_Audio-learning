@@ -409,7 +409,7 @@ test("configura e posiciona a voz 3D no espaço binaural HRTF com arquitetura 4K
 
   const status = harness.provider.status();
   assert.equal(status.spatialAudio, true);
-  assert.equal(status.spatialProfile, "interpreter");
+  assert.equal(status.spatialProfile, "stage");
 
   const stage = harness.provider.spatialStage;
   assert.ok(stage);
@@ -418,18 +418,18 @@ test("configura e posiciona a voz 3D no espaço binaural HRTF com arquitetura 4K
   assert.equal(stage.spatialGain.gain.value, 1.35);
   assert.equal(stage.bypassGain.gain.value, 0.0);
 
-  // Perfil padrão: Intérprete (+25° à direita, 1m)
+  // Perfil padrão: Palco Frontal (0° frente, na tela)
+  assert.equal(stage.pannerNode.positionX.value, 0.00);
+  assert.equal(stage.pannerNode.positionY.value, 0.15);
+  assert.equal(stage.pannerNode.positionZ.value, -1.00);
+  assert.equal(stage.clarityFilter.gain.value, 2.5);
+
+  // Alterna para Intérprete (+25° à direita, 1m)
+  harness.provider.setSpatialAudio(true, "interpreter");
   assert.equal(stage.pannerNode.positionX.value, 0.42);
   assert.equal(stage.pannerNode.positionY.value, 0.09);
   assert.equal(stage.pannerNode.positionZ.value, -0.91);
   assert.equal(stage.clarityFilter.gain.value, 2.5);
-
-  // Alterna para Palco Frontal (0° frente, 1.6m)
-  harness.provider.setSpatialAudio(true, "stage");
-  assert.equal(stage.pannerNode.positionX.value, 0.00);
-  assert.equal(stage.pannerNode.positionY.value, 0.28);
-  assert.equal(stage.pannerNode.positionZ.value, -1.58);
-  assert.equal(stage.clarityFilter.gain.value, 2.0);
 
   // Alterna para Proximidade VIP (+15° direita, 0.6m)
   harness.provider.setSpatialAudio(true, "intimate");
@@ -454,11 +454,11 @@ test("atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE", async () 
 
   // Simula mensagem de atualização de perfil vinda do popup
   harness.messages.forEach(fn => {
-    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_profile", value: "stage" });
+    fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_profile", value: "interpreter" });
   });
-  assert.equal(harness.provider.status().spatialProfile, "stage");
-  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.00);
-  assert.equal(harness.provider.spatialStage.clarityFilter.gain.value, 2.0);
+  assert.equal(harness.provider.status().spatialProfile, "interpreter");
+  assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.42);
+  assert.equal(harness.provider.spatialStage.clarityFilter.gain.value, 2.5);
 
   // Simula desativação do áudio 3D vinda do popup
   harness.messages.forEach(fn => {

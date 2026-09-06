@@ -20,9 +20,9 @@
     sia_voice_engine: "browser",
     sia_translate_en_pt: false,
     sia_ducking: true,
-    sia_ducking_level: 0.15,
+    sia_ducking_level: 0,
     sia_spatial_audio: true,
-    sia_spatial_profile: "interpreter",
+    sia_spatial_profile: "stage",
     sia_compact: false
   });
 
@@ -242,7 +242,7 @@
       if (ui.duckingProfilesContainer) {
         ui.duckingProfilesContainer.style.display = duckingEnabled ? "flex" : "none";
       }
-      const level = Number(settings.sia_ducking_level ?? 0.15);
+      const level = Number(settings.sia_ducking_level ?? 0);
       ui.duckingProfiles?.forEach(radio => {
         const isChecked = Math.abs(Number(radio.value) - level) < 0.05;
         radio.checked = isChecked;
@@ -250,11 +250,11 @@
       });
       if (ui.duckingProfileHint) {
         if (Math.abs(level - 0) < 0.01) {
-          ui.duckingProfileHint.textContent = "Silencia 100% o áudio do vídeo durante a fala da S·IA.";
+          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.";
         } else if (Math.abs(level - 0.4) < 0.05) {
-          ui.duckingProfileHint.textContent = "Mantém o áudio original a 40% para acompanhar o idioma original.";
+          ui.duckingProfileHint.textContent = "Modo Bilíngue: mantém o áudio original a 40% para treinar o ouvido em inglês.";
         } else {
-          ui.duckingProfileHint.textContent = "O som original recua para 15% como fundo discreto.";
+          ui.duckingProfileHint.textContent = "Modo Cinema: o som original recua para 15% como fundo discreto.";
         }
       }
     }
@@ -264,19 +264,19 @@
       if (ui.spatialProfilesContainer) {
         ui.spatialProfilesContainer.style.display = spatialEnabled ? "flex" : "none";
       }
-      const profile = String(settings.sia_spatial_profile || "interpreter");
+      const profile = String(settings.sia_spatial_profile || "stage");
       ui.spatialProfiles?.forEach(radio => {
         const isChecked = radio.value === profile;
         radio.checked = isChecked;
         radio.closest?.(".ducking-profile-pill")?.classList.toggle("is-active", isChecked);
       });
       if (ui.spatialProfileHint) {
-        if (profile === "stage") {
-          ui.spatialProfileHint.textContent = "Palco Frontal: voz ampla à sua frente, como um professor em auditório real.";
+        if (profile === "interpreter") {
+          ui.spatialProfileHint.textContent = "Intérprete Particular: voz lateral a +25° à direita.";
         } else if (profile === "intimate") {
           ui.spatialProfileHint.textContent = "Proximidade VIP: voz quente e encorpada a 60cm, presença máxima de estúdio.";
         } else {
-          ui.spatialProfileHint.textContent = "Intérprete Particular: voz a +25° à direita, separando a S·IA do áudio original.";
+          ui.spatialProfileHint.textContent = "Palco Frontal: voz alinhada diretamente com a tela da aula, com profundidade 3D natural.";
         }
       }
     }

@@ -36,7 +36,7 @@
     let ultimoIdEntregaTraducao = 0;
     let videoEstavaPausado = false;
     let duckingAtivo = true;
-    let duckingNivel = 0.15;
+    let duckingNivel = 0.0;
     let volumeBaseVideo = null;
     let duckingAnimId = null;
     let duckingHoldTimer = null;

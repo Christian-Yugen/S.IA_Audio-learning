@@ -73,14 +73,14 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     radio.checked = value === "accelerate_voice";
     return radio;
   });
-  const duckingRadios = ["0.15", "0", "0.4"].map(value => {
+  const duckingRadios = ["0", "0.15", "0.4"].map(value => {
     const radio = createElement(`ducking-${value}`, value);
-    radio.checked = value === "0.15";
+    radio.checked = value === "0";
     return radio;
   });
-  const spatialRadios = ["interpreter", "stage", "intimate"].map(value => {
+  const spatialRadios = ["stage", "interpreter", "intimate"].map(value => {
     const radio = createElement(`spatial-${value}`, value);
-    radio.checked = value === "interpreter";
+    radio.checked = value === "stage";
     return radio;
   });
   const intervals = [];
@@ -265,16 +265,16 @@ test("popup gerencia perfis de dublagem do audio ducking e persiste o nível sel
   const hint = harness.elements.get("#ducking-profile-hint");
 
   assert.equal(duckingToggle.checked, true);
-  assert.equal(duckingRadios[0].checked, true); // 0.15 Cinema padrão
+  assert.equal(duckingRadios[0].checked, true); // 0 Foco Total padrão
 
-  // Seleciona Foco Total (0%)
+  // Seleciona Cinema (15%)
   duckingRadios[0].checked = false;
   duckingRadios[1].checked = true;
   duckingRadios[1].listener("change")();
   await new Promise(resolve => setImmediate(resolve));
 
-  assert.equal(harness.local.sia_ducking_level, 0);
-  assert.match(hint.textContent, /100%/);
+  assert.equal(harness.local.sia_ducking_level, 0.15);
+  assert.match(hint.textContent, /Cinema/);
 
   // Seleciona Bilíngue (40%)
   duckingRadios[1].checked = false;
@@ -283,7 +283,7 @@ test("popup gerencia perfis de dublagem do audio ducking e persiste o nível sel
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(harness.local.sia_ducking_level, 0.4);
-  assert.match(hint.textContent, /40%/);
+  assert.match(hint.textContent, /Bilíngue/);
 
   // Desativa Audio Ducking no toggle
   duckingToggle.checked = false;
@@ -305,16 +305,16 @@ test("popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado"
   const hint = harness.elements.get("#spatial-profile-hint");
 
   assert.equal(spatialToggle.checked, true);
-  assert.equal(spatialRadios[0].checked, true); // interpreter padrão
+  assert.equal(spatialRadios[0].checked, true); // stage padrão
 
-  // Seleciona Palco Frontal (stage)
+  // Seleciona Intérprete (interpreter)
   spatialRadios[0].checked = false;
   spatialRadios[1].checked = true;
   spatialRadios[1].listener("change")();
   await new Promise(resolve => setImmediate(resolve));
 
-  assert.equal(harness.local.sia_spatial_profile, "stage");
-  assert.match(hint.textContent, /Palco Frontal/);
+  assert.equal(harness.local.sia_spatial_profile, "interpreter");
+  assert.match(hint.textContent, /Intérprete/);
 
   // Seleciona Proximidade VIP (intimate)
   spatialRadios[1].checked = false;

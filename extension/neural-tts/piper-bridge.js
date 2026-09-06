@@ -8,19 +8,19 @@
   const SPATIAL_PROFILE_KEY = "sia_spatial_profile";
 
   const SPATIAL_PROFILES = Object.freeze({
+    stage: Object.freeze({
+      name: "Palco Frontal",
+      x: 0.00,
+      y: 0.15,
+      z: -1.00,
+      clarityBoost: 2.5
+    }),
     interpreter: Object.freeze({
       name: "Intérprete Particular",
       x: 0.42,
       y: 0.09,
       z: -0.91,
       clarityBoost: 2.5
-    }),
-    stage: Object.freeze({
-      name: "Palco Frontal",
-      x: 0.00,
-      y: 0.28,
-      z: -1.58,
-      clarityBoost: 2.0
     }),
     intimate: Object.freeze({
       name: "Proximidade VIP",
@@ -85,7 +85,7 @@
     constructor(audioContext) {
       this.context = audioContext;
       this.enabled = true;
-      this.profileKey = "interpreter";
+      this.profileKey = "stage";
       this.input = null;
       this.output = null;
       this.pannerNode = null;
@@ -156,7 +156,7 @@
     }
 
     applyProfile(profileKey, enabled = true) {
-      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "interpreter";
+      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "stage";
       this.enabled = Boolean(enabled);
       const config = SPATIAL_PROFILES[this.profileKey];
 
@@ -904,7 +904,7 @@
     provider.setActive(result[ENGINE_KEY]);
     provider.setSpatialAudio(
       result[SPATIAL_KEY] !== false,
-      result[SPATIAL_PROFILE_KEY] || "interpreter"
+      result[SPATIAL_PROFILE_KEY] || "stage"
     );
   });
 

@@ -103,6 +103,7 @@ function createHarness({
     sia_speed: 1.2,
     sia_voice_engine: 'browser',
     sia_translate_en_pt: translateEnabled,
+    sia_ducking_level: 0.15,
   };
   const storage = {
     get(keys, callback) {
