@@ -1249,11 +1249,24 @@
           }
 
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
-            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
-            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 25;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 0.8;
             updateSpatialPosition(angle, dist, false);
           } else {
-            updateSpatialPosition(0, 1.0, false);
+            updateSpatialPosition(25, 0.8, false);
+          }
+
+          if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
+            const vAngle = res.sia_video_angle !== undefined ? Number(res.sia_video_angle) : -25;
+            const vDist = res.sia_video_distance !== undefined ? Number(res.sia_video_distance) : 1.5;
+            updateVideoSpatialPosition(vAngle, vDist, false);
+          } else {
+            updateVideoSpatialPosition(-25, 1.5, false);
+          }
+
+          if (globalThis.SiaNeuroDirector?.PRESETS?.[activeNeuroPreset] && spatialUi.neuroInsightText) {
+            const p = globalThis.SiaNeuroDirector.PRESETS[activeNeuroPreset];
+            spatialUi.neuroInsightText.textContent = p.insight;
           }
 
           if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
