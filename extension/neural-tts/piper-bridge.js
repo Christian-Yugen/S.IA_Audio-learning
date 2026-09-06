@@ -117,7 +117,10 @@
       this.input = null;
       this.output = null;
       this.pannerNode = null;
+      this.stereoPanner = null;
+      this.distanceFilter = null;
       this.clarityFilter = null;
+      this.distanceGain = null;
       this.spatialGain = null;
       this.bypassGain = null;
       this.initNodes();
@@ -130,8 +133,16 @@
         this.output = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.spatialGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
+        this.distanceGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
 
         if (typeof this.context.createBiquadFilter === "function") {
+          // 1. Filtro de absorção do ar (corte de agudos com a distância: 20kHz perto -> 7.5kHz longe)
+          this.distanceFilter = this.context.createBiquadFilter();
+          this.distanceFilter.type = "lowpass";
+          this.distanceFilter.frequency.value = 20000;
+          this.distanceFilter.Q.value = 0.7;
+
+          // 2. Filtro de presença vocal e brilho cristalino 4K (peaking em 3.8kHz)
           this.clarityFilter = this.context.createBiquadFilter();
           this.clarityFilter.type = "peaking";
           this.clarityFilter.frequency.value = 3800;
@@ -142,11 +153,16 @@
         if (typeof this.context.createPanner === "function") {
           this.pannerNode = this.context.createPanner();
           this.pannerNode.panningModel = "equalpower";
-          this.pannerNode.distanceModel = "none";
-          this.pannerNode.refDistance = 1;
+          // "inverse" é padrão no W3C Web Audio (nunca "none" que causa TypeError no Chromium)
+          this.pannerNode.distanceModel = "inverse";
+          this.pannerNode.refDistance = 1.0;
           this.pannerNode.maxDistance = 10000;
-          this.pannerNode.rolloffFactor = 0;
+          this.pannerNode.rolloffFactor = 0.5;
           this.pannerNode.coneInnerAngle = 360;
+        }
+
+        if (typeof this.context.createStereoPanner === "function") {
+          this.stereoPanner = this.context.createStereoPanner();
         }
 
         this.connectNodes();
@@ -165,20 +181,42 @@
           this.bypassGain.connect(this.output);
         }
 
-        // 2. Rota 4K Espacial: input -> clarityFilter -> pannerNode -> spatialGain -> output
-        if (this.pannerNode && this.spatialGain) {
-          if (this.clarityFilter) {
-            this.input.connect(this.clarityFilter);
-            this.clarityFilter.connect(this.pannerNode);
-          } else {
-            this.input.connect(this.pannerNode);
-          }
-          this.pannerNode.connect(this.spatialGain);
-          this.spatialGain.connect(this.output);
-        } else if (!this.bypassGain) {
-          this.input.connect(this.output);
+        // 2. Rota Espacial de Estúdio:
+        // input -> distanceFilter -> clarityFilter -> pannerNode -> (stereoPanner) -> distanceGain -> spatialGain -> output
+        let current = this.input;
+
+        if (this.distanceFilter) {
+          current.connect(this.distanceFilter);
+          current = this.distanceFilter;
         }
-      } catch {
+
+        if (this.clarityFilter) {
+          current.connect(this.clarityFilter);
+          current = this.clarityFilter;
+        }
+
+        if (this.pannerNode) {
+          current.connect(this.pannerNode);
+          current = this.pannerNode;
+        }
+
+        if (this.stereoPanner) {
+          current.connect(this.stereoPanner);
+          current = this.stereoPanner;
+        }
+
+        if (this.distanceGain) {
+          current.connect(this.distanceGain);
+          current = this.distanceGain;
+        }
+
+        if (this.spatialGain) {
+          current.connect(this.spatialGain);
+          this.spatialGain.connect(this.output);
+        } else {
+          current.connect(this.output);
+        }
+      } catch (err) {
         try { this.input.connect(this.output); } catch {}
       }
     }
@@ -204,6 +242,12 @@
           this.spatialGain.gain.value = 0.0;
         }
 
+        if (this.stereoPanner?.pan?.setValueAtTime) {
+          this.stereoPanner.pan.setValueAtTime(0, currentTime);
+        } else if (this.stereoPanner?.pan) {
+          this.stereoPanner.pan.value = 0;
+        }
+
         if (this.pannerNode?.positionX?.setValueAtTime) {
           this.pannerNode.positionX.setValueAtTime(0, currentTime);
           this.pannerNode.positionY.setValueAtTime(0, currentTime);
@@ -214,7 +258,7 @@
         return;
       }
 
-      // Modo Espacial 4K Ativo: Som 100% puro e transparente, livre de abafamento
+      // Modo Espacial 4K Ativo
       if (this.bypassGain?.gain?.setValueAtTime) {
         this.bypassGain.gain.setValueAtTime(0.0, currentTime);
       } else if (this.bypassGain?.gain) {
@@ -227,12 +271,38 @@
         this.spatialGain.gain.value = 1.15;
       }
 
-      if (this.clarityFilter?.gain?.setValueAtTime) {
-        this.clarityFilter.gain.setValueAtTime(1.5, currentTime);
-      } else if (this.clarityFilter?.gain) {
-        this.clarityFilter.gain.value = 1.5;
+      // 1. Atenuação e Proximidade de Distância (Volume perceptível e marcante)
+      let distVol;
+      if (this.distance <= 1.0) {
+        distVol = 1.0 + (1.0 - this.distance) * 0.45; // 0.3m -> 1.31x (+2.4dB) | 1.0m -> 1.00x
+      } else {
+        const norm = (this.distance - 1.0) / 1.5; // 0 a 1
+        distVol = Math.max(0.40, 1.0 - norm * 0.55); // 1.0m -> 1.00x | 2.5m -> 0.45x (-7dB)
+      }
+      if (this.distanceGain?.gain?.setValueAtTime) {
+        this.distanceGain.gain.setValueAtTime(Number(distVol.toFixed(3)), currentTime);
+      } else if (this.distanceGain?.gain) {
+        this.distanceGain.gain.value = Number(distVol.toFixed(3));
       }
 
+      // 2. Absorção Acústica do Ar (Corte suave de agudos simulando propagação no ar)
+      const normDist = Math.max(0, Math.min(1, (this.distance - 0.3) / 2.2));
+      const cutoff = Math.round(20000 - normDist * 12500); // 20.000 Hz até 7.500 Hz
+      if (this.distanceFilter?.frequency?.setValueAtTime) {
+        this.distanceFilter.frequency.setValueAtTime(cutoff, currentTime);
+      } else if (this.distanceFilter?.frequency) {
+        this.distanceFilter.frequency.value = cutoff;
+      }
+
+      // 3. Realce de presença vocal em 3.8kHz (intenso de perto, natural de longe)
+      const clarity = Math.max(0.5, 2.5 * (1 - normDist * 0.8));
+      if (this.clarityFilter?.gain?.setValueAtTime) {
+        this.clarityFilter.gain.setValueAtTime(Number(clarity.toFixed(2)), currentTime);
+      } else if (this.clarityFilter?.gain) {
+        this.clarityFilter.gain.value = Number(clarity.toFixed(2));
+      }
+
+      // 4. Posicionamento 3D no PannerNode
       const rad = (this.angle * Math.PI) / 180;
       const x = Number((this.distance * Math.sin(rad)).toFixed(2));
       const y = 0.15;
@@ -244,6 +314,15 @@
         this.pannerNode.positionZ.setValueAtTime(z, currentTime);
       } else if (typeof this.pannerNode?.setPosition === "function") {
         this.pannerNode.setPosition(x, y, z);
+      }
+
+      // 5. Separação Estéreo Cirúrgica nos Fones de Ouvido
+      // Math.sin(rad): -90° -> -1.0 (100% esquerda), 0° -> 0.0 (centro), +90° -> +1.0 (100% direita)
+      const pan = Math.max(-1.0, Math.min(1.0, Math.sin(rad)));
+      if (this.stereoPanner?.pan?.setValueAtTime) {
+        this.stereoPanner.pan.setValueAtTime(Number(pan.toFixed(3)), currentTime);
+      } else if (this.stereoPanner?.pan) {
+        this.stereoPanner.pan.value = Number(pan.toFixed(3));
       }
     }
 
@@ -602,7 +681,7 @@
       }
       if (!this.spatialStage && this.audioContext) {
         this.spatialStage = new SiaSpatialStage(this.audioContext);
-        this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+        this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
         if (this.spatialStage.output) {
           try {
             this.spatialStage.output.connect(this.audioContext.destination);

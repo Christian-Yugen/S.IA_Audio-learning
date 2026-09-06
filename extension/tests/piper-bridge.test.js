@@ -139,20 +139,27 @@ function createHarness({ engine = "browser", failGeneration = false, audioBlocke
     createBiquadFilter() {
       return {
         type: "peaking",
-        frequency: { value: 3800 },
-        Q: { value: 0.9 },
+        frequency: { value: 3800, setValueAtTime(v) { this.value = v; } },
+        Q: { value: 0.9, setValueAtTime(v) { this.value = v; } },
         gain: { value: 2.5, setValueAtTime(v) { this.value = v; } },
+        connect() {}
+      };
+    }
+
+    createStereoPanner() {
+      return {
+        pan: { value: 0, setValueAtTime(v) { this.value = v; } },
         connect() {}
       };
     }
 
     createPanner() {
       return {
-        panningModel: "HRTF",
-        distanceModel: "none",
+        panningModel: "equalpower",
+        distanceModel: "inverse",
         refDistance: 1,
         maxDistance: 10000,
-        rolloffFactor: 0,
+        rolloffFactor: 0.5,
         coneInnerAngle: 360,
         positionX: { value: 0, setValueAtTime(v) { this.value = v; } },
         positionY: { value: 0, setValueAtTime(v) { this.value = v; } },
@@ -416,41 +423,49 @@ test("configura e posiciona a voz 3D no espaço com áudio cristalino 4K transpa
   const stage = harness.provider.spatialStage;
   assert.ok(stage);
   assert.equal(stage.pannerNode.panningModel, "equalpower");
-  assert.equal(stage.pannerNode.distanceModel, "none");
+  assert.equal(stage.pannerNode.distanceModel, "inverse");
   assert.equal(stage.spatialGain.gain.value, 1.15);
   assert.equal(stage.bypassGain.gain.value, 0.0);
+  assert.equal(stage.stereoPanner.pan.value, 0);
+  assert.equal(stage.distanceGain.gain.value, 1.0);
 
   // Perfil padrão: Palco Frontal (0° frente, na tela)
   assert.equal(stage.pannerNode.positionX.value, 0.00);
   assert.equal(stage.pannerNode.positionY.value, 0.15);
   assert.equal(stage.pannerNode.positionZ.value, -1.00);
-  assert.equal(stage.clarityFilter.gain.value, 1.5);
+  assert.equal(stage.clarityFilter.gain.value, 1.86);
 
   // Alterna para Intérprete (+25° à direita, 1m)
   harness.provider.setSpatialAudio(true, "interpreter");
   assert.equal(stage.pannerNode.positionX.value, 0.42);
   assert.equal(stage.pannerNode.positionY.value, 0.15);
   assert.equal(stage.pannerNode.positionZ.value, -0.91);
-  assert.equal(stage.clarityFilter.gain.value, 1.5);
+  assert.equal(stage.stereoPanner.pan.value, 0.423);
+  assert.equal(stage.clarityFilter.gain.value, 1.86);
 
   // Alterna para Proximidade VIP (+15° direita, 0.6m)
   harness.provider.setSpatialAudio(true, "intimate");
   assert.equal(stage.pannerNode.positionX.value, 0.16);
   assert.equal(stage.pannerNode.positionY.value, 0.15);
   assert.equal(stage.pannerNode.positionZ.value, -0.58);
-  assert.equal(stage.clarityFilter.gain.value, 1.5);
+  assert.equal(stage.stereoPanner.pan.value, 0.259);
+  assert.equal(stage.distanceGain.gain.value, 1.18);
+  assert.equal(stage.clarityFilter.gain.value, 2.23);
 
   // Posicionamento contínuo preciso (ex: 45° direita, 1.5m)
   harness.provider.setSpatialPosition(45, 1.5, true);
   assert.equal(stage.pannerNode.positionX.value, 1.06);
   assert.equal(stage.pannerNode.positionY.value, 0.15);
   assert.equal(stage.pannerNode.positionZ.value, -1.06);
+  assert.equal(stage.stereoPanner.pan.value, 0.707);
+  assert.equal(stage.distanceGain.gain.value, 0.817);
 
   // Desativa o áudio 3D (modo bypass transparente 1:1)
   harness.provider.setSpatialAudio(false, "intimate");
   assert.equal(stage.pannerNode.positionX.value, 0.00);
   assert.equal(stage.pannerNode.positionY.value, 0.00);
   assert.equal(stage.pannerNode.positionZ.value, -1.00);
+  assert.equal(stage.stereoPanner.pan.value, 0);
   assert.equal(stage.spatialGain.gain.value, 0.0);
   assert.equal(stage.bypassGain.gain.value, 1.0);
 });
