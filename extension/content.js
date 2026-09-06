@@ -2574,9 +2574,24 @@
                     responder(resultado);
                 };
 
-                const posTexto = angle === 0
-                    ? "no centro frontal"
-                    : (angle > 0 ? `${angle} graus à sua direita` : `${Math.abs(angle)} graus à sua esquerda`);
+                let posTexto;
+                if (angle === 0) {
+                    posTexto = "no centro frontal";
+                } else if (Math.abs(angle) === 180) {
+                    posTexto = "diretamente atrás da sua cabeça";
+                } else if (angle === 90) {
+                    posTexto = "totalmente no seu ouvido direito";
+                } else if (angle === -90) {
+                    posTexto = "totalmente no seu ouvido esquerdo";
+                } else if (angle > 90) {
+                    posTexto = `a ${angle} graus, atrás à sua direita`;
+                } else if (angle < -90) {
+                    posTexto = `a ${Math.abs(angle)} graus, atrás à sua esquerda`;
+                } else if (angle > 0) {
+                    posTexto = `a ${angle} graus à sua direita`;
+                } else {
+                    posTexto = `a ${Math.abs(angle)} graus à sua esquerda`;
+                }
                 const textoTeste = mensagem.text || `Posicionamento acústico confirmado. A S·IA está falando ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
 
                 const utterance = {

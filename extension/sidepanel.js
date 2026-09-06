@@ -701,7 +701,10 @@
   let isDraggingPuck = false;
 
   function updateSpatialPosition(angle, distance, persist = true) {
-    currentAngle = Math.max(-90, Math.min(90, Math.round(Number(angle) || 0)));
+    let deg = Math.round(Number(angle) || 0);
+    while (deg > 180) deg -= 360;
+    while (deg < -180) deg += 360;
+    currentAngle = deg;
     currentDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
 
     if (spatialUi.puck) {
@@ -714,16 +717,26 @@
     }
 
     if (spatialUi.posText) {
-      const dir = currentAngle === 0
-        ? "Frente"
-        : (currentAngle > 0 ? `+${currentAngle}° Direita` : `${currentAngle}° Esquerda`);
+      let dir;
+      if (currentAngle === 0) dir = "Frente";
+      else if (Math.abs(currentAngle) === 180) dir = "180° Atrás";
+      else if (currentAngle > 0) dir = `+${currentAngle}° Direita`;
+      else dir = `${currentAngle}° Esquerda`;
       spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
     }
 
     if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
     if (spatialUi.distSlider) spatialUi.distSlider.value = currentDistance;
     if (spatialUi.angleValue) {
-      const dirName = currentAngle === 0 ? "Frente" : (currentAngle > 0 ? "Direita" : "Esquerda");
+      let dirName;
+      if (Math.abs(currentAngle) <= 10) dirName = "Frente";
+      else if (Math.abs(currentAngle) >= 170) dirName = "Atrás";
+      else if (currentAngle > 0 && currentAngle < 90) dirName = "Frente-Dir";
+      else if (currentAngle === 90) dirName = "Direita";
+      else if (currentAngle > 90) dirName = "Trás-Dir";
+      else if (currentAngle < 0 && currentAngle > -90) dirName = "Frente-Esq";
+      else if (currentAngle === -90) dirName = "Esquerda";
+      else dirName = "Trás-Esq";
       spatialUi.angleValue.textContent = `${currentAngle}° (${dirName})`;
     }
     if (spatialUi.distValue) spatialUi.distValue.textContent = `${currentDistance.toFixed(1)} m`;
@@ -731,7 +744,7 @@
     spatialUi.presetButtons.forEach(btn => {
       const bAngle = Number(btn.dataset.angle);
       const bDist = Number(btn.dataset.dist);
-      const match = Math.abs(bAngle - currentAngle) <= 2 && Math.abs(bDist - currentDistance) <= 0.15;
+      const match = Math.abs(bAngle - currentAngle) <= 5 && Math.abs(bDist - currentDistance) <= 0.2;
       btn.classList.toggle("active", match);
     });
 
@@ -787,9 +800,10 @@
       const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
       const dist = Math.round(normDist * 2.0 * 10) / 10;
 
+      // Ângulo contínuo 360° no radar (0° frente, +90° dir, -90° esq, 180° atrás)
       const angleRad = Math.atan2(dx, -dy);
       let angleDeg = Math.round((angleRad * 180) / Math.PI);
-      angleDeg = Math.max(-90, Math.min(90, angleDeg));
+      angleDeg = Math.max(-180, Math.min(180, angleDeg));
 
       updateSpatialPosition(angleDeg, dist, true);
     }

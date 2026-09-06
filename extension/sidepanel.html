@@ -68,10 +68,11 @@
           <div class="radar-ray ray-r30"></div>
           <div class="radar-ray ray-r60"></div>
 
-          <!-- Rótulos angulares -->
-          <span class="angle-label lbl-l90">-90° L</span>
+          <!-- Rótulos angulares 360° -->
+          <span class="angle-label lbl-l90">-90° Esq</span>
           <span class="angle-label lbl-center">0° Frente</span>
-          <span class="angle-label lbl-r90">+90° R</span>
+          <span class="angle-label lbl-r90">+90° Dir</span>
+          <span class="angle-label lbl-back">180° Atrás</span>
 
           <!-- Cabeça do ouvinte no centro (você com fone de ouvido) -->
           <div class="listener-center" id="listener-center" title="Você (Fone de Ouvido)">
@@ -87,22 +88,25 @@
         </div>
       </div>
 
-      <!-- Presets Rápidos -->
-      <div class="spatial-presets" role="group" aria-label="Predefinições acústicas">
+      <!-- Presets Rápidos 360° -->
+      <div class="spatial-presets" role="group" aria-label="Predefinições acústicas 360°">
         <button type="button" class="preset-pill active" data-angle="0" data-dist="1.0" id="preset-front">Frente (0°)</button>
         <button type="button" class="preset-pill" data-angle="25" data-dist="1.0" id="preset-interpreter">Intérprete (+25°)</button>
         <button type="button" class="preset-pill" data-angle="60" data-dist="1.2" id="preset-side">Lado (+60°)</button>
         <button type="button" class="preset-pill" data-angle="15" data-dist="0.6" id="preset-intimate">Íntimo (0.6m)</button>
+        <button type="button" class="preset-pill" data-angle="-90" data-dist="0.8" id="preset-left">Ouvido Esq (-90°)</button>
+        <button type="button" class="preset-pill" data-angle="90" data-dist="0.8" id="preset-right">Ouvido Dir (+90°)</button>
+        <button type="button" class="preset-pill" data-angle="180" data-dist="1.0" id="preset-back">Atrás (180°)</button>
       </div>
 
       <!-- Controles Deslizantes de Precisão -->
       <div class="spatial-sliders">
         <div class="spatial-slider-row">
           <label for="spatial-angle-slider">
-            <span>Ângulo Acústico</span>
+            <span>Ângulo Acústico 360°</span>
             <strong id="spatial-angle-value">0° (Frente)</strong>
           </label>
-          <input type="range" id="spatial-angle-slider" min="-90" max="90" step="1" value="0">
+          <input type="range" id="spatial-angle-slider" min="-180" max="180" step="1" value="0">
         </div>
         <div class="spatial-slider-row">
           <label for="spatial-dist-slider">

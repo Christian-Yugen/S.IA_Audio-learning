@@ -511,6 +511,13 @@ button:focus-visible {
   transform: translateY(-50%);
 }
 
+.lbl-back {
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #a855f7;
+}
+
 /* Ouvinte no Centro */
 .listener-center {
   position: absolute;
