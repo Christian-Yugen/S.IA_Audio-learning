@@ -717,8 +717,8 @@
     btnRetryCalib: document.getElementById("btn-retry-calib"),
   };
 
-  let currentAngle = 25;
-  let currentDistance = 0.8;
+  let currentAngle = 0;
+  let currentDistance = 1.0;
   let currentVideoAngle = -25;
   let currentVideoDistance = 1.5;
   let currentDucking = 0;
@@ -743,6 +743,14 @@
       spatialUi.puck.style.top = `${topPct}%`;
     }
 
+    if (spatialUi.posText) {
+      let dir;
+      if (currentAngle === 0) dir = "Frente";
+      else if (Math.abs(currentAngle) === 180) dir = "180° Atrás";
+      else if (currentAngle > 0) dir = `+${currentAngle}° Direita`;
+      else dir = `${currentAngle}° Esquerda`;
+      spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
+    }
     updateSpatialBadgeText();
 
     if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
@@ -813,10 +821,11 @@
   }
 
   function updateSpatialBadgeText() {
-    if (!spatialUi.posText) return;
-    const siaDir = currentAngle >= 0 ? `+${currentAngle}°` : `${currentAngle}°`;
-    const vidDir = currentVideoAngle >= 0 ? `+${currentVideoAngle}°` : `${currentVideoAngle}°`;
-    spatialUi.posText.textContent = `S·IA ${siaDir} · Vídeo ${vidDir}`;
+    if (spatialUi.posBadge) {
+      const siaDir = currentAngle >= 0 ? `+${currentAngle}°` : `${currentAngle}°`;
+      const vidDir = currentVideoAngle >= 0 ? `+${currentVideoAngle}°` : `${currentVideoAngle}°`;
+      spatialUi.posBadge.title = `S·IA ${siaDir} · Vídeo ${vidDir}`;
+    }
   }
 
   function setNeuroDirectorState(active, persist = true) {
@@ -1238,11 +1247,11 @@
           }
 
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
-            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 25;
-            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 0.8;
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
             updateSpatialPosition(angle, dist, false);
           } else {
-            updateSpatialPosition(25, 0.8, false);
+            updateSpatialPosition(0, 1.0, false);
           }
 
           if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
@@ -1274,7 +1283,7 @@
         }
       );
     } catch {
-      updateSpatialPosition(25, 0.8, false);
+      updateSpatialPosition(0, 1.0, false);
       updateVideoSpatialPosition(-25, 1.5, false);
       updateDuckingUI(0, false);
       setCalibrationState(null);

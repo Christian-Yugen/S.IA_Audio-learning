@@ -24,11 +24,14 @@
     const MOTOR_SINCRONIA = globalThis.SiaSyncEngine;
     const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
     const MOTOR_TRADUCAO = globalThis.SiaTranslationEngine?.create?.() || null;
+    const MOTOR_NEURO = globalThis.SiaNeuroDirector || null;
     const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
     const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
     const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
     let traducaoInglesAtiva = false;
+    let neuroDirectorAtivo = true;
+    let activeNeuroPreset = "onu";
     let geracaoTraducao = 0;
     let ultimoErroTraducao = "";
     let ultimaPreTraducaoEm = 0;
@@ -1515,6 +1518,35 @@
         }).taxaFala;
     }
 
+    function notificarPalcoNeuro(stage) {
+        try {
+            if (typeof chrome !== "undefined" && chrome?.runtime?.id && typeof chrome.runtime.sendMessage === "function") {
+                void chrome.runtime.sendMessage({
+                    type: "SIA_NEURO_STAGE_UPDATE",
+                    stage
+                }).catch(() => {});
+            }
+        } catch {}
+    }
+
+    function aplicarDiretorCognitivoSeAtivo(texto) {
+        if (!MOTOR_NEURO || !neuroDirectorAtivo) return;
+        try {
+            const stage = MOTOR_NEURO.getRecommendedStage(texto, {
+                activePreset: activeNeuroPreset,
+                isDirectorEnabled: true
+            });
+            if (stage) {
+                if (globalThis.SiaPiperVoice?.morphSpatialPosition && stage.sia) {
+                    globalThis.SiaPiperVoice.morphSpatialPosition(stage.sia.angle, stage.sia.distance, true, stage.durationMs);
+                }
+                notificarPalcoNeuro(stage);
+            }
+        } catch (e) {
+            console.warn("[S·IA Neuro-Director] erro ao avaliar frase", e);
+        }
+    }
+
     function criarFalaEnfileiravel(texto, contexto) {
         const utterance = new SpeechSynthesisUtterance(prepararTextoParaSintese(texto));
         const registro = {
@@ -1546,6 +1578,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             iniciarDucking();
+            aplicarDiretorCognitivoSeAtivo(registro.texto);
             notificarEstadoFala(true, registro.texto);
             emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
@@ -1715,6 +1748,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             iniciarDucking();
+            aplicarDiretorCognitivoSeAtivo(registro.texto);
             notificarEstadoFala(true, registro.texto);
             registrarDiagnostico("fala-neural-iniciada", registro.texto);
             if (registro.contexto?.naoRegistrarHistorico !== true) {
@@ -2334,6 +2368,12 @@
                 }
                 break;
             }
+            case "sia_neuro_director_active":
+                neuroDirectorAtivo = Boolean(valor);
+                break;
+            case "sia_neuro_preset":
+                activeNeuroPreset = String(valor || "onu");
+                break;
         }
     }
 
@@ -2353,7 +2393,9 @@
             "sia_spatial_audio",
             "sia_spatial_profile",
             "sia_spatial_angle",
-            "sia_spatial_distance"
+            "sia_spatial_distance",
+            "sia_neuro_director_active",
+            "sia_neuro_preset"
         ];
 
         chrome.storage.local.get([...chaves, "sia_course_profiles"], configuracoes => {
