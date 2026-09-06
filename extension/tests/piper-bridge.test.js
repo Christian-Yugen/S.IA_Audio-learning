@@ -446,14 +446,14 @@ test("atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE", async () 
   await harness.provider.ensureAudioContext(22050);
 
   // Simula mensagem de atualização de perfil vinda do popup
-  harness.listeners.forEach(fn => {
+  harness.messages.forEach(fn => {
     fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_profile", value: "stage" });
   });
   assert.equal(harness.provider.status().spatialProfile, "stage");
   assert.equal(harness.provider.spatialStage.pannerNode.positionX.value, 0.00);
 
   // Simula desativação do áudio 3D vinda do popup
-  harness.listeners.forEach(fn => {
+  harness.messages.forEach(fn => {
     fn({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_audio", value: false });
   });
   assert.equal(harness.provider.status().spatialAudio, false);
