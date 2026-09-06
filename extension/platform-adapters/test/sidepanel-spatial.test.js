@@ -139,6 +139,22 @@ function createSpatialHarness() {
       onMessage: { addListener: () => {} }
     }
   };
+  const MockAudioContext = class {
+    constructor() { this.sampleRate = 48000; this.destination = {}; }
+    createBuffer(channels, length, sampleRate) {
+      return {
+        getChannelData: () => new Float32Array(length),
+      };
+    }
+    createBufferSource() {
+      return {
+        connect: () => {},
+        start: () => {},
+        onended: null,
+      };
+    }
+    close() {}
+  };
 
   const contextVm = vm.createContext({
     console,
@@ -155,6 +171,12 @@ function createSpatialHarness() {
     alert: () => {},
     confirm: () => true,
     prompt: () => null,
+    AudioContext: MockAudioContext,
+    window: {
+      AudioContext: MockAudioContext,
+      open: () => {},
+      location: { href: "" }
+    }
   });
 
   vm.runInContext(sidepanelSource, contextVm);
@@ -176,26 +198,18 @@ test("sliders de ângulo e distância sincronizam coordenadas acústicas e atual
   const puck = harness.elements.get("#spatial-puck");
   const badge = harness.elements.get("#spatial-pos-text");
 
-  // Altera slider de ângulo para +30°
   angleSlider.value = "30";
   angleSlider.dispatch("input");
 
-  assert.equal(Number(angleSlider.value), 30);
   assert.match(badge.textContent, /\+30° Direita · 1.0m/);
-  assert.ok(puck.style.left);
-  assert.ok(puck.style.top);
+  assert.equal(harness.storageData.sia_spatial_angle, 30);
+  assert.equal(harness.storageData.sia_voice_engine, "piper-local");
 
-  // Altera slider de distância para 1.5m
-  distSlider.value = "1.5";
+  distSlider.value = "1.8";
   distSlider.dispatch("input");
 
-  assert.equal(Number(distSlider.value), 1.5);
-  assert.match(badge.textContent, /\+30° Direita · 1.5m/);
-
-  // Verifica persistência e envio de mensagens
-  assert.equal(harness.storageData.sia_spatial_angle, 30);
-  // Aguarda microtasks do envio de mensagem async
-  await new Promise(r => setTimeout(r, 10));
+  assert.match(badge.textContent, /\+30° Direita · 1.8m/);
+  assert.equal(harness.storageData.sia_spatial_distance, 1.8);
 
   const angleUpdate = harness.sentMessages.find(m => m.msg.key === "sia_spatial_angle");
   assert.ok(angleUpdate);
@@ -252,4 +266,43 @@ test("botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe con
   assert.equal(testMsg.msg.angle, 0);
   assert.equal(testMsg.msg.distance, 1.0);
   assert.match(testStatus.textContent, /✓ Posição confirmada no fone de ouvido!/);
+});
+
+test("fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma estéreo e persiste sia_stereo_calibrated", () => {
+  const harness = createSpatialHarness();
+
+  const btnYes = harness.elements.get("#btn-calib-yes");
+  const questionBox = harness.elements.get("#calib-question-box");
+  const successBox = harness.elements.get("#calib-success-box");
+  const badge = harness.elements.get("#calib-quick-badge");
+
+  btnYes.dispatch("click");
+
+  assert.equal(harness.storageData.sia_stereo_calibrated, true);
+  assert.equal(questionBox.style.display, "none");
+  assert.equal(successBox.style.display, "flex");
+  assert.equal(badge.textContent, "Calibrado ✓");
+  assert.equal(badge.classList.contains("calibrated"), true);
+});
+
+test("fluxo interativo de calibração: resposta 'Não, ouvi nos dois' exibe atalho de áudio mono e permite retentar", () => {
+  const harness = createSpatialHarness();
+
+  const btnNo = harness.elements.get("#btn-calib-no");
+  const questionBox = harness.elements.get("#calib-question-box");
+  const monoCard = harness.elements.get("#mono-detected-card");
+  const badge = harness.elements.get("#calib-quick-badge");
+  const retryBtn = harness.elements.get("#btn-retry-calib");
+
+  btnNo.dispatch("click");
+
+  assert.equal(harness.storageData.sia_stereo_calibrated, false);
+  assert.equal(questionBox.style.display, "none");
+  assert.equal(monoCard.style.display, "grid");
+  assert.equal(badge.textContent, "Mono detectado ⚠️");
+
+  retryBtn.dispatch("click");
+  assert.equal(questionBox.style.display, "grid");
+  assert.equal(monoCard.style.display, "none");
+  assert.equal(badge.textContent, "Clique para testar");
 });
