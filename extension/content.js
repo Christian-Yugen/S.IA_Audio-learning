@@ -91,6 +91,15 @@
         duckingAnimId = requestAnimFrame(frame);
     }
 
+    function tentarDesbloquearAudioNeural() {
+        try {
+            const provider = globalThis.SiaPiperVoice;
+            if (provider?.isActive?.() && typeof provider.primeAudio === "function") {
+                void provider.primeAudio().catch(() => {});
+            }
+        } catch {}
+    }
+
     function obterVideoParaDucking() {
         if (videoMonitorado) {
             if (typeof videoMonitorado.isConnected !== "boolean" || videoMonitorado.isConnected) {
@@ -101,6 +110,11 @@
             const video = document.querySelector("video");
             if (video) {
                 videoMonitorado = video;
+                if (!video._siaAudioPrimed) {
+                    video._siaAudioPrimed = true;
+                    video.addEventListener?.("play", tentarDesbloquearAudioNeural, { passive: true });
+                    video.addEventListener?.("playing", tentarDesbloquearAudioNeural, { passive: true });
+                }
                 return video;
             }
         }
@@ -1819,12 +1833,10 @@
             restaurarVelocidadeVideo();
             reconciliarPrevisaoFilaAposFimReal();
 
-            if (!provider.isActive?.()) {
-                // O provedor já se desativou. Tenta a mesma frase pela rota
-                // nativa, sem alterar a geração atual nem a fila de legendas.
-                enfileirarFala(registro.texto, registro.contexto);
-                return;
-            }
+            // Fallback de Áudio Transparente: Nunca deixa o vídeo falando sozinho!
+            // Se o motor neural falhar por qualquer motivo (bloqueio de AudioContext, timeout, etc.),
+            // fala a legenda imediatamente pela voz do navegador como fallback gracioso.
+            enfileirarFala(registro.texto, { ...registro.contexto, nativeOnly: true });
         };
 
         const duracaoPrevistaMs = registro.duracaoTaxaUm
@@ -2598,6 +2610,7 @@
                 if (!provider?.isActive?.()) {
                     provider?.setActive?.("piper-local");
                 }
+                void provider?.primeAudio?.();
 
                 const angle = Number.isFinite(Number(mensagem.angle)) ? Number(mensagem.angle) : 0;
                 const distance = Number.isFinite(Number(mensagem.distance)) ? Number(mensagem.distance) : 1.0;
@@ -2833,6 +2846,11 @@
     function iniciarSia() {
         conectarConfiguracoes();
         conectarEntradaDeCaption();
+        if (typeof document !== "undefined") {
+            ["pointerdown", "click", "keydown", "touchstart"].forEach(evt => {
+                document.addEventListener(evt, tentarDesbloquearAudioNeural, { capture: true, passive: true });
+            });
+        }
         estadoAprendizagemPronto = carregarEstadoAprendizagem();
         chrome.storage.local.get([chaveHistorico, chaveTranscricao], resultado => {
             const salvo = resultado[chaveHistorico];

@@ -327,22 +327,30 @@
       this.distance = Math.max(0.3, Math.min(2.5, Number.isFinite(Number(distance)) ? Number(distance) : 1.0));
       this.enabled = Boolean(enabled);
 
-      const currentTime = Number(this.context?.currentTime) || 0;
       const smoothRamp = Number(rampSec) > 0;
 
       const scheduleParam = (param, targetVal) => {
         if (!param) return;
-        param.value = targetVal;
         try {
-          param.cancelScheduledValues(currentTime);
-          if (smoothRamp && typeof param.linearRampToValueAtTime === "function") {
-            const startVal = Number.isFinite(param.value) ? param.value : targetVal;
-            param.setValueAtTime(startVal, currentTime);
-            param.linearRampToValueAtTime(targetVal, currentTime + Number(rampSec));
-          } else {
-            param.setValueAtTime(targetVal, currentTime);
+          const now = Number(this.context?.currentTime) || 0;
+          const currentVal = Number.isFinite(param.value) ? param.value : targetVal;
+          if (typeof param.cancelScheduledValues === "function") {
+            param.cancelScheduledValues(now);
           }
-        } catch {}
+          if (smoothRamp && typeof param.linearRampToValueAtTime === "function" && Math.abs(currentVal - targetVal) > 0.001) {
+            if (typeof param.setValueAtTime === "function") {
+              param.setValueAtTime(currentVal, now);
+            }
+            param.linearRampToValueAtTime(targetVal, now + Number(rampSec));
+          } else {
+            if (typeof param.setValueAtTime === "function") {
+              param.setValueAtTime(targetVal, now);
+            }
+            param.value = targetVal;
+          }
+        } catch {
+          try { param.value = targetVal; } catch {}
+        }
       };
 
       if (!this.enabled) {
@@ -1266,8 +1274,16 @@
     });
   };
   if (typeof globalThis.addEventListener === "function") {
-    ["pointerdown", "keydown", "touchstart"].forEach(type => {
+    ["pointerdown", "click", "keydown", "touchstart"].forEach(type => {
       globalThis.addEventListener(type, primeFromPageGesture, {
+        capture: true,
+        passive: true
+      });
+    });
+  }
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    ["pointerdown", "click", "keydown", "touchstart"].forEach(type => {
+      document.addEventListener(type, primeFromPageGesture, {
         capture: true,
         passive: true
       });

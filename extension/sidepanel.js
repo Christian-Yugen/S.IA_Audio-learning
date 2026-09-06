@@ -1050,6 +1050,8 @@
         if (spatialUi.testStatus) spatialUi.testStatus.textContent = "Sintetizando e tocando no fone de ouvido...";
 
         try {
+          await send({ type: "SIA_PRIME_NEURAL_AUDIO" }).catch(() => {});
+
           const res = await send({
             type: "SIA_TEST_SPATIAL_AUDIO",
             angle: currentAngle,

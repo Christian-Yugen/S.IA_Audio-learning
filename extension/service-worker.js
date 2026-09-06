@@ -50,6 +50,7 @@ const youtubeBootstrap = Object.freeze({
   isolatedFiles: [
     "sync-engine.js",
     "neural-tts/piper-bridge.js",
+    "learning/neuro-director.js",
     "learning/learning-engine.js",
     "translation/translation-engine.js",
     "platform-adapters/caption-input.js",
