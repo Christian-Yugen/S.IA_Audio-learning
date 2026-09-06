@@ -396,9 +396,9 @@ button:focus-visible {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, #172033 0%, #0c101c 65%, #060912 100%);
-  border: 1.5px solid rgba(56, 189, 248, 0.35);
-  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.15);
+  background: radial-gradient(circle at 50% 50%, #11261a 0%, #0a1710 65%, #050d09 100%);
+  border: 1.5px solid rgba(46, 204, 113, 0.35);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(46, 204, 113, 0.15);
   overflow: visible;
   touch-action: none;
   user-select: none;
@@ -417,19 +417,19 @@ button:focus-visible {
 .ring-far {
   width: 88%;
   height: 88%;
-  border: 1px dashed rgba(56, 189, 248, 0.22);
+  border: 1px dashed rgba(46, 204, 113, 0.22);
 }
 
 .ring-mid {
   width: 58%;
   height: 58%;
-  border: 1px dashed rgba(56, 189, 248, 0.28);
+  border: 1px dashed rgba(46, 204, 113, 0.28);
 }
 
 .ring-close {
   width: 28%;
   height: 28%;
-  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border: 1px dashed rgba(46, 204, 113, 0.35);
 }
 
 .ring-label {
@@ -438,8 +438,8 @@ button:focus-visible {
   left: 50%;
   transform: translateX(-50%);
   font-size: 8px;
-  color: rgba(148, 163, 184, 0.65);
-  background: #0c101c;
+  color: rgba(46, 204, 113, 0.7);
+  background: #0a1710;
   padding: 0 3px;
 }
 
@@ -454,7 +454,7 @@ button:focus-visible {
   bottom: 0;
   left: 50%;
   width: 1px;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0.05));
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.45), rgba(46, 204, 113, 0.05));
   transform: translateX(-50%);
 }
 
@@ -463,7 +463,7 @@ button:focus-visible {
   right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(46, 204, 113, 0.18);
   transform: translateY(-50%);
 }
 
@@ -474,7 +474,7 @@ button:focus-visible {
   width: 50%;
   height: 1px;
   transform-origin: 0 0;
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(46, 204, 113, 0.12);
   pointer-events: none;
 }
 
@@ -502,7 +502,7 @@ button:focus-visible {
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
-  color: #38bdf8;
+  color: #2ecc71;
 }
 
 .lbl-r90 {
@@ -515,7 +515,7 @@ button:focus-visible {
   bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
-  color: #a855f7;
+  color: #10b981;
 }
 
 /* Ouvinte no Centro */
@@ -533,7 +533,7 @@ button:focus-visible {
 
 .listener-avatar {
   font-size: 18px;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+  filter: drop-shadow(0 0 6px rgba(46, 204, 113, 0.5));
 }
 
 .listener-tag {
@@ -554,9 +554,9 @@ button:focus-visible {
   height: 36px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
+  background: linear-gradient(135deg, #2ecc71 0%, #10b981 100%);
   border: 2px solid #ffffff;
-  box-shadow: 0 0 16px rgba(192, 132, 252, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 16px rgba(46, 204, 113, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5);
   cursor: grab;
   z-index: 10;
   display: flex;
@@ -568,14 +568,14 @@ button:focus-visible {
 .spatial-puck:active,
 .spatial-puck.is-dragging {
   cursor: grabbing;
-  box-shadow: 0 0 24px rgba(192, 132, 252, 0.95), 0 0 8px #ffffff;
+  box-shadow: 0 0 24px rgba(46, 204, 113, 0.95), 0 0 8px #ffffff;
   transform: translate(-50%, -50%) scale(1.12);
 }
 
 .puck-label {
   font-size: 9px;
   font-weight: 800;
-  color: #0f172a;
+  color: #062413;
   letter-spacing: 0.5px;
   pointer-events: none;
   user-select: none;
@@ -588,7 +588,7 @@ button:focus-visible {
   right: -4px;
   bottom: -4px;
   border-radius: 50%;
-  border: 1.5px solid rgba(192, 132, 252, 0.6);
+  border: 1.5px solid rgba(46, 204, 113, 0.6);
   animation: puck-ripple 2s infinite ease-out;
   pointer-events: none;
 }
@@ -622,13 +622,13 @@ button:focus-visible {
 
 .preset-pill:hover {
   color: #f1f1f1;
-  border-color: rgba(56, 189, 248, 0.4);
+  border-color: rgba(46, 204, 113, 0.4);
 }
 
 .preset-pill.active {
-  border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.14);
-  color: #38bdf8;
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.14);
+  color: #2ecc71;
   font-weight: 700;
 }
 
@@ -664,7 +664,7 @@ button:focus-visible {
   height: 5px;
   border-radius: 3px;
   background: #1e293b;
-  accent-color: #38bdf8;
+  accent-color: #2ecc71;
   cursor: pointer;
   outline: none;
 }
@@ -689,7 +689,7 @@ button:focus-visible {
 
 .ducking-title-row small {
   font-size: 10px;
-  color: #38bdf8;
+  color: #2ecc71;
 }
 
 .ducking-options {
@@ -723,7 +723,7 @@ button:focus-visible {
 }
 
 .ducking-btn:hover {
-  border-color: rgba(56, 189, 248, 0.35);
+  border-color: rgba(46, 204, 113, 0.35);
 }
 
 .ducking-btn.active {
@@ -751,8 +751,8 @@ button:focus-visible {
   width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.22) 0%, rgba(16, 185, 129, 0.18) 100%);
   color: #f8fafc;
   font-size: 12px;
   font-weight: 700;
@@ -762,9 +762,9 @@ button:focus-visible {
 }
 
 .spatial-test-headphone-btn:hover {
-  border-color: #38bdf8;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(99, 102, 241, 0.35) 100%);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  border-color: #2ecc71;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.32) 0%, rgba(16, 185, 129, 0.25) 100%);
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.3);
 }
 
 .spatial-test-headphone-btn:active {
@@ -772,14 +772,14 @@ button:focus-visible {
 }
 
 .spatial-test-headphone-btn.is-testing {
-  border-color: #a855f7;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+  border-color: #2ecc71;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.35) 0%, rgba(16, 185, 129, 0.35) 100%);
   animation: pulse-testing 1.2s infinite ease-in-out;
 }
 
 @keyframes pulse-testing {
-  0%, 100% { box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
-  50% { box-shadow: 0 0 18px rgba(168, 85, 247, 0.8); }
+  0%, 100% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(46, 204, 113, 0.8); }
 }
 
 .spatial-test-status {
