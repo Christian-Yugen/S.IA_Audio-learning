@@ -676,6 +676,238 @@
     });
   }
 
+  // ==========================================================================
+  // Controle do Palco Sonoro 3D Espacial (dearVR PRO Style)
+  // ==========================================================================
+  const spatialUi = {
+    radar: document.getElementById("spatial-radar"),
+    puck: document.getElementById("spatial-puck"),
+    posBadge: document.getElementById("spatial-pos-badge"),
+    posText: document.getElementById("spatial-pos-text"),
+    angleSlider: document.getElementById("spatial-angle-slider"),
+    distSlider: document.getElementById("spatial-dist-slider"),
+    angleValue: document.getElementById("spatial-angle-value"),
+    distValue: document.getElementById("spatial-dist-value"),
+    presetButtons: [...document.querySelectorAll(".preset-pill")],
+    duckingButtons: [...document.querySelectorAll(".ducking-btn")],
+    duckingModeStatus: document.getElementById("ducking-mode-status"),
+    testBtn: document.getElementById("spatial-test-headphone"),
+    testStatus: document.getElementById("spatial-test-status"),
+  };
+
+  let currentAngle = 0;
+  let currentDistance = 1.0;
+  let currentDucking = 0;
+  let isDraggingPuck = false;
+
+  function updateSpatialPosition(angle, distance, persist = true) {
+    currentAngle = Math.max(-90, Math.min(90, Math.round(Number(angle) || 0)));
+    currentDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
+
+    if (spatialUi.puck) {
+      const rPct = Math.min(45, (currentDistance / 2.0) * 44);
+      const rad = (currentAngle * Math.PI) / 180;
+      const leftPct = 50 + rPct * Math.sin(rad);
+      const topPct = 50 - rPct * Math.cos(rad);
+      spatialUi.puck.style.left = `${leftPct}%`;
+      spatialUi.puck.style.top = `${topPct}%`;
+    }
+
+    if (spatialUi.posText) {
+      const dir = currentAngle === 0
+        ? "Frente"
+        : (currentAngle > 0 ? `+${currentAngle}° Direita` : `${currentAngle}° Esquerda`);
+      spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
+    }
+
+    if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
+    if (spatialUi.distSlider) spatialUi.distSlider.value = currentDistance;
+    if (spatialUi.angleValue) {
+      const dirName = currentAngle === 0 ? "Frente" : (currentAngle > 0 ? "Direita" : "Esquerda");
+      spatialUi.angleValue.textContent = `${currentAngle}° (${dirName})`;
+    }
+    if (spatialUi.distValue) spatialUi.distValue.textContent = `${currentDistance.toFixed(1)} m`;
+
+    spatialUi.presetButtons.forEach(btn => {
+      const bAngle = Number(btn.dataset.angle);
+      const bDist = Number(btn.dataset.dist);
+      const match = Math.abs(bAngle - currentAngle) <= 2 && Math.abs(bDist - currentDistance) <= 0.15;
+      btn.classList.toggle("active", match);
+    });
+
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({
+          sia_spatial_angle: currentAngle,
+          sia_spatial_distance: currentDistance,
+        });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
+    }
+  }
+
+  function updateDuckingUI(level, persist = true) {
+    currentDucking = Math.max(0, Math.min(100, Number(level) || 0));
+    spatialUi.duckingButtons.forEach(btn => {
+      const val = Number(btn.dataset.ducking);
+      btn.classList.toggle("active", val === currentDucking);
+    });
+
+    if (spatialUi.duckingModeStatus) {
+      if (currentDucking === 0) {
+        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo durante fala)";
+      } else if (currentDucking <= 20) {
+        spatialUi.duckingModeStatus.textContent = `Fundo Suave (${currentDucking}% vídeo durante fala)`;
+      } else {
+        spatialUi.duckingModeStatus.textContent = `Bilíngue (${currentDucking}% vídeo durante fala)`;
+      }
+    }
+
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({ sia_ducking_level: currentDucking });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_ducking_level", value: currentDucking });
+    }
+  }
+
+  function setupSpatialControls() {
+    if (!spatialUi.radar || !spatialUi.puck) return;
+
+    function handlePointerCoord(clientX, clientY) {
+      const rect = spatialUi.radar.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+
+      const distPx = Math.sqrt(dx * dx + dy * dy);
+      const maxR = rect.width * 0.44;
+      const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
+      const dist = Math.round(normDist * 2.0 * 10) / 10;
+
+      const angleRad = Math.atan2(dx, -dy);
+      let angleDeg = Math.round((angleRad * 180) / Math.PI);
+      angleDeg = Math.max(-90, Math.min(90, angleDeg));
+
+      updateSpatialPosition(angleDeg, dist, true);
+    }
+
+    spatialUi.puck.addEventListener("pointerdown", e => {
+      isDraggingPuck = true;
+      spatialUi.puck.classList.add("is-dragging");
+      try { spatialUi.puck.setPointerCapture?.(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+
+    spatialUi.puck.addEventListener("pointermove", e => {
+      if (!isDraggingPuck) return;
+      handlePointerCoord(e.clientX, e.clientY);
+    });
+
+    const finishDrag = e => {
+      if (!isDraggingPuck) return;
+      isDraggingPuck = false;
+      spatialUi.puck.classList.remove("is-dragging");
+      try { spatialUi.puck.releasePointerCapture?.(e.pointerId); } catch {}
+    };
+
+    spatialUi.puck.addEventListener("pointerup", finishDrag);
+    spatialUi.puck.addEventListener("pointercancel", finishDrag);
+
+    spatialUi.radar.addEventListener("click", e => {
+      if (e.target === spatialUi.puck || spatialUi.puck.contains(e.target)) return;
+      handlePointerCoord(e.clientX, e.clientY);
+    });
+
+    spatialUi.presetButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const angle = Number(btn.dataset.angle);
+        const dist = Number(btn.dataset.dist);
+        updateSpatialPosition(angle, dist, true);
+      });
+    });
+
+    if (spatialUi.angleSlider) {
+      spatialUi.angleSlider.addEventListener("input", () => {
+        updateSpatialPosition(Number(spatialUi.angleSlider.value), currentDistance, true);
+      });
+    }
+    if (spatialUi.distSlider) {
+      spatialUi.distSlider.addEventListener("input", () => {
+        updateSpatialPosition(currentAngle, Number(spatialUi.distSlider.value), true);
+      });
+    }
+
+    spatialUi.duckingButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        updateDuckingUI(Number(btn.dataset.ducking), true);
+      });
+    });
+
+    if (spatialUi.testBtn) {
+      spatialUi.testBtn.addEventListener("click", async () => {
+        if (spatialUi.testBtn.classList.contains("is-testing")) return;
+        spatialUi.testBtn.classList.add("is-testing");
+        if (spatialUi.testStatus) spatialUi.testStatus.textContent = "Sintetizando e tocando no fone de ouvido...";
+
+        try {
+          const res = await send({
+            type: "SIA_TEST_SPATIAL_AUDIO",
+            angle: currentAngle,
+            distance: currentDistance,
+          });
+
+          if (spatialUi.testStatus) {
+            if (res?.ok) {
+              spatialUi.testStatus.textContent = "✓ Posição confirmada no fone de ouvido!";
+            } else {
+              spatialUi.testStatus.textContent = res?.message || "Abra uma aula com a S·IA ativa para testar.";
+            }
+          }
+        } catch {
+          if (spatialUi.testStatus) {
+            spatialUi.testStatus.textContent = "Não foi possível reproduzir teste na página.";
+          }
+        } finally {
+          spatialUi.testBtn.classList.remove("is-testing");
+          setTimeout(() => {
+            if (spatialUi.testStatus && spatialUi.testStatus.textContent.includes("✓")) {
+              spatialUi.testStatus.textContent = "";
+            }
+          }, 4000);
+        }
+      });
+    }
+
+    try {
+      chrome?.storage?.local?.get?.(
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level"],
+        res => {
+          if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
+            updateSpatialPosition(angle, dist, false);
+          } else {
+            updateSpatialPosition(0, 1.0, false);
+          }
+
+          if (res?.sia_ducking_level !== undefined) {
+            updateDuckingUI(Number(res.sia_ducking_level), false);
+          } else {
+            updateDuckingUI(0, false);
+          }
+        }
+      );
+    } catch {
+      updateSpatialPosition(0, 1.0, false);
+      updateDuckingUI(0, false);
+    }
+  }
+
+  setupSpatialControls();
+
   void refresh();
   setInterval(refresh, 1000);
 })();

@@ -326,3 +326,459 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   Palco Sonoro 3D Espacial (Estilo dearVR PRO / Dolby Atmos)
+   ========================================================================== */
+
+.spatial-card {
+  padding: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  background: linear-gradient(165deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.6) 40%, #11141d 100%);
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.spatial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.eyebrow-cyan {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #38bdf8;
+  display: block;
+}
+
+.spatial-title-group h2 {
+  margin: 3px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.spatial-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(14, 165, 233, 0.12);
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.spatial-description {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* Radar Acústico 3D Circular */
+.spatial-radar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.spatial-radar {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #172033 0%, #0c101c 65%, #060912 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.35);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.15);
+  overflow: visible;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Anéis Concêntricos */
+.radar-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ring-far {
+  width: 88%;
+  height: 88%;
+  border: 1px dashed rgba(56, 189, 248, 0.22);
+}
+
+.ring-mid {
+  width: 58%;
+  height: 58%;
+  border: 1px dashed rgba(56, 189, 248, 0.28);
+}
+
+.ring-close {
+  width: 28%;
+  height: 28%;
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+}
+
+.ring-label {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: rgba(148, 163, 184, 0.65);
+  background: #0c101c;
+  padding: 0 3px;
+}
+
+/* Eixos e Raios */
+.radar-axis {
+  position: absolute;
+  pointer-events: none;
+}
+
+.axis-v {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0.05));
+  transform: translateX(-50%);
+}
+
+.axis-h {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(56, 189, 248, 0.15);
+  transform: translateY(-50%);
+}
+
+.radar-ray {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  height: 1px;
+  transform-origin: 0 0;
+  background: rgba(56, 189, 248, 0.12);
+  pointer-events: none;
+}
+
+.ray-l60 { transform: rotate(-150deg); }
+.ray-l30 { transform: rotate(-120deg); }
+.ray-r30 { transform: rotate(-60deg); }
+.ray-r60 { transform: rotate(-30deg); }
+
+/* Rótulos Angulares */
+.angle-label {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 600;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.lbl-l90 {
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lbl-center {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #38bdf8;
+}
+
+.lbl-r90 {
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Ouvinte no Centro */
+.listener-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.listener-avatar {
+  font-size: 18px;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+}
+
+.listener-tag {
+  font-size: 8px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: -2px;
+}
+
+/* Puck Draggable da S·IA */
+.spatial-puck {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 16px rgba(192, 132, 252, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.2s ease, transform 0.05s ease;
+}
+
+.spatial-puck:active,
+.spatial-puck.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 0 24px rgba(192, 132, 252, 0.95), 0 0 8px #ffffff;
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+.puck-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.puck-ping {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(192, 132, 252, 0.6);
+  animation: puck-ripple 2s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes puck-ripple {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Presets Rápidos */
+.spatial-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-pill {
+  flex: 1 1 calc(25% - 6px);
+  min-width: 65px;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.preset-pill:hover {
+  color: #f1f1f1;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.preset-pill.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+/* Sliders de Precisão */
+.spatial-sliders {
+  display: grid;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.spatial-slider-row {
+  display: grid;
+  gap: 4px;
+}
+
+.spatial-slider-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.spatial-slider-row label strong {
+  color: #f1f1f1;
+  font-size: 11px;
+}
+
+.spatial-slider-row input[type="range"] {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: #1e293b;
+  accent-color: #38bdf8;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Imersão & Convivência (Ducking) */
+.spatial-ducking-group {
+  display: grid;
+  gap: 6px;
+}
+
+.ducking-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ducking-title-row span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.ducking-title-row small {
+  font-size: 10px;
+  color: #38bdf8;
+}
+
+.ducking-options {
+  display: flex;
+  gap: 6px;
+}
+
+.ducking-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ducking-btn strong {
+  font-size: 10px;
+}
+
+.ducking-btn small {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.ducking-btn:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.ducking-btn.active {
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+}
+
+.ducking-btn.active small {
+  color: #2ecc71;
+}
+
+/* Botão de Teste no Fone de Ouvido */
+.spatial-test-wrapper {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.spatial-test-headphone-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.spatial-test-headphone-btn:hover {
+  border-color: #38bdf8;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(99, 102, 241, 0.35) 100%);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.spatial-test-headphone-btn:active {
+  transform: scale(0.98);
+}
+
+.spatial-test-headphone-btn.is-testing {
+  border-color: #a855f7;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+  animation: pulse-testing 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-testing {
+  0%, 100% { box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(168, 85, 247, 0.8); }
+}
+
+.spatial-test-status {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}

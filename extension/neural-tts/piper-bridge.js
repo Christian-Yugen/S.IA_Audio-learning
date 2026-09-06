@@ -6,28 +6,54 @@
   const ENGINE_BROWSER = "browser";
   const SPATIAL_KEY = "sia_spatial_audio";
   const SPATIAL_PROFILE_KEY = "sia_spatial_profile";
+  const SPATIAL_ANGLE_KEY = "sia_spatial_angle";
+  const SPATIAL_DISTANCE_KEY = "sia_spatial_distance";
 
   const SPATIAL_PROFILES = Object.freeze({
     stage: Object.freeze({
       name: "Palco Frontal",
+      angle: 0,
+      distance: 1.0,
       x: 0.00,
       y: 0.15,
       z: -1.00,
-      clarityBoost: 2.5
+      clarityBoost: 1.5
+    }),
+    center: Object.freeze({
+      name: "Frente (0°)",
+      angle: 0,
+      distance: 1.0,
+      x: 0.00,
+      y: 0.15,
+      z: -1.00,
+      clarityBoost: 1.5
     }),
     interpreter: Object.freeze({
       name: "Intérprete Particular",
+      angle: 25,
+      distance: 1.0,
       x: 0.42,
-      y: 0.09,
+      y: 0.15,
       z: -0.91,
-      clarityBoost: 2.5
+      clarityBoost: 1.5
+    }),
+    side: Object.freeze({
+      name: "Lado (+60°)",
+      angle: 60,
+      distance: 1.2,
+      x: 1.04,
+      y: 0.15,
+      z: -0.60,
+      clarityBoost: 1.5
     }),
     intimate: Object.freeze({
       name: "Proximidade VIP",
+      angle: 15,
+      distance: 0.6,
       x: 0.16,
-      y: 0.00,
+      y: 0.15,
       z: -0.58,
-      clarityBoost: 3.0
+      clarityBoost: 2.0
     })
   });
 
@@ -86,6 +112,8 @@
       this.context = audioContext;
       this.enabled = true;
       this.profileKey = "stage";
+      this.angle = 0;
+      this.distance = 1.0;
       this.input = null;
       this.output = null;
       this.pannerNode = null;
@@ -108,12 +136,12 @@
           this.clarityFilter.type = "peaking";
           this.clarityFilter.frequency.value = 3800;
           this.clarityFilter.Q.value = 0.9;
-          this.clarityFilter.gain.value = 2.5;
+          this.clarityFilter.gain.value = 1.5;
         }
 
         if (typeof this.context.createPanner === "function") {
           this.pannerNode = this.context.createPanner();
-          this.pannerNode.panningModel = "HRTF";
+          this.pannerNode.panningModel = "equalpower";
           this.pannerNode.distanceModel = "none";
           this.pannerNode.refDistance = 1;
           this.pannerNode.maxDistance = 10000;
@@ -122,7 +150,7 @@
         }
 
         this.connectNodes();
-        this.applyProfile(this.profileKey, this.enabled);
+        this.applyPosition(this.angle, this.distance, this.enabled);
       } catch (err) {
         console.warn("[S·IA Spatial Stage] inicialização fallback", err);
       }
@@ -155,10 +183,10 @@
       }
     }
 
-    applyProfile(profileKey, enabled = true) {
-      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "stage";
+    applyPosition(angle = 0, distance = 1.0, enabled = true) {
+      this.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+      this.distance = Math.max(0.3, Math.min(2.5, Number.isFinite(Number(distance)) ? Number(distance) : 1.0));
       this.enabled = Boolean(enabled);
-      const config = SPATIAL_PROFILES[this.profileKey];
 
       const currentTime = Number(this.context?.currentTime) || 0;
 
@@ -186,7 +214,7 @@
         return;
       }
 
-      // Modo 4K Ativo: Bypass fechado, canal espacial compensado com ganho de presença (+35%)
+      // Modo Espacial 4K Ativo: Som 100% puro e transparente, livre de abafamento
       if (this.bypassGain?.gain?.setValueAtTime) {
         this.bypassGain.gain.setValueAtTime(0.0, currentTime);
       } else if (this.bypassGain?.gain) {
@@ -194,24 +222,35 @@
       }
 
       if (this.spatialGain?.gain?.setValueAtTime) {
-        this.spatialGain.gain.setValueAtTime(1.35, currentTime);
+        this.spatialGain.gain.setValueAtTime(1.15, currentTime);
       } else if (this.spatialGain?.gain) {
-        this.spatialGain.gain.value = 1.35;
+        this.spatialGain.gain.value = 1.15;
       }
 
       if (this.clarityFilter?.gain?.setValueAtTime) {
-        this.clarityFilter.gain.setValueAtTime(config.clarityBoost || 2.5, currentTime);
+        this.clarityFilter.gain.setValueAtTime(1.5, currentTime);
       } else if (this.clarityFilter?.gain) {
-        this.clarityFilter.gain.value = config.clarityBoost || 2.5;
+        this.clarityFilter.gain.value = 1.5;
       }
 
+      const rad = (this.angle * Math.PI) / 180;
+      const x = Number((this.distance * Math.sin(rad)).toFixed(2));
+      const y = 0.15;
+      const z = Number((-this.distance * Math.cos(rad)).toFixed(2));
+
       if (this.pannerNode?.positionX?.setValueAtTime) {
-        this.pannerNode.positionX.setValueAtTime(config.x, currentTime);
-        this.pannerNode.positionY.setValueAtTime(config.y, currentTime);
-        this.pannerNode.positionZ.setValueAtTime(config.z, currentTime);
+        this.pannerNode.positionX.setValueAtTime(x, currentTime);
+        this.pannerNode.positionY.setValueAtTime(y, currentTime);
+        this.pannerNode.positionZ.setValueAtTime(z, currentTime);
       } else if (typeof this.pannerNode?.setPosition === "function") {
-        this.pannerNode.setPosition(config.x, config.y, config.z);
+        this.pannerNode.setPosition(x, y, z);
       }
+    }
+
+    applyProfile(profileKey, enabled = true) {
+      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "stage";
+      const config = SPATIAL_PROFILES[this.profileKey];
+      this.applyPosition(config.angle, config.distance, enabled);
     }
   }
 
@@ -239,7 +278,9 @@
       this.warmupPromise = null;
       this.runtimeWarmed = false;
       this.spatialEnabled = true;
-      this.spatialProfile = "interpreter";
+      this.spatialProfile = "stage";
+      this.spatialAngle = 0;
+      this.spatialDistance = 1.0;
       this.spatialStage = null;
     }
 
@@ -275,7 +316,9 @@
         audioState: this.audioState,
         audioError: this.audioError,
         spatialAudio: this.spatialEnabled,
-        spatialProfile: this.spatialProfile
+        spatialProfile: this.spatialProfile,
+        spatialAngle: this.spatialAngle,
+        spatialDistance: this.spatialDistance
       };
     }
 
@@ -285,9 +328,29 @@
       }
       if (typeof profile === "string" && profile) {
         this.spatialProfile = profile;
+        const cfg = SPATIAL_PROFILES[profile];
+        if (cfg) {
+          this.spatialAngle = cfg.angle;
+          this.spatialDistance = cfg.distance;
+        }
       }
       if (this.spatialStage) {
         this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+      }
+    }
+
+    setSpatialPosition(angle, distance, enabled) {
+      if (Number.isFinite(Number(angle))) {
+        this.spatialAngle = Number(angle);
+      }
+      if (Number.isFinite(Number(distance))) {
+        this.spatialDistance = Math.max(0.3, Math.min(2.5, Number(distance)));
+      }
+      if (typeof enabled === "boolean") {
+        this.spatialEnabled = enabled;
+      }
+      if (this.spatialStage) {
+        this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
       }
     }
 
@@ -899,13 +962,19 @@
   const provider = new PiperLocalProvider();
   globalThis.SiaPiperVoice = provider;
 
-  chrome.storage.local.get([ENGINE_KEY, SPATIAL_KEY, SPATIAL_PROFILE_KEY], result => {
+  chrome.storage.local.get([ENGINE_KEY, SPATIAL_KEY, SPATIAL_PROFILE_KEY, SPATIAL_ANGLE_KEY, SPATIAL_DISTANCE_KEY], result => {
     storageReady = true;
     provider.setActive(result[ENGINE_KEY]);
-    provider.setSpatialAudio(
-      result[SPATIAL_KEY] !== false,
-      result[SPATIAL_PROFILE_KEY] || "stage"
-    );
+    if (result[SPATIAL_ANGLE_KEY] !== undefined || result[SPATIAL_DISTANCE_KEY] !== undefined) {
+      const angle = result[SPATIAL_ANGLE_KEY] !== undefined ? Number(result[SPATIAL_ANGLE_KEY]) : 0;
+      const dist = result[SPATIAL_DISTANCE_KEY] !== undefined ? Number(result[SPATIAL_DISTANCE_KEY]) : 1.0;
+      provider.setSpatialPosition(angle, dist, result[SPATIAL_KEY] !== false);
+    } else {
+      provider.setSpatialAudio(
+        result[SPATIAL_KEY] !== false,
+        result[SPATIAL_PROFILE_KEY] || "stage"
+      );
+    }
   });
 
   chrome.runtime.onMessage.addListener(message => {
@@ -916,6 +985,10 @@
         provider.setSpatialAudio(message.value, provider.spatialProfile);
       } else if (message.key === SPATIAL_PROFILE_KEY) {
         provider.setSpatialAudio(provider.spatialEnabled, message.value);
+      } else if (message.key === SPATIAL_ANGLE_KEY) {
+        provider.setSpatialPosition(Number(message.value), provider.spatialDistance, provider.spatialEnabled);
+      } else if (message.key === SPATIAL_DISTANCE_KEY) {
+        provider.setSpatialPosition(provider.spatialAngle, Number(message.value), provider.spatialEnabled);
       }
     }
   });

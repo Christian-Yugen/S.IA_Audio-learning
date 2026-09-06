@@ -36,6 +36,115 @@
       <button id="replay-current" type="button" title="Ouvir novamente a frase atual">Ouvir esta frase novamente</button>
     </section>
 
+    <!-- Palco Sonoro 3D Espacial (Estilo dearVR PRO / Dolby Atmos) -->
+    <section class="spatial-card" id="spatial-card" aria-labelledby="spatial-heading">
+      <div class="spatial-header">
+        <div class="spatial-title-group">
+          <span class="eyebrow-cyan">ÁUDIO ESPACIAL 3D</span>
+          <h2 id="spatial-heading">Palco & Posicionamento</h2>
+        </div>
+        <div class="spatial-badge" id="spatial-pos-badge" title="Coordenadas acústicas no espaço">
+          <span id="spatial-pos-text">0° Frente · 1.0m</span>
+        </div>
+      </div>
+
+      <p class="spatial-description">
+        Arraste a S·IA no radar 3D para definir em que ângulo e distância ela fala no fone de ouvido.
+      </p>
+
+      <!-- Radar Acústico 3D Circular -->
+      <div class="spatial-radar-container">
+        <div class="spatial-radar" id="spatial-radar" role="region" aria-label="Radar acústico 3D">
+          <!-- Anéis de distância concêntricos -->
+          <div class="radar-ring ring-far" title="2.0m de distância"><span class="ring-label">2.0m</span></div>
+          <div class="radar-ring ring-mid" title="1.0m de distância"><span class="ring-label">1.0m</span></div>
+          <div class="radar-ring ring-close" title="0.5m de distância"><span class="ring-label">0.5m</span></div>
+
+          <!-- Linhas de grade e eixos radiais -->
+          <div class="radar-axis axis-v"></div>
+          <div class="radar-axis axis-h"></div>
+          <div class="radar-ray ray-l60"></div>
+          <div class="radar-ray ray-l30"></div>
+          <div class="radar-ray ray-r30"></div>
+          <div class="radar-ray ray-r60"></div>
+
+          <!-- Rótulos angulares -->
+          <span class="angle-label lbl-l90">-90° L</span>
+          <span class="angle-label lbl-center">0° Frente</span>
+          <span class="angle-label lbl-r90">+90° R</span>
+
+          <!-- Cabeça do ouvinte no centro (você com fone de ouvido) -->
+          <div class="listener-center" id="listener-center" title="Você (Fone de Ouvido)">
+            <span class="listener-avatar">👤</span>
+            <span class="listener-tag">Você</span>
+          </div>
+
+          <!-- Puck / Orbe Interativo da S·IA com arrasto fluido -->
+          <div class="spatial-puck" id="spatial-puck" role="slider" aria-label="Posição sonora da S·IA" tabindex="0">
+            <span class="puck-ping" aria-hidden="true"></span>
+            <span class="puck-label">S·IA</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets Rápidos -->
+      <div class="spatial-presets" role="group" aria-label="Predefinições acústicas">
+        <button type="button" class="preset-pill active" data-angle="0" data-dist="1.0" id="preset-front">Frente (0°)</button>
+        <button type="button" class="preset-pill" data-angle="25" data-dist="1.0" id="preset-interpreter">Intérprete (+25°)</button>
+        <button type="button" class="preset-pill" data-angle="60" data-dist="1.2" id="preset-side">Lado (+60°)</button>
+        <button type="button" class="preset-pill" data-angle="15" data-dist="0.6" id="preset-intimate">Íntimo (0.6m)</button>
+      </div>
+
+      <!-- Controles Deslizantes de Precisão -->
+      <div class="spatial-sliders">
+        <div class="spatial-slider-row">
+          <label for="spatial-angle-slider">
+            <span>Ângulo Acústico</span>
+            <strong id="spatial-angle-value">0° (Frente)</strong>
+          </label>
+          <input type="range" id="spatial-angle-slider" min="-90" max="90" step="1" value="0">
+        </div>
+        <div class="spatial-slider-row">
+          <label for="spatial-dist-slider">
+            <span>Distância / Profundidade</span>
+            <strong id="spatial-dist-value">1.0 m</strong>
+          </label>
+          <input type="range" id="spatial-dist-slider" min="0.3" max="2.5" step="0.1" value="1.0">
+        </div>
+      </div>
+
+      <!-- Convivência de Vozes / Imersão (Ducking) -->
+      <div class="spatial-ducking-group">
+        <div class="ducking-title-row">
+          <span>Imersão & Vídeo</span>
+          <small id="ducking-mode-status">Foco Total (vídeo mudo durante fala)</small>
+        </div>
+        <div class="ducking-options" role="radiogroup" aria-label="Convivência com áudio do vídeo">
+          <button type="button" class="ducking-btn active" data-ducking="0" id="ducking-opt-0">
+            <strong>Foco Total</strong>
+            <small>0% vídeo</small>
+          </button>
+          <button type="button" class="ducking-btn" data-ducking="15" id="ducking-opt-15">
+            <strong>Fundo Suave</strong>
+            <small>15% vídeo</small>
+          </button>
+          <button type="button" class="ducking-btn" data-ducking="40" id="ducking-opt-40">
+            <strong>Bilíngue</strong>
+            <small>40% vídeo</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botão de Teste em Tempo Real no Fone de Ouvido -->
+      <div class="spatial-test-wrapper">
+        <button type="button" id="spatial-test-headphone" class="spatial-test-headphone-btn" title="Ouvir teste acústico em tempo real">
+          <span class="test-icon">🎧</span>
+          <span class="test-text">Testar Posição no Fone de Ouvido</span>
+        </button>
+        <p id="spatial-test-status" class="spatial-test-status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <nav aria-label="Escolha o que ver no histórico">
       <button class="filter active" data-filter="all" type="button">Todos os trechos</button>
       <button class="filter" data-filter="favorites" type="button">Salvos</button>
