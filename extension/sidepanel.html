@@ -40,16 +40,22 @@
     <section class="spatial-card" id="spatial-card" aria-labelledby="spatial-heading">
       <div class="spatial-header">
         <div class="spatial-title-group">
-          <span class="eyebrow-cyan">ÁUDIO ESPACIAL 3D</span>
+          <span class="eyebrow-cyan">ÁUDIO ESPACIAL 3D · NEURO-STAGE</span>
           <h2 id="spatial-heading">Palco & Posicionamento</h2>
         </div>
-        <div class="spatial-badge" id="spatial-pos-badge" title="Coordenadas acústicas no espaço">
-          <span id="spatial-pos-text">0° Frente · 1.0m</span>
+        <div class="spatial-header-actions">
+          <button type="button" id="btn-neuro-director" class="neuro-director-toggle active" title="Alternar Modo Diretor Cognitivo IA">
+            <span class="sparkle-icon">✨</span>
+            <span id="neuro-director-label">Diretor IA Ativo</span>
+          </button>
+          <div class="spatial-badge" id="spatial-pos-badge" title="Coordenadas acústicas no espaço">
+            <span id="spatial-pos-text">S·IA +25° · Vídeo -25°</span>
+          </div>
         </div>
       </div>
 
-      <p class="spatial-description">
-        Arraste a S·IA no radar 3D para definir em que ângulo e distância ela fala no fone de ouvido.
+      <p class="spatial-description" id="spatial-description">
+        Palco cognitivo dual: arraste a <strong style="color: #2ecc71;">S·IA</strong> ou o <strong style="color: #38bdf8;">Vídeo</strong> no radar, ou deixe o Diretor IA orquestrar as posições no espaço.
       </p>
 
       <!-- Radar Acústico 3D Circular -->
@@ -83,17 +89,39 @@
             <span class="listener-tag">Você</span>
           </div>
 
-          <!-- Puck / Orbe Interativo da S·IA com arrasto fluido -->
+          <!-- Puck / Orbe Interativo da S·IA (Verde Esmeralda) -->
           <div class="spatial-puck" id="spatial-puck" role="slider" aria-label="Posição sonora da S·IA" tabindex="0">
             <span class="puck-ping" aria-hidden="true"></span>
             <span class="puck-label">S·IA</span>
           </div>
+
+          <!-- Puck / Orbe Interativo do Professor / Vídeo (Azul Safira) -->
+          <div class="spatial-puck puck-video" id="spatial-puck-video" role="slider" aria-label="Posição sonora do Professor / Vídeo" tabindex="0">
+            <span class="puck-ping ping-video" aria-hidden="true"></span>
+            <span class="puck-label">Vídeo</span>
+          </div>
         </div>
+      </div>
+
+      <!-- Card de Feedback Neuro-Cognitivo em Tempo Real -->
+      <div class="neuro-insight-card" id="neuro-insight-card" role="region" aria-label="Insight cognitivo do Diretor IA">
+        <div class="neuro-insight-top">
+          <div class="neuro-insight-tag">
+            <span class="neuro-dot"></span>
+            <span id="neuro-state-badge">SEPARAÇÃO ÁUREA</span>
+          </div>
+          <small id="neuro-mode-status">Diretor Cognitivo IA</small>
+        </div>
+        <p id="neuro-insight-text">Separação Áurea de 50° ativa: Efeito Cocktail Party reduz a fadiga auditiva em até 70%.</p>
       </div>
 
       <!-- Presets Rápidos 360° -->
       <div class="spatial-presets" role="group" aria-label="Predefinições acústicas 360°">
-        <button type="button" class="preset-pill active" data-angle="0" data-dist="1.0" id="preset-front">Frente (0°)</button>
+        <button type="button" class="preset-pill active" data-preset="onu" data-angle="25" data-dist="0.8" id="preset-onu">🏛️ Intérprete ONU</button>
+        <button type="button" class="preset-pill" data-preset="vip" data-angle="0" data-dist="0.5" id="preset-vip">🎙️ Tutor VIP</button>
+        <button type="button" class="preset-pill" data-preset="colleague" data-angle="-45" data-dist="0.8" id="preset-colleague">👥 Colega de Bancada</button>
+        <button type="button" class="preset-pill" data-preset="bilingual" data-angle="90" data-dist="0.8" id="preset-bilingual">🌐 Bilingual Shadow</button>
+        <button type="button" class="preset-pill" data-angle="0" data-dist="1.0" id="preset-front">Frente (0°)</button>
         <button type="button" class="preset-pill" data-angle="25" data-dist="1.0" id="preset-interpreter">Intérprete (+25°)</button>
         <button type="button" class="preset-pill" data-angle="60" data-dist="1.2" id="preset-side">Lado (+60°)</button>
         <button type="button" class="preset-pill" data-angle="15" data-dist="0.6" id="preset-intimate">Íntimo (0.6m)</button>
@@ -263,6 +291,7 @@
       <small class="note-text"></small>
     </article>
   </template>
+  <script src="learning/neuro-director.js"></script>
   <script src="learning/learning-engine.js"></script>
   <script src="sidepanel.js"></script>
 </body>

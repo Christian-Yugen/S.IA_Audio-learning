@@ -346,6 +346,50 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spatial-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neuro-director-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+}
+
+.neuro-director-toggle:hover {
+  background: rgba(46, 204, 113, 0.22);
+  border-color: #2ecc71;
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.35);
+}
+
+.neuro-director-toggle.active {
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.25), rgba(56, 189, 248, 0.2));
+  border-color: #2ecc71;
+  box-shadow: 0 0 14px rgba(46, 204, 113, 0.45);
+}
+
+.neuro-director-toggle .sparkle-icon {
+  font-size: 12px;
+  animation: pulse-sparkle 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.2) rotate(15deg); opacity: 1; filter: drop-shadow(0 0 4px #2ecc71); }
 }
 
 .eyebrow-cyan {
@@ -545,7 +589,7 @@ button:focus-visible {
   margin-top: -2px;
 }
 
-/* Puck Draggable da S·IA */
+/* Puck Draggable da S·IA e do Vídeo */
 .spatial-puck {
   position: absolute;
   top: 25%;
@@ -562,7 +606,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: box-shadow 0.2s ease, transform 0.05s ease;
+  transition: left 0.75s cubic-bezier(0.25, 0.1, 0.25, 1.0), top 0.75s cubic-bezier(0.25, 0.1, 0.25, 1.0), box-shadow 0.2s ease, transform 0.05s ease;
 }
 
 .spatial-puck:active,
@@ -570,6 +614,23 @@ button:focus-visible {
   cursor: grabbing;
   box-shadow: 0 0 24px rgba(46, 204, 113, 0.95), 0 0 8px #ffffff;
   transform: translate(-50%, -50%) scale(1.12);
+  transition: box-shadow 0.2s ease, transform 0.05s ease;
+}
+
+/* Orbe do Professor / Vídeo (Safira Neon) */
+.spatial-puck.puck-video {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.85), 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 9;
+}
+
+.spatial-puck.puck-video:active,
+.spatial-puck.puck-video.is-dragging {
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.95), 0 0 8px #ffffff;
+}
+
+.spatial-puck.puck-video .puck-label {
+  color: #082f49;
 }
 
 .puck-label {
@@ -593,9 +654,74 @@ button:focus-visible {
   pointer-events: none;
 }
 
+.puck-ping.ping-video {
+  border-color: rgba(56, 189, 248, 0.7);
+  animation: puck-ripple-video 2.2s infinite ease-out;
+}
+
 @keyframes puck-ripple {
   0% { transform: scale(1); opacity: 0.8; }
   100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes puck-ripple-video {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Card de Feedback Neuro-Cognitivo */
+.neuro-insight-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.1) 0%, rgba(56, 189, 248, 0.08) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.28);
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+}
+
+.neuro-insight-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.neuro-insight-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2ecc71;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.neuro-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 8px #2ecc71;
+  animation: neuro-glow 1.8s infinite alternate;
+}
+
+@keyframes neuro-glow {
+  0% { opacity: 0.6; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1.25); }
+}
+
+.neuro-insight-top small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.neuro-insight-card p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #e2e8f0;
 }
 
 /* Presets Rápidos */

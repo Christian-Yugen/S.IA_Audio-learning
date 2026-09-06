@@ -673,15 +673,26 @@
       if (message?.type === "SIA_SPEECH_CADENCE") {
         equalizer.triggerBoundary(message.charIndex);
       }
+      if (message?.type === "SIA_NEURO_STAGE_UPDATE" && message.stage) {
+        if (isNeuroDirectorActive) {
+          applyNeuroStageRecommendation(message.stage, false);
+        }
+      }
     });
   }
 
   // ==========================================================================
-  // Controle do Palco Sonoro 3D Espacial (dearVR PRO Style)
+  // Controle do Palco Sonoro 3D Espacial · S·IA Neuro-Stage 3D
   // ==========================================================================
   const spatialUi = {
     radar: document.getElementById("spatial-radar"),
     puck: document.getElementById("spatial-puck"),
+    puckVideo: document.getElementById("spatial-puck-video"),
+    btnNeuroDirector: document.getElementById("btn-neuro-director"),
+    neuroDirectorLabel: document.getElementById("neuro-director-label"),
+    neuroInsightCard: document.getElementById("neuro-insight-card"),
+    neuroStateBadge: document.getElementById("neuro-state-badge"),
+    neuroInsightText: document.getElementById("neuro-insight-text"),
     posBadge: document.getElementById("spatial-pos-badge"),
     posText: document.getElementById("spatial-pos-text"),
     angleSlider: document.getElementById("spatial-angle-slider"),
@@ -706,10 +717,15 @@
     btnRetryCalib: document.getElementById("btn-retry-calib"),
   };
 
-  let currentAngle = 0;
-  let currentDistance = 1.0;
+  let currentAngle = 25;
+  let currentDistance = 0.8;
+  let currentVideoAngle = -25;
+  let currentVideoDistance = 1.5;
   let currentDucking = 0;
   let isDraggingPuck = false;
+  let isDraggingVideoPuck = false;
+  let isNeuroDirectorActive = true;
+  let activeNeuroPreset = "onu";
 
   function updateSpatialPosition(angle, distance, persist = true) {
     let deg = Math.round(Number(angle) || 0);
@@ -727,14 +743,7 @@
       spatialUi.puck.style.top = `${topPct}%`;
     }
 
-    if (spatialUi.posText) {
-      let dir;
-      if (currentAngle === 0) dir = "Frente";
-      else if (Math.abs(currentAngle) === 180) dir = "180° Atrás";
-      else if (currentAngle > 0) dir = `+${currentAngle}° Direita`;
-      else dir = `${currentAngle}° Esquerda`;
-      spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
-    }
+    updateSpatialBadgeText();
 
     if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
     if (spatialUi.distSlider) spatialUi.distSlider.value = currentDistance;
@@ -770,6 +779,88 @@
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_voice_engine", value: "piper-local" });
+    }
+  }
+
+  function updateVideoSpatialPosition(angle, distance, persist = true) {
+    let deg = Math.round(Number(angle) || 0);
+    while (deg > 180) deg -= 360;
+    while (deg < -180) deg += 360;
+    currentVideoAngle = deg;
+    currentVideoDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
+
+    if (spatialUi.puckVideo) {
+      const rPct = Math.min(45, (currentVideoDistance / 2.0) * 44);
+      const rad = (currentVideoAngle * Math.PI) / 180;
+      const leftPct = 50 + rPct * Math.sin(rad);
+      const topPct = 50 - rPct * Math.cos(rad);
+      spatialUi.puckVideo.style.left = `${leftPct}%`;
+      spatialUi.puckVideo.style.top = `${topPct}%`;
+    }
+
+    updateSpatialBadgeText();
+
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({
+          sia_video_angle: currentVideoAngle,
+          sia_video_distance: currentVideoDistance,
+        });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_video_angle", value: currentVideoAngle });
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_video_distance", value: currentVideoDistance });
+    }
+  }
+
+  function updateSpatialBadgeText() {
+    if (!spatialUi.posText) return;
+    const siaDir = currentAngle >= 0 ? `+${currentAngle}°` : `${currentAngle}°`;
+    const vidDir = currentVideoAngle >= 0 ? `+${currentVideoAngle}°` : `${currentVideoAngle}°`;
+    spatialUi.posText.textContent = `S·IA ${siaDir} · Vídeo ${vidDir}`;
+  }
+
+  function setNeuroDirectorState(active, persist = true) {
+    isNeuroDirectorActive = Boolean(active);
+    if (spatialUi.btnNeuroDirector) {
+      spatialUi.btnNeuroDirector.classList.toggle("active", isNeuroDirectorActive);
+    }
+    if (spatialUi.neuroDirectorLabel) {
+      spatialUi.neuroDirectorLabel.textContent = isNeuroDirectorActive ? "Diretor IA Ativo" : "Modo Manual";
+    }
+    if (persist) {
+      try {
+        chrome?.storage?.local?.set?.({ sia_neuro_director_active: isNeuroDirectorActive });
+      } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_neuro_director_active", value: isNeuroDirectorActive });
+    }
+  }
+
+  function applyNeuroStageRecommendation(stage, persist = true) {
+    if (!stage) return;
+    if (stage.sia) {
+      updateSpatialPosition(stage.sia.angle, stage.sia.distance, persist);
+    }
+    if (stage.video) {
+      updateVideoSpatialPosition(stage.video.angle, stage.video.distance, persist);
+    }
+    if (spatialUi.neuroStateBadge && stage.state) {
+      const stateLabels = {
+        vip_focus: "FOCO VIP ATIVO",
+        ambient_relax: "PALCO AMBIENTE",
+        balanced_cognitive: "SEPARAÇÃO ÁUREA",
+      };
+      spatialUi.neuroStateBadge.textContent = stateLabels[stage.state] || "SEPARAÇÃO ÁUREA";
+    }
+    if (spatialUi.neuroInsightText && stage.insight) {
+      spatialUi.neuroInsightText.textContent = stage.insight;
+    }
+    if (stage.presetId) {
+      activeNeuroPreset = stage.presetId;
+      spatialUi.presetButtons.forEach(btn => {
+        if (btn.dataset.preset) {
+          btn.classList.toggle("active", btn.dataset.preset === activeNeuroPreset);
+        }
+      });
     }
   }
 
@@ -843,16 +934,86 @@
     spatialUi.puck.addEventListener("pointerup", finishDrag);
     spatialUi.puck.addEventListener("pointercancel", finishDrag);
 
+    function handleVideoPointerCoord(clientX, clientY) {
+      const rect = spatialUi.radar.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+
+      const distPx = Math.sqrt(dx * dx + dy * dy);
+      const maxR = rect.width * 0.44;
+      const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
+      const dist = Math.round(normDist * 2.0 * 10) / 10;
+
+      const angleRad = Math.atan2(dx, -dy);
+      let angleDeg = Math.round((angleRad * 180) / Math.PI);
+      angleDeg = Math.max(-180, Math.min(180, angleDeg));
+
+      updateVideoSpatialPosition(angleDeg, dist, true);
+    }
+
+    if (spatialUi.puckVideo) {
+      spatialUi.puckVideo.addEventListener("pointerdown", e => {
+        isDraggingVideoPuck = true;
+        spatialUi.puckVideo.classList.add("is-dragging");
+        try { spatialUi.puckVideo.setPointerCapture?.(e.pointerId); } catch {}
+        e.preventDefault();
+      });
+
+      spatialUi.puckVideo.addEventListener("pointermove", e => {
+        if (!isDraggingVideoPuck) return;
+        handleVideoPointerCoord(e.clientX, e.clientY);
+      });
+
+      const finishVideoDrag = e => {
+        if (!isDraggingVideoPuck) return;
+        isDraggingVideoPuck = false;
+        spatialUi.puckVideo.classList.remove("is-dragging");
+        try { spatialUi.puckVideo.releasePointerCapture?.(e.pointerId); } catch {}
+      };
+
+      spatialUi.puckVideo.addEventListener("pointerup", finishVideoDrag);
+      spatialUi.puckVideo.addEventListener("pointercancel", finishVideoDrag);
+    }
+
     spatialUi.radar.addEventListener("click", e => {
       if (e.target === spatialUi.puck || spatialUi.puck.contains(e.target)) return;
+      if (spatialUi.puckVideo && (e.target === spatialUi.puckVideo || spatialUi.puckVideo.contains(e.target))) return;
       handlePointerCoord(e.clientX, e.clientY);
     });
 
+    if (spatialUi.btnNeuroDirector) {
+      spatialUi.btnNeuroDirector.addEventListener("click", () => {
+        setNeuroDirectorState(!isNeuroDirectorActive, true);
+        if (isNeuroDirectorActive && globalThis.SiaNeuroDirector) {
+          const stage = globalThis.SiaNeuroDirector.getRecommendedStage(ui.current?.textContent || "", {
+            activePreset: activeNeuroPreset,
+            isDirectorEnabled: true,
+          });
+          applyNeuroStageRecommendation(stage, true);
+        }
+      });
+    }
+
     spatialUi.presetButtons.forEach(btn => {
       btn.addEventListener("click", () => {
-        const angle = Number(btn.dataset.angle);
-        const dist = Number(btn.dataset.dist);
-        updateSpatialPosition(angle, dist, true);
+        const presetKey = btn.dataset.preset;
+        if (presetKey && globalThis.SiaNeuroDirector?.PRESETS?.[presetKey]) {
+          const p = globalThis.SiaNeuroDirector.PRESETS[presetKey];
+          activeNeuroPreset = presetKey;
+          applyNeuroStageRecommendation({
+            state: "balanced_cognitive",
+            presetId: presetKey,
+            sia: p.sia,
+            video: p.video,
+            insight: p.insight,
+          }, true);
+        } else {
+          const angle = Number(btn.dataset.angle);
+          const dist = Number(btn.dataset.dist);
+          updateSpatialPosition(angle, dist, true);
+        }
       });
     });
 
@@ -1067,14 +1228,34 @@
 
     try {
       chrome?.storage?.local?.get?.(
-        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level", "sia_stereo_calibrated"],
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_video_angle", "sia_video_distance", "sia_ducking_level", "sia_stereo_calibrated", "sia_neuro_director_active", "sia_neuro_preset"],
         res => {
+          const directorActive = res?.sia_neuro_director_active !== undefined ? Boolean(res.sia_neuro_director_active) : true;
+          setNeuroDirectorState(directorActive, false);
+
+          if (res?.sia_neuro_preset) {
+            activeNeuroPreset = res.sia_neuro_preset;
+          }
+
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
-            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
-            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 25;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 0.8;
             updateSpatialPosition(angle, dist, false);
           } else {
-            updateSpatialPosition(0, 1.0, false);
+            updateSpatialPosition(25, 0.8, false);
+          }
+
+          if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
+            const vAngle = res.sia_video_angle !== undefined ? Number(res.sia_video_angle) : -25;
+            const vDist = res.sia_video_distance !== undefined ? Number(res.sia_video_distance) : 1.5;
+            updateVideoSpatialPosition(vAngle, vDist, false);
+          } else {
+            updateVideoSpatialPosition(-25, 1.5, false);
+          }
+
+          if (globalThis.SiaNeuroDirector?.PRESETS?.[activeNeuroPreset] && spatialUi.neuroInsightText) {
+            const p = globalThis.SiaNeuroDirector.PRESETS[activeNeuroPreset];
+            spatialUi.neuroInsightText.textContent = p.insight;
           }
 
           if (res?.sia_ducking_level !== undefined) {
@@ -1093,7 +1274,8 @@
         }
       );
     } catch {
-      updateSpatialPosition(0, 1.0, false);
+      updateSpatialPosition(25, 0.8, false);
+      updateVideoSpatialPosition(-25, 1.5, false);
       updateDuckingUI(0, false);
       setCalibrationState(null);
     }
