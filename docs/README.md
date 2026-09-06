@@ -56,6 +56,7 @@ Este índice organiza as decisões e materiais do projeto. O Documento Mestre te
 | [S·IA 1.8.40](releases/1.8.40.md) | Corrige a apresentação: é registro da legenda lida, não resumo nem análise. |
 | [S·IA 1.8.41](releases/1.8.41.md) | Substitui ouvir texto isolado por revisão do trecho registrado no próprio vídeo com a S·IA. |
 | [S·IA 1.9.0](releases/1.9.0.md) | Tradução local EN-PT, sincronização instantânea de transcrição Coursera, fala contínua e Audio Ducking automático. |
+| [S·IA 1.10.0](releases/1.10.0.md) | Equalizador Gráfico Panorâmico de Estúdio (28 colunas), telemetria de cadência de fala e física acústica de 4 bandas. |
 | [Baseline Coursera 1.8.5](reports/BASELINE-COURSERA-1.8.5.md) | Congelamento, hashes, regressão e comparação remota. |
 | [Relatório da Fase 1 Udemy](reports/PHASE1-UDEMY-OBSERVATION.md) | Player real, legendas, transcrição, recarga e limitações. |
 | [Log de observação Udemy](reports/PHASE1-UDemy-OBSERVATION-LOG.md) | Evidências brutas e hipóteses observadas. |

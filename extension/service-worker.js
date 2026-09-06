@@ -201,6 +201,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(error => sendResponse({ ok: false, reason: "platform-selection-read-failed", message: error?.message || String(error) }));
     return true;
   }
+  if (message?.type === "SIA_SPEECH_STATE" || message?.type === "SIA_SPEECH_CADENCE") {
+    chrome.runtime.sendMessage(message).catch(() => {});
+    return;
+  }
   if (message?.target === "sia-platform-selection-apply") {
     const tabId = Number(message.tabId);
     if (!Number.isInteger(tabId) || tabId < 0 || typeof message.url !== "string") {

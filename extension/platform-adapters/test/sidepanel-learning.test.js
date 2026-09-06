@@ -13,6 +13,8 @@ function createElement(id, options = {}) {
   const classes = new Set();
   const element = {
     id,
+    width: 300,
+    height: 56,
     value: options.value || "",
     textContent: options.textContent || "",
     className: options.className || "",
@@ -24,6 +26,9 @@ function createElement(id, options = {}) {
     },
     dataset: options.dataset || {},
     style: { setProperty() {} },
+    attributes: new Map(),
+    setAttribute(name, val) { this.attributes.set(name, String(val)); },
+    getAttribute(name) { return this.attributes.get(name) ?? null; },
     disabled: false,
     hidden: false,
     options: [],
@@ -35,6 +40,25 @@ function createElement(id, options = {}) {
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
     querySelector(selector) { return this.childElements?.get(selector) || createElement(`${id}-${selector}`); },
+    getBoundingClientRect() { return { width: 300, height: 56, top: 0, left: 0, right: 300, bottom: 56 }; },
+    getContext(type) {
+      if (type === "2d") {
+        return {
+          save() {},
+          restore() {},
+          scale() {},
+          setTransform() {},
+          clearRect() {},
+          fillRect() {},
+          beginPath() {},
+          roundRect() {},
+          fill() {},
+          fillStyle: "",
+          globalAlpha: 1,
+        };
+      }
+      return null;
+    },
   };
   return element;
 }
@@ -83,6 +107,7 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
     "history-item-template", "study-progress", "due-count", "bookmark-type", "bookmark-current", "clear-study",
     "generate-transcript", "replay-transcript", "download-transcript", "transcript-count", "transcript-status", "transcript-output", "lesson-transcript",
     "study-feedback", "recall-question", "recall-answer", "reveal-recall", "recall-source",
+    "equalizer-canvas", "equalizer-stage", "waveform-status-badge", "waveform-status-text",
   ];
   const elements = new Map(ids.map(id => [`#${id}`, createElement(id)]));
   elements.get("#history-item-template").content = { firstElementChild: createHistoryItem() };
@@ -123,11 +148,16 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
     Blob: class Blob { constructor(parts, options) { this.parts = parts; this.options = options; state.lastBlob = this; } },
     setInterval(callback) { intervals.push(callback); return intervals.length; },
     clearInterval() {},
+    requestAnimationFrame(cb) { return 1; },
+    cancelAnimationFrame() {},
     alert(message) { state.alert = message; },
     confirm() { return true; },
     prompt() { return "nota editada"; },
+    addEventListener() {},
+    removeEventListener() {},
     Date,
   });
+  contextVm.window = contextVm;
   contextVm.globalThis = contextVm;
   contextVm.chrome = {
     tabs: {
@@ -163,10 +193,16 @@ function createHarness({ context = baseStudyContext(), createResponse = null, re
         return { ok: true };
       },
     },
+    runtime: {
+      onMessage: {
+        addListener(fn) { onMessageListeners.push(fn); },
+      },
+    },
   };
+  const onMessageListeners = [];
   vm.runInContext(sidepanelSource, contextVm, { filename: "sidepanel.js" });
   const flush = () => new Promise(resolve => setImmediate(resolve));
-  return { elements, filters, ratings, sentMessages, intervals, state, createdLinks, flush };
+  return { elements, filters, ratings, sentMessages, intervals, state, createdLinks, onMessageListeners, flush };
 }
 
 function messagesOf(harness, type) {
@@ -375,4 +411,42 @@ test("sidepanel salva todas as falas em um único arquivo local", async () => {
   assert.match(content, /AULA: Aula/);
   assert.match(content, /Fala de teste\./);
   assert.match(harness.elements.get("#transcript-status").textContent, /salva no dispositivo/);
+});
+
+test("visualizador waveform reflete estado de fala ativa e retorno ao repouso", async () => {
+  const harness = createHarness({ context: baseStudyContext({ isSpeaking: false }) });
+  await harness.flush();
+
+  const badge = harness.elements.get("#waveform-status-badge");
+  const waveformStatus = harness.elements.get("#waveform-status-text");
+
+  assert.equal(badge.dataset.state, "idle");
+  assert.equal(waveformStatus.textContent, "Pronta");
+
+  // Simula evento em tempo real da fala iniciada
+  harness.onMessageListeners.forEach(listener => {
+    listener({ type: "SIA_SPEECH_STATE", isSpeaking: true, text: "Nova frase sendo lida agora" });
+  });
+  assert.equal(badge.dataset.state, "speaking");
+  assert.equal(waveformStatus.textContent, "Lendo agora");
+  assert.equal(harness.elements.get("#current-sentence").textContent, "Nova frase sendo lida agora");
+
+  // Simula cadência da fala por limite de palavras (onboundary)
+  harness.onMessageListeners.forEach(listener => {
+    listener({ type: "SIA_SPEECH_CADENCE", charIndex: 5, charLength: 4 });
+  });
+
+  // Simula término da fala
+  harness.onMessageListeners.forEach(listener => {
+    listener({ type: "SIA_SPEECH_STATE", isSpeaking: false });
+  });
+  assert.equal(badge.dataset.state, "idle");
+  assert.equal(waveformStatus.textContent, "Pronta");
+
+  // Simula perda de contexto (aba incompatível)
+  harness.state.context = { ok: false };
+  harness.intervals[0]();
+  await harness.flush();
+  assert.equal(badge.dataset.state, "disconnected");
+  assert.equal(waveformStatus.textContent, "Desconectada");
 });

@@ -28,6 +28,10 @@
     revealRecall: document.getElementById("reveal-recall"),
     recallSource: document.getElementById("recall-source"),
     reviewRatings: [...document.querySelectorAll("[data-rating]")],
+    equalizerCanvas: document.getElementById("equalizer-canvas"),
+    equalizerStage: document.getElementById("equalizer-stage"),
+    waveformStatusBadge: document.getElementById("waveform-status-badge"),
+    waveformStatusText: document.getElementById("waveform-status-text"),
   };
   let entries = [];
   let study = {
@@ -41,6 +45,371 @@
   let filter = "all";
   let revealedCardId = "";
   let transcript = null;
+
+  class StudioGraphicEqualizer {
+    constructor(canvas, stage) {
+      this.canvas = canvas;
+      this.stage = stage;
+      this.ctx = canvas?.getContext ? canvas.getContext("2d") : null;
+      this.active = false;
+      this.state = "idle";
+      this.animId = null;
+
+      this.numCols = 28;
+      this.maxSegments = 12;
+
+      this.levels = new Array(this.numCols).fill(1.0);
+      this.targets = new Array(this.numCols).fill(1.0);
+      this.velocities = new Array(this.numCols).fill(0);
+
+      this.peaks = new Array(this.numCols).fill(0).map(() => ({ level: 1.0, hold: 0, vel: 0 }));
+
+      // Frequências e fases fixas e descorrelacionadas para cada uma das 28 bandas (evita onda propagante lateral)
+      this.bandPhases = [];
+      this.bandFreqs = [];
+      for (let i = 0; i < this.numCols; i++) {
+        this.bandPhases.push(((i * 73 + 19) % 100) / 100 * Math.PI * 2);
+        this.bandFreqs.push(0.009 + ((i * 37) % 11) * 0.0025);
+      }
+
+      this.segmentColors = [
+        "#00e676", "#00e676", "#2ecc71", "#2ecc71",
+        "#76ff03", "#aeea00", "#ffeb3b", "#ffc107",
+        "#ff9800", "#ff5722", "#f44336", "#ff1744"
+      ];
+
+      this.text = "";
+      this.words = [];
+      this.wordPointer = 0;
+      this.speechSpeed = 1.2;
+      this.startTime = 0;
+      this.currentEnergy = 0;
+
+      this.resize();
+    }
+
+    resize() {
+      if (!this.canvas) return;
+      const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { width: 300, height: 56 };
+      const width = Math.max(200, Math.floor(rect.width || 300));
+      const height = 56;
+      const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+
+      this.displayWidth = width;
+      this.displayHeight = height;
+
+      if (this.canvas.width !== width * dpr || this.canvas.height !== height * dpr) {
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+      }
+      if (this.ctx?.scale && dpr !== 1) {
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(dpr, dpr);
+      }
+    }
+
+    start(text, speed = 1.2) {
+      this.text = String(text || "").trim();
+      this.speechSpeed = Math.max(0.6, Math.min(3.5, Number(speed) || 1.2));
+      this.parsePhonetics(this.text);
+      this.state = "speaking";
+      this.active = true;
+      this.startTime = Date.now();
+      this.currentEnergy = 0.85;
+
+      if (this.stage?.classList?.add) this.stage.classList.add("is-speaking");
+
+      if (!this.animId && typeof requestAnimationFrame === "function") {
+        this.loop = this.loop.bind(this);
+        this.animId = requestAnimationFrame(this.loop);
+      }
+    }
+
+    stop() {
+      this.state = "idle";
+      this.active = false;
+      if (this.stage?.classList?.remove) this.stage.classList.remove("is-speaking");
+    }
+
+    setDisconnected() {
+      this.state = "disconnected";
+      this.active = false;
+      if (this.stage?.classList?.remove) this.stage.classList.remove("is-speaking");
+    }
+
+    triggerBoundary(charIndex = 0) {
+      this.currentEnergy = Math.min(1.0, this.currentEnergy + 0.65);
+      if (this.words.length) {
+        const found = this.words.findIndex(w => w.start >= charIndex || (w.start <= charIndex && w.end >= charIndex));
+        if (found >= 0) this.wordPointer = found;
+      }
+    }
+
+    parsePhonetics(text) {
+      this.words = [];
+      this.wordPointer = 0;
+      if (!text) return;
+
+      const regex = /(\S+)/g;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        const raw = match[1];
+        const clean = raw.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+        const hasComma = /[,;]/.test(raw);
+        const hasPeriod = /[.!?]/.test(raw);
+
+        const vowels = clean.match(/[aeiouáéíóúâêîôûãõàü]/gi) || [];
+        const syllables = Math.max(1, vowels.length);
+        const hasSibilant = /[szcxj]/i.test(clean);
+        const hasPlosive = /[ptkbcçd]/i.test(clean);
+
+        this.words.push({
+          raw,
+          clean,
+          start: match.index,
+          end: match.index + raw.length,
+          syllables,
+          hasComma,
+          hasPeriod,
+          hasSibilant,
+          hasPlosive,
+          durationMs: (syllables * 170 + (hasComma ? 250 : hasPeriod ? 400 : 70)) / this.speechSpeed
+        });
+      }
+    }
+
+    updatePhysics(now) {
+      if (this.state === "disconnected") {
+        for (let i = 0; i < this.numCols; i++) {
+          this.targets[i] = 0.5;
+        }
+      } else if (this.state === "idle") {
+        for (let i = 0; i < this.numCols; i++) {
+          this.targets[i] = 1.0;
+        }
+      } else {
+        const elapsed = now - this.startTime;
+        let activeWord = null;
+        let wordElapsed = 0;
+
+        if (this.words.length > 0) {
+          const totalDuration = this.words.reduce((sum, w) => sum + w.durationMs, 0);
+          const cycleElapsed = totalDuration > 0 ? (elapsed % totalDuration) : 0;
+          let accumulated = 0;
+          for (let i = 0; i < this.words.length; i++) {
+            const w = this.words[i];
+            if (cycleElapsed >= accumulated && cycleElapsed < accumulated + w.durationMs) {
+              activeWord = w;
+              wordElapsed = cycleElapsed - accumulated;
+              this.wordPointer = i;
+              break;
+            }
+            accumulated += w.durationMs;
+          }
+        }
+
+        let intensity = 0.78;
+        let sylProgress = 0;
+        let isSibilant = false;
+        let isPlosive = false;
+
+        if (activeWord) {
+          const syllableDuration = Math.max(80, (activeWord.syllables * 170) / this.speechSpeed / activeWord.syllables);
+          const currentSylIndex = Math.min(activeWord.syllables - 1, Math.floor(wordElapsed / syllableDuration));
+          const sylElapsed = wordElapsed - (currentSylIndex * syllableDuration);
+          sylProgress = Math.min(1, Math.max(0, sylElapsed / syllableDuration));
+
+          let sylEnvelope;
+          if (sylProgress < 0.22) {
+            sylEnvelope = sylProgress / 0.22;
+          } else if (sylProgress < 0.65) {
+            sylEnvelope = 1.0 - (sylProgress - 0.22) * 0.35;
+          } else {
+            sylEnvelope = 0.85 - (sylProgress - 0.65) * 2.4;
+          }
+          sylEnvelope = Math.max(0.20, Math.min(1.0, sylEnvelope));
+
+          const isTonic = activeWord.syllables === 1 || currentSylIndex === Math.max(0, activeWord.syllables - 2);
+          intensity = (isTonic ? 1.0 : 0.82) * sylEnvelope;
+          isSibilant = activeWord.hasSibilant;
+          isPlosive = activeWord.hasPlosive;
+        } else {
+          // Pulso vocal dinâmico enquanto speaking estiver ativo
+          const vocalPulse = Math.sin(now * 0.007) * 0.35 + 0.65;
+          intensity = vocalPulse * 0.85;
+        }
+
+        this.currentEnergy = Math.max(this.currentEnergy * 0.94, intensity);
+
+        for (let i = 0; i < this.numCols; i++) {
+          const x = i / (this.numCols - 1);
+          // Perfil de 4 faixas espectrais completas cobrindo todas as 28 colunas:
+          // Colunas 0-5: Graves e frequência fundamental da voz
+          // Colunas 6-15: Formantes vocálicos principais (F1/F2)
+          // Colunas 16-22: Médios-altos e presença
+          // Colunas 23-27: Agudos, harmônicos e ar da fala humana
+          const bassFormant = 0.55 * Math.exp(-Math.pow((x - 0.12) / 0.12, 2));
+          const voiceFormant = Math.exp(-Math.pow((x - 0.38) / 0.18, 2));
+          const presenceFormant = 0.80 * Math.exp(-Math.pow((x - 0.65) / 0.16, 2));
+          const trebleFormant = 0.65 * Math.exp(-Math.pow((x - 0.88) / 0.16, 2));
+          const spectralWeight = bassFormant + voiceFormant + presenceFormant + trebleFormant;
+
+          // Oscilação puramente vertical ancorada na sua coluna (sem onda propagante lateral)
+          const bandOsc = Math.sin(now * this.bandFreqs[i] + this.bandPhases[i]);
+          const verticalVibration = 1.0 + bandOsc * 0.32;
+
+          // Resposta fonética ancorada na sua respectiva faixa de frequência
+          const sibilantBoost = (i >= 18 && isSibilant)
+            ? 3.8 * intensity * (0.8 + 0.3 * Math.sin(now * 0.025 + this.bandPhases[i]))
+            : 0;
+          const plosiveBoost = (i >= 2 && i <= 14 && isPlosive && sylProgress < 0.25)
+            ? 3.2 * intensity
+            : 0;
+
+          const target = 1.0 + (spectralWeight * 8.5 * intensity * verticalVibration) + sibilantBoost + plosiveBoost;
+          this.targets[i] = Math.max(1.0, Math.min(this.maxSegments, target));
+        }
+      }
+
+      const springTension = 0.52;
+      const damping = 0.65;
+
+      for (let i = 0; i < this.numCols; i++) {
+        const diff = this.targets[i] - this.levels[i];
+        this.velocities[i] = (this.velocities[i] + diff * springTension) * damping;
+        this.levels[i] = Math.max(0.5, Math.min(this.maxSegments, this.levels[i] + this.velocities[i]));
+
+        const pk = this.peaks[i];
+        if (this.levels[i] >= pk.level) {
+          pk.level = this.levels[i];
+          pk.hold = 10;
+          pk.vel = 0;
+        } else if (pk.hold > 0) {
+          pk.hold--;
+        } else {
+          pk.vel += 0.25;
+          pk.level = Math.max(this.levels[i], pk.level - pk.vel);
+        }
+      }
+    }
+
+    loop(now) {
+      if (!this.active && this.state !== "speaking") {
+        let settled = true;
+        for (let i = 0; i < this.numCols; i++) {
+          if (Math.abs(this.levels[i] - this.targets[i]) > 0.08 || Math.abs(this.velocities[i]) > 0.08) {
+            settled = false;
+            break;
+          }
+        }
+        if (settled) {
+          for (let i = 0; i < this.numCols; i++) {
+            this.levels[i] = this.targets[i];
+            this.peaks[i].level = this.targets[i];
+          }
+          if (this.animId) {
+            cancelAnimationFrame(this.animId);
+            this.animId = null;
+          }
+          this.draw();
+          return;
+        }
+      }
+
+      this.updatePhysics(now || Date.now());
+      this.draw();
+
+      if (typeof requestAnimationFrame === "function") {
+        this.animId = requestAnimationFrame(this.loop);
+      }
+    }
+
+    draw() {
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const width = this.displayWidth || 300;
+      const height = this.displayHeight || 56;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const baselineY = height - 4;
+      const maxBarHeight = baselineY - 4;
+      const gap = 2;
+      const colWidth = Math.max(2, (width - (this.numCols - 1) * gap) / this.numCols);
+      const segGap = 1.5;
+      const segHeight = Math.max(2, (maxBarHeight - (this.maxSegments - 1) * segGap) / this.maxSegments);
+
+      ctx.fillStyle = "rgba(46, 204, 113, 0.2)";
+      ctx.fillRect(0, baselineY + 1, width, 1);
+
+      for (let col = 0; col < this.numCols; col++) {
+        const x = col * (colWidth + gap);
+        const activeSegs = Math.max(1, Math.round(this.levels[col]));
+        const peakSeg = Math.min(this.maxSegments - 1, Math.round(this.peaks[col].level));
+
+        for (let s = 0; s < activeSegs && s < this.maxSegments; s++) {
+          const y = baselineY - (s + 1) * (segHeight + segGap);
+          ctx.fillStyle = this.state === "disconnected" ? "#555555" : this.segmentColors[s];
+          this.drawRoundedRect(ctx, x, y, colWidth, segHeight, 1);
+        }
+
+        if (this.state !== "disconnected" && peakSeg > 1 && peakSeg > activeSegs) {
+          const peakY = baselineY - (peakSeg + 1) * (segHeight + segGap);
+          ctx.fillStyle = "#ff1744";
+          this.drawRoundedRect(ctx, x, peakY, colWidth, segHeight, 1);
+        }
+      }
+    }
+
+    drawRoundedRect(ctx, x, y, w, h, r) {
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+  }
+
+  const equalizer = new StudioGraphicEqualizer(ui.equalizerCanvas, ui.equalizerStage);
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", () => equalizer.resize());
+  }
+
+  function setWaveformState(state, label = null, text = null) {
+    if (ui.waveformStatusBadge) {
+      ui.waveformStatusBadge.dataset.state = state;
+    }
+    const defaultLabels = {
+      idle: "Pronta",
+      speaking: "Lendo agora",
+      disconnected: "Desconectada"
+    };
+    const statusText = label || defaultLabels[state] || defaultLabels.idle;
+    if (ui.waveformStatusText) {
+      ui.waveformStatusText.textContent = statusText;
+    }
+    const ariaLabels = {
+      idle: "Status da voz S·IA: em espera",
+      speaking: "Status da voz S·IA: lendo frase da aula",
+      disconnected: "Status da voz S·IA: aula não conectada"
+    };
+    if (typeof ui.waveformStatusBadge?.setAttribute === "function") {
+      ui.waveformStatusBadge.setAttribute("aria-label", ariaLabels[state] || ariaLabels.idle);
+    }
+    if (ui.waveformStatusBadge) {
+      ui.waveformStatusBadge.title = statusText;
+    }
+
+    if (state === "speaking") {
+      equalizer.start(text || ui.current?.textContent);
+    } else if (state === "disconnected") {
+      equalizer.setDisconnected();
+    } else {
+      equalizer.stop();
+    }
+  }
 
   function formatTime(seconds) {
     const value = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -206,6 +575,7 @@
   async function refresh() {
     const context = await send({ type: "SIA_GET_LEARNING_CONTEXT" });
     if (!context?.ok) {
+      setWaveformState("disconnected");
       study = {
         enabled: false,
         currentCue: null,
@@ -232,6 +602,11 @@
     }
     entries = Array.isArray(context.history) ? context.history : [];
     study = context.study || study;
+    if (context.isSpeaking) {
+      setWaveformState("speaking", null, context.currentSpeechText || ui.current?.textContent);
+    } else {
+      setWaveformState("idle");
+    }
     render();
   }
 
@@ -408,6 +783,21 @@
     ui.filters.forEach(item => item.classList.toggle("active", item === button));
     render();
   }));
+
+  if (typeof chrome !== "undefined" && chrome?.runtime?.onMessage?.addListener) {
+    chrome.runtime.onMessage.addListener(message => {
+      if (message?.type === "SIA_SPEECH_STATE") {
+        const isSpeaking = Boolean(message.isSpeaking);
+        if (message.text && ui.current && isSpeaking) {
+          ui.current.textContent = message.text;
+        }
+        setWaveformState(isSpeaking ? "speaking" : "idle", null, message.text || ui.current?.textContent);
+      }
+      if (message?.type === "SIA_SPEECH_CADENCE") {
+        equalizer.triggerBoundary(message.charIndex);
+      }
+    });
+  }
 
   void refresh();
   setInterval(refresh, 1000);

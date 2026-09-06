@@ -28,8 +28,20 @@
     </section>
 
     <section class="hero" aria-labelledby="now-heading">
-      <span class="eyebrow">1 · AGORA</span>
+      <div class="hero-top">
+        <span class="eyebrow">1 · AGORA</span>
+        <div id="waveform-status-badge" class="waveform-status-badge" data-state="idle" role="status" aria-label="Status da voz S·IA: em espera" title="S·IA em espera">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="waveform-status-text" class="waveform-status-text">Pronta</span>
+        </div>
+      </div>
       <h1 id="now-heading">Acompanhar a aula</h1>
+
+      <!-- Palco do Equalizador Gráfico Panorâmico -->
+      <div class="equalizer-stage" id="equalizer-stage" aria-label="Equalizador de áudio da S·IA">
+        <canvas id="equalizer-canvas" class="equalizer-canvas" height="56"></canvas>
+      </div>
+
       <p id="current-sentence">Aguardando a primeira frase da aula…</p>
       <small>Este é o trecho que a S·IA está lendo neste momento.</small>
       <button id="replay-current" type="button" title="Ouvir novamente a frase atual">Ouvir esta frase novamente</button>
