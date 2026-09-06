@@ -693,6 +693,17 @@
     duckingModeStatus: document.getElementById("ducking-mode-status"),
     testBtn: document.getElementById("spatial-test-headphone"),
     testStatus: document.getElementById("spatial-test-status"),
+    checkLeft: document.getElementById("check-ear-left"),
+    checkRight: document.getElementById("check-ear-right"),
+    calibBadge: document.getElementById("calib-quick-badge"),
+    calibQuestionBox: document.getElementById("calib-question-box"),
+    btnCalibYes: document.getElementById("btn-calib-yes"),
+    btnCalibNo: document.getElementById("btn-calib-no"),
+    calibSuccessBox: document.getElementById("calib-success-box"),
+    btnRecalib: document.getElementById("btn-recalib"),
+    monoDetectedCard: document.getElementById("mono-detected-card"),
+    btnOpenWinSettings: document.getElementById("btn-open-win-settings"),
+    btnRetryCalib: document.getElementById("btn-retry-calib"),
   };
 
   let currentAngle = 0;
@@ -701,7 +712,10 @@
   let isDraggingPuck = false;
 
   function updateSpatialPosition(angle, distance, persist = true) {
-    currentAngle = Math.max(-90, Math.min(90, Math.round(Number(angle) || 0)));
+    let deg = Math.round(Number(angle) || 0);
+    while (deg > 180) deg -= 360;
+    while (deg < -180) deg += 360;
+    currentAngle = deg;
     currentDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
 
     if (spatialUi.puck) {
@@ -714,16 +728,26 @@
     }
 
     if (spatialUi.posText) {
-      const dir = currentAngle === 0
-        ? "Frente"
-        : (currentAngle > 0 ? `+${currentAngle}° Direita` : `${currentAngle}° Esquerda`);
+      let dir;
+      if (currentAngle === 0) dir = "Frente";
+      else if (Math.abs(currentAngle) === 180) dir = "180° Atrás";
+      else if (currentAngle > 0) dir = `+${currentAngle}° Direita`;
+      else dir = `${currentAngle}° Esquerda`;
       spatialUi.posText.textContent = `${dir} · ${currentDistance.toFixed(1)}m`;
     }
 
     if (spatialUi.angleSlider) spatialUi.angleSlider.value = currentAngle;
     if (spatialUi.distSlider) spatialUi.distSlider.value = currentDistance;
     if (spatialUi.angleValue) {
-      const dirName = currentAngle === 0 ? "Frente" : (currentAngle > 0 ? "Direita" : "Esquerda");
+      let dirName;
+      if (Math.abs(currentAngle) <= 10) dirName = "Frente";
+      else if (Math.abs(currentAngle) >= 170) dirName = "Atrás";
+      else if (currentAngle > 0 && currentAngle < 90) dirName = "Frente-Dir";
+      else if (currentAngle === 90) dirName = "Direita";
+      else if (currentAngle > 90) dirName = "Trás-Dir";
+      else if (currentAngle < 0 && currentAngle > -90) dirName = "Frente-Esq";
+      else if (currentAngle === -90) dirName = "Esquerda";
+      else dirName = "Trás-Esq";
       spatialUi.angleValue.textContent = `${currentAngle}° (${dirName})`;
     }
     if (spatialUi.distValue) spatialUi.distValue.textContent = `${currentDistance.toFixed(1)} m`;
@@ -731,7 +755,7 @@
     spatialUi.presetButtons.forEach(btn => {
       const bAngle = Number(btn.dataset.angle);
       const bDist = Number(btn.dataset.dist);
-      const match = Math.abs(bAngle - currentAngle) <= 2 && Math.abs(bDist - currentDistance) <= 0.15;
+      const match = Math.abs(bAngle - currentAngle) <= 5 && Math.abs(bDist - currentDistance) <= 0.2;
       btn.classList.toggle("active", match);
     });
 
@@ -740,10 +764,12 @@
         chrome?.storage?.local?.set?.({
           sia_spatial_angle: currentAngle,
           sia_spatial_distance: currentDistance,
+          sia_voice_engine: "piper-local",
         });
       } catch {}
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_voice_engine", value: "piper-local" });
     }
   }
 
@@ -787,9 +813,10 @@
       const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
       const dist = Math.round(normDist * 2.0 * 10) / 10;
 
+      // Ângulo contínuo 360° no radar (0° frente, +90° dir, -90° esq, 180° atrás)
       const angleRad = Math.atan2(dx, -dy);
       let angleDeg = Math.round((angleRad * 180) / Math.PI);
-      angleDeg = Math.max(-90, Math.min(90, angleDeg));
+      angleDeg = Math.max(-180, Math.min(180, angleDeg));
 
       updateSpatialPosition(angleDeg, dist, true);
     }
@@ -881,9 +908,149 @@
       });
     }
 
+    function setCalibrationState(state) {
+      if (state === true) {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "none";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "flex";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Calibrado ✓";
+          spatialUi.calibBadge.classList.add("calibrated");
+        }
+      } else if (state === false) {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "none";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "grid";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Mono detectado ⚠️";
+          spatialUi.calibBadge.classList.remove("calibrated");
+        }
+      } else {
+        if (spatialUi.calibQuestionBox) spatialUi.calibQuestionBox.style.display = "grid";
+        if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "none";
+        if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "none";
+        if (spatialUi.calibBadge) {
+          spatialUi.calibBadge.textContent = "Clique para testar";
+          spatialUi.calibBadge.classList.remove("calibrated");
+        }
+      }
+    }
+
+    function playChannelBeep(channelIndex) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const sampleRate = ctx.sampleRate;
+        const duration = 0.55;
+        const length = Math.floor(sampleRate * duration);
+        const buffer = ctx.createBuffer(2, length, sampleRate);
+        const targetChannel = buffer.getChannelData(channelIndex); // 0 = Esquerdo, 1 = Direito
+        const baseFreq = channelIndex === 0 ? 523.25 : 659.25;
+
+        for (let i = 0; i < length; i++) {
+          const t = i / sampleRate;
+          const envelope = Math.max(0, 1 - t / duration) * Math.min(1, t / 0.015);
+          targetChannel[i] = envelope * 0.45 * (
+            Math.sin(2 * Math.PI * baseFreq * t) +
+            0.35 * Math.sin(4 * Math.PI * baseFreq * t)
+          );
+        }
+
+        const btn = channelIndex === 0 ? spatialUi.checkLeft : spatialUi.checkRight;
+        if (btn) btn.classList.add("playing");
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start();
+        source.onended = () => {
+          if (btn) btn.classList.remove("playing");
+          try { ctx.close(); } catch {}
+        };
+      } catch (e) {
+        console.warn("Falha ao tocar teste de canal", e);
+      }
+    }
+
+    if (spatialUi.checkLeft) {
+      spatialUi.checkLeft.addEventListener("click", () => {
+        playChannelBeep(0);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🔊 Emitindo som no canal ESQUERDO";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
+        }
+      });
+    }
+
+    if (spatialUi.checkRight) {
+      spatialUi.checkRight.addEventListener("click", () => {
+        playChannelBeep(1);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🔊 Emitindo som no canal DIREITO";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3000);
+        }
+      });
+    }
+
+    if (spatialUi.btnCalibYes) {
+      spatialUi.btnCalibYes.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: true });
+        } catch {}
+        setCalibrationState(true);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "✓ Calibração confirmada! Som 3D ativo na aula.";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 4000);
+        }
+      });
+    }
+
+    if (spatialUi.btnCalibNo) {
+      spatialUi.btnCalibNo.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: false });
+        } catch {}
+        setCalibrationState(false);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "⚠️ Áudio Mono detectado no Windows.";
+        }
+      });
+    }
+
+    if (spatialUi.btnOpenWinSettings) {
+      spatialUi.btnOpenWinSettings.addEventListener("click", () => {
+        try {
+          window.open("ms-settings:easeofaccess-audio", "_blank");
+        } catch {}
+      });
+    }
+
+    if (spatialUi.btnRetryCalib) {
+      spatialUi.btnRetryCalib.addEventListener("click", () => {
+        setCalibrationState(null);
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "🎧 Testando: tocando Esquerdo e depois Direito...";
+        }
+        playChannelBeep(0);
+        setTimeout(() => {
+          playChannelBeep(1);
+        }, 650);
+      });
+    }
+
+    if (spatialUi.btnRecalib) {
+      spatialUi.btnRecalib.addEventListener("click", () => {
+        try {
+          chrome?.storage?.local?.set?.({ sia_stereo_calibrated: null });
+        } catch {}
+        setCalibrationState(null);
+      });
+    }
+
     try {
       chrome?.storage?.local?.get?.(
-        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level"],
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_ducking_level", "sia_stereo_calibrated"],
         res => {
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
             const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
@@ -898,11 +1065,20 @@
           } else {
             updateDuckingUI(0, false);
           }
+
+          if (res?.sia_stereo_calibrated === true) {
+            setCalibrationState(true);
+          } else if (res?.sia_stereo_calibrated === false) {
+            setCalibrationState(false);
+          } else {
+            setCalibrationState(null);
+          }
         }
       );
     } catch {
       updateSpatialPosition(0, 1.0, false);
       updateDuckingUI(0, false);
+      setCalibrationState(null);
     }
   }
 

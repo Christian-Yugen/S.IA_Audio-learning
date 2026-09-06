@@ -333,9 +333,9 @@ button:focus-visible {
 
 .spatial-card {
   padding: 16px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgb(46 204 113 / 30%);
   border-radius: 12px;
-  background: linear-gradient(165deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.6) 40%, #11141d 100%);
+  background: linear-gradient(165deg, rgb(46 204 113 / 10%) 0%, #151515 40%, #101010 100%);
   display: grid;
   gap: 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
@@ -352,7 +352,7 @@ button:focus-visible {
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #38bdf8;
+  color: var(--accent);
   display: block;
 }
 
@@ -368,9 +368,9 @@ button:focus-visible {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(14, 165, 233, 0.12);
-  color: #7dd3fc;
+  border: 1px solid rgb(46 204 113 / 35%);
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -396,9 +396,9 @@ button:focus-visible {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, #172033 0%, #0c101c 65%, #060912 100%);
-  border: 1.5px solid rgba(56, 189, 248, 0.35);
-  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.15);
+  background: radial-gradient(circle at 50% 50%, #11261a 0%, #0a1710 65%, #050d09 100%);
+  border: 1.5px solid rgba(46, 204, 113, 0.35);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(46, 204, 113, 0.15);
   overflow: visible;
   touch-action: none;
   user-select: none;
@@ -417,19 +417,19 @@ button:focus-visible {
 .ring-far {
   width: 88%;
   height: 88%;
-  border: 1px dashed rgba(56, 189, 248, 0.22);
+  border: 1px dashed rgba(46, 204, 113, 0.22);
 }
 
 .ring-mid {
   width: 58%;
   height: 58%;
-  border: 1px dashed rgba(56, 189, 248, 0.28);
+  border: 1px dashed rgba(46, 204, 113, 0.28);
 }
 
 .ring-close {
   width: 28%;
   height: 28%;
-  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border: 1px dashed rgba(46, 204, 113, 0.35);
 }
 
 .ring-label {
@@ -438,8 +438,8 @@ button:focus-visible {
   left: 50%;
   transform: translateX(-50%);
   font-size: 8px;
-  color: rgba(148, 163, 184, 0.65);
-  background: #0c101c;
+  color: rgba(46, 204, 113, 0.7);
+  background: #0a1710;
   padding: 0 3px;
 }
 
@@ -454,7 +454,7 @@ button:focus-visible {
   bottom: 0;
   left: 50%;
   width: 1px;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0.05));
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.45), rgba(46, 204, 113, 0.05));
   transform: translateX(-50%);
 }
 
@@ -463,7 +463,7 @@ button:focus-visible {
   right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(46, 204, 113, 0.18);
   transform: translateY(-50%);
 }
 
@@ -474,7 +474,7 @@ button:focus-visible {
   width: 50%;
   height: 1px;
   transform-origin: 0 0;
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(46, 204, 113, 0.12);
   pointer-events: none;
 }
 
@@ -502,13 +502,20 @@ button:focus-visible {
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
-  color: #38bdf8;
+  color: #2ecc71;
 }
 
 .lbl-r90 {
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
+}
+
+.lbl-back {
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #10b981;
 }
 
 /* Ouvinte no Centro */
@@ -526,7 +533,7 @@ button:focus-visible {
 
 .listener-avatar {
   font-size: 18px;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+  filter: drop-shadow(0 0 6px rgba(46, 204, 113, 0.5));
 }
 
 .listener-tag {
@@ -547,9 +554,9 @@ button:focus-visible {
   height: 36px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
+  background: linear-gradient(135deg, #2ecc71 0%, #10b981 100%);
   border: 2px solid #ffffff;
-  box-shadow: 0 0 16px rgba(192, 132, 252, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 16px rgba(46, 204, 113, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5);
   cursor: grab;
   z-index: 10;
   display: flex;
@@ -561,14 +568,14 @@ button:focus-visible {
 .spatial-puck:active,
 .spatial-puck.is-dragging {
   cursor: grabbing;
-  box-shadow: 0 0 24px rgba(192, 132, 252, 0.95), 0 0 8px #ffffff;
+  box-shadow: 0 0 24px rgba(46, 204, 113, 0.95), 0 0 8px #ffffff;
   transform: translate(-50%, -50%) scale(1.12);
 }
 
 .puck-label {
   font-size: 9px;
   font-weight: 800;
-  color: #0f172a;
+  color: #062413;
   letter-spacing: 0.5px;
   pointer-events: none;
   user-select: none;
@@ -581,7 +588,7 @@ button:focus-visible {
   right: -4px;
   bottom: -4px;
   border-radius: 50%;
-  border: 1.5px solid rgba(192, 132, 252, 0.6);
+  border: 1.5px solid rgba(46, 204, 113, 0.6);
   animation: puck-ripple 2s infinite ease-out;
   pointer-events: none;
 }
@@ -615,13 +622,13 @@ button:focus-visible {
 
 .preset-pill:hover {
   color: #f1f1f1;
-  border-color: rgba(56, 189, 248, 0.4);
+  border-color: rgba(46, 204, 113, 0.4);
 }
 
 .preset-pill.active {
-  border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.14);
-  color: #38bdf8;
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.14);
+  color: #2ecc71;
   font-weight: 700;
 }
 
@@ -657,7 +664,7 @@ button:focus-visible {
   height: 5px;
   border-radius: 3px;
   background: #1e293b;
-  accent-color: #38bdf8;
+  accent-color: #2ecc71;
   cursor: pointer;
   outline: none;
 }
@@ -682,7 +689,7 @@ button:focus-visible {
 
 .ducking-title-row small {
   font-size: 10px;
-  color: #38bdf8;
+  color: #2ecc71;
 }
 
 .ducking-options {
@@ -716,7 +723,7 @@ button:focus-visible {
 }
 
 .ducking-btn:hover {
-  border-color: rgba(56, 189, 248, 0.35);
+  border-color: rgba(46, 204, 113, 0.35);
 }
 
 .ducking-btn.active {
@@ -744,8 +751,8 @@ button:focus-visible {
   width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.22) 0%, rgba(16, 185, 129, 0.18) 100%);
   color: #f8fafc;
   font-size: 12px;
   font-weight: 700;
@@ -755,9 +762,9 @@ button:focus-visible {
 }
 
 .spatial-test-headphone-btn:hover {
-  border-color: #38bdf8;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(99, 102, 241, 0.35) 100%);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  border-color: #2ecc71;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.32) 0%, rgba(16, 185, 129, 0.25) 100%);
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.3);
 }
 
 .spatial-test-headphone-btn:active {
@@ -765,14 +772,14 @@ button:focus-visible {
 }
 
 .spatial-test-headphone-btn.is-testing {
-  border-color: #a855f7;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+  border-color: #2ecc71;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.35) 0%, rgba(16, 185, 129, 0.35) 100%);
   animation: pulse-testing 1.2s infinite ease-in-out;
 }
 
 @keyframes pulse-testing {
-  0%, 100% { box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
-  50% { box-shadow: 0 0 18px rgba(168, 85, 247, 0.8); }
+  0%, 100% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(46, 204, 113, 0.8); }
 }
 
 .spatial-test-status {
@@ -782,3 +789,277 @@ button:focus-visible {
   color: var(--muted);
   text-align: center;
 }
+
+/* Checagem e Calibração de Isolamento Físico de Hardware */
+.spatial-hardware-check {
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(46, 204, 113, 0.2);
+  display: grid;
+  gap: 8px;
+}
+
+.check-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.check-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.check-status-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.check-status-badge.calibrated {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.check-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ear-check-btn {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.08);
+  color: #f1f1f1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.ear-check-btn:hover {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: #2ecc71;
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.25);
+}
+
+.ear-check-btn:active,
+.ear-check-btn.playing {
+  transform: scale(0.98);
+  background: rgba(46, 204, 113, 0.3);
+  border-color: #2ecc71;
+  box-shadow: 0 0 14px rgba(46, 204, 113, 0.4);
+}
+
+/* Pergunta de Calibração Interativa */
+.calib-question-box {
+  display: grid;
+  gap: 6px;
+  background: rgba(46, 204, 113, 0.05);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px dashed rgba(46, 204, 113, 0.25);
+  animation: fadeIn 0.25s ease;
+}
+
+.calib-prompt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+.calib-action-row {
+  display: flex;
+  gap: 6px;
+}
+
+.calib-choice-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.calib-choice-btn.btn-yes {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+.calib-choice-btn.btn-yes:hover {
+  background: rgba(46, 204, 113, 0.35);
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+}
+
+.calib-choice-btn.btn-no {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.calib-choice-btn.btn-no:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: #ef4444;
+}
+
+/* Card de Sucesso: Fones 100% Calibrados */
+.calib-success-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(46, 204, 113, 0.12);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  border-radius: 6px;
+  animation: fadeIn 0.25s ease;
+}
+
+.success-icon {
+  font-size: 13px;
+  color: #2ecc71;
+  font-weight: 900;
+}
+
+.success-info {
+  flex: 1;
+  display: grid;
+  gap: 1px;
+}
+
+.success-info strong {
+  font-size: 10px;
+  color: #2ecc71;
+}
+
+.success-info small {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.btn-recalib {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #cbd5e1;
+  font-size: 9px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-recalib:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Card de Detecção de Áudio Mono do Windows */
+.mono-detected-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 7px;
+  animation: fadeIn 0.25s ease;
+}
+
+.mono-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f87171;
+}
+
+.mono-card-desc {
+  margin: 0;
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.btn-win-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-win-settings:hover {
+  background: #dc2626;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.btn-win-settings:active {
+  transform: scale(0.98);
+}
+
+.win-shortcut-hint {
+  font-size: 9px;
+  color: #94a3b8;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.win-shortcut-hint code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #f1f5f9;
+}
+
+.btn-retry-calib {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-retry-calib:hover {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: #2ecc71;
+}
+
+.btn-retry-calib:active {
+  transform: scale(0.98);
+}
+
