@@ -54,6 +54,33 @@
       y: 0.15,
       z: -0.58,
       clarityBoost: 2.0
+    }),
+    left: Object.freeze({
+      name: "Ouvido Esquerdo",
+      angle: -90,
+      distance: 0.8,
+      x: -0.80,
+      y: 0.15,
+      z: 0.00,
+      clarityBoost: 1.5
+    }),
+    right: Object.freeze({
+      name: "Ouvido Direito",
+      angle: 90,
+      distance: 0.8,
+      x: 0.80,
+      y: 0.15,
+      z: 0.00,
+      clarityBoost: 1.5
+    }),
+    back: Object.freeze({
+      name: "Atrás da Cabeça",
+      angle: 180,
+      distance: 1.0,
+      x: 0.00,
+      y: 0.15,
+      z: 1.00,
+      clarityBoost: 1.0
     })
   });
 
@@ -145,6 +172,29 @@
         this.bypassGain = typeof this.context.createGain === "function" ? this.context.createGain() : null;
         if (this.bypassGain) {
           this.bypassGain.gain.value = 0.0;
+        }
+
+        // Trava estéreo explícita contra colapso mono de fone único ou drivers Bluetooth
+        if (this.output) {
+          try {
+            this.output.channelCount = 2;
+            this.output.channelCountMode = "explicit";
+            this.output.channelInterpretation = "speakers";
+          } catch {}
+        }
+        if (this.spatialGain) {
+          try {
+            this.spatialGain.channelCount = 2;
+            this.spatialGain.channelCountMode = "explicit";
+            this.spatialGain.channelInterpretation = "speakers";
+          } catch {}
+        }
+        if (this.distanceGain) {
+          try {
+            this.distanceGain.channelCount = 2;
+            this.distanceGain.channelCountMode = "explicit";
+            this.distanceGain.channelInterpretation = "speakers";
+          } catch {}
         }
 
         // 1. Filtro de absorção do ar (seguro dentro do limite de Nyquist para evitar clamping)
@@ -272,12 +322,28 @@
       }
     }
 
-    applyPosition(angle = 0, distance = 1.0, enabled = true) {
+    applyPosition(angle = 0, distance = 1.0, enabled = true, rampSec = 0) {
       this.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
       this.distance = Math.max(0.3, Math.min(2.5, Number.isFinite(Number(distance)) ? Number(distance) : 1.0));
       this.enabled = Boolean(enabled);
 
       const currentTime = Number(this.context?.currentTime) || 0;
+      const smoothRamp = Number(rampSec) > 0;
+
+      const scheduleParam = (param, targetVal) => {
+        if (!param) return;
+        param.value = targetVal;
+        try {
+          param.cancelScheduledValues(currentTime);
+          if (smoothRamp && typeof param.linearRampToValueAtTime === "function") {
+            const startVal = Number.isFinite(param.value) ? param.value : targetVal;
+            param.setValueAtTime(startVal, currentTime);
+            param.linearRampToValueAtTime(targetVal, currentTime + Number(rampSec));
+          } else {
+            param.setValueAtTime(targetVal, currentTime);
+          }
+        } catch {}
+      };
 
       if (!this.enabled) {
         // Modo Desativado: Bypass 100% aberto, canal espacial zerado
@@ -322,6 +388,16 @@
         try { this.spatialGain.gain.setValueAtTime(1.15, currentTime); } catch {}
       }
 
+      // Geometria 360° no plano horizontal
+      let deg = Number(this.angle) || 0;
+      while (deg > 180) deg -= 360;
+      while (deg < -180) deg += 360;
+      this.angle = deg;
+
+      const rad = (this.angle * Math.PI) / 180;
+      const x = Math.sin(rad); // -1.0 (esquerda total) a +1.0 (direita total)
+      const z = Math.cos(rad); // +1.0 (frente total) a -1.0 (atrás da cabeça)
+
       // 1. Atenuação e Proximidade de Distância (Volume perceptível e marcante)
       let distVol;
       if (this.distance <= 1.0) {
@@ -331,89 +407,70 @@
         distVol = Math.max(0.40, 1.0 - norm * 0.55); // 1.0m -> 1.00x | 2.5m -> 0.45x (-7dB)
       }
       const distVal = Number(distVol.toFixed(3));
-      if (this.distanceGain?.gain) {
-        this.distanceGain.gain.value = distVal;
-        try { this.distanceGain.gain.setValueAtTime(distVal, currentTime); } catch {}
-      }
+      scheduleParam(this.distanceGain?.gain, distVal);
 
-      // 2. Absorção Acústica do Ar (Corte seguro dentro da faixa de Nyquist: [3000, 10000] Hz)
+      // 2. Absorção Acústica do Ar + Efeito Sombra da Pinna (Frente vs Atrás em 360°)
       const sampleRate = Number(this.context?.sampleRate) || 22050;
       const nyquist = sampleRate / 2;
       const maxFreq = Math.min(10000, Math.floor(nyquist * 0.92));
       const minFreq = Math.max(3000, Math.floor(maxFreq * 0.42));
       const normDist = Math.max(0, Math.min(1, (this.distance - 0.3) / 2.2));
-      const cutoff = Math.round(maxFreq - normDist * (maxFreq - minFreq));
-      if (this.distanceFilter?.frequency) {
-        this.distanceFilter.frequency.value = cutoff;
-        try { this.distanceFilter.frequency.setValueAtTime(cutoff, currentTime); } catch {}
-      }
+      const airCutoff = Math.round(maxFreq - normDist * (maxFreq - minFreq));
+
+      // Sombra da Pinna: quando z < 0 (atrás da cabeça), o pavilhão auricular atenua agudos
+      const rearDamp = z < 0 ? Math.abs(z) : 0;
+      const rearCutoff = Math.round(maxFreq - rearDamp * (maxFreq - 3600));
+      const cutoff = Math.min(airCutoff, rearCutoff);
+
+      scheduleParam(this.distanceFilter?.frequency, cutoff);
 
       // 3. Realce de presença vocal em 3.8kHz (intenso de perto, natural de longe)
       const clarity = Math.max(0.5, 2.5 * (1 - normDist * 0.8));
       const clarityVal = Number(clarity.toFixed(2));
-      if (this.clarityFilter?.gain) {
-        this.clarityFilter.gain.value = clarityVal;
-        try { this.clarityFilter.gain.setValueAtTime(clarityVal, currentTime); } catch {}
-      }
+      scheduleParam(this.clarityFilter?.gain, clarityVal);
 
       // 4. Posicionamento de referência no PannerNode e StereoPanner
-      const rad = (this.angle * Math.PI) / 180;
-      const x = Number((this.distance * Math.sin(rad)).toFixed(2));
-      const y = 0.15;
-      const z = Number((-this.distance * Math.cos(rad)).toFixed(2));
+      const posX = Number((this.distance * x).toFixed(2));
+      const posY = 0.15;
+      const posZ = Number((-this.distance * z).toFixed(2));
 
       if (this.pannerNode?.positionX) {
-        this.pannerNode.positionX.value = x;
-        this.pannerNode.positionY.value = y;
-        this.pannerNode.positionZ.value = z;
+        this.pannerNode.positionX.value = posX;
+        this.pannerNode.positionY.value = posY;
+        this.pannerNode.positionZ.value = posZ;
         try {
-          this.pannerNode.positionX.setValueAtTime(x, currentTime);
-          this.pannerNode.positionY.setValueAtTime(y, currentTime);
-          this.pannerNode.positionZ.setValueAtTime(z, currentTime);
+          this.pannerNode.positionX.setValueAtTime(posX, currentTime);
+          this.pannerNode.positionY.setValueAtTime(posY, currentTime);
+          this.pannerNode.positionZ.setValueAtTime(posZ, currentTime);
         } catch {}
       } else if (typeof this.pannerNode?.setPosition === "function") {
-        this.pannerNode.setPosition(x, y, z);
+        this.pannerNode.setPosition(posX, posY, posZ);
       }
 
-      const pan = Math.max(-1.0, Math.min(1.0, Math.sin(rad)));
-      const panVal = Number(pan.toFixed(3));
-      if (this.stereoPanner?.pan) {
-        this.stereoPanner.pan.value = panVal;
-        try { this.stereoPanner.pan.setValueAtTime(panVal, currentTime); } catch {}
-      }
+      const panVal = Number(Math.max(-1.0, Math.min(1.0, x)).toFixed(3));
+      scheduleParam(this.stereoPanner?.pan, panVal);
 
-      // 5. Separação Binaural Cirúrgica para Fones de Ouvido (ILD + ITD)
-      // Normalização: u de -1.0 (-90° total esq) a +1.0 (+90° total dir)
-      const u = Math.max(-1.0, Math.min(1.0, this.angle / 90));
+      // 5. Separação Binaural Cirúrgica para Fones de Ouvido (ILD + ITD) em 360°
       let lGain, rGain;
-      if (u <= 0) {
+      if (x <= 0) {
         lGain = 1.0;
-        rGain = Math.pow(Math.max(0, 1.0 + u), 1.5);
+        rGain = Math.pow(Math.max(0, 1.0 + x), 1.5);
       } else {
-        lGain = Math.pow(Math.max(0, 1.0 - u), 1.5);
+        lGain = Math.pow(Math.max(0, 1.0 - x), 1.5);
         rGain = 1.0;
       }
-      const lDelay = u > 0 ? u * 0.0006 : 0;
-      const rDelay = u < 0 ? Math.abs(u) * 0.0006 : 0;
+      const lDelay = x > 0 ? x * 0.00065 : 0;
+      const rDelay = x < 0 ? Math.abs(x) * 0.00065 : 0;
 
-      if (this.leftGain?.gain) {
-        const val = Number(lGain.toFixed(3));
-        this.leftGain.gain.value = val;
-        try { this.leftGain.gain.setValueAtTime(val, currentTime); } catch {}
-      }
-      if (this.rightGain?.gain) {
-        const val = Number(rGain.toFixed(3));
-        this.rightGain.gain.value = val;
-        try { this.rightGain.gain.setValueAtTime(val, currentTime); } catch {}
-      }
-      if (this.leftDelay?.delayTime) {
-        this.leftDelay.delayTime.value = lDelay;
-        try { this.leftDelay.delayTime.setValueAtTime(lDelay, currentTime); } catch {}
-      }
-      if (this.rightDelay?.delayTime) {
-        this.rightDelay.delayTime.value = rDelay;
-        try { this.rightDelay.delayTime.setValueAtTime(rDelay, currentTime); } catch {}
-      }
+      scheduleParam(this.leftGain?.gain, Number(lGain.toFixed(3)));
+      scheduleParam(this.rightGain?.gain, Number(rGain.toFixed(3)));
+      scheduleParam(this.leftDelay?.delayTime, lDelay);
+      scheduleParam(this.rightDelay?.delayTime, rDelay);
+    }
+
+    morphToPosition(targetAngle, targetDistance, enabled = true, durationMs = 800) {
+      const rampSec = Math.max(0.1, Math.min(3.0, (Number(durationMs) || 800) / 1000));
+      this.applyPosition(targetAngle, targetDistance, enabled, rampSec);
     }
 
     applyProfile(profileKey, enabled = true) {
@@ -520,6 +577,21 @@
       }
       if (this.spatialStage) {
         this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
+      }
+    }
+
+    morphSpatialPosition(angle, distance, enabled, durationMs = 800) {
+      if (Number.isFinite(Number(angle))) {
+        this.spatialAngle = Number(angle);
+      }
+      if (Number.isFinite(Number(distance))) {
+        this.spatialDistance = Math.max(0.3, Math.min(2.5, Number(distance)));
+      }
+      if (typeof enabled === "boolean") {
+        this.spatialEnabled = enabled;
+      }
+      if (this.spatialStage) {
+        this.spatialStage.morphToPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled, durationMs);
       }
     }
 
@@ -770,6 +842,12 @@
         }
       }
       if (!this.spatialStage && this.audioContext) {
+        if (this.audioContext.destination) {
+          try {
+            this.audioContext.destination.channelCount = 2;
+            this.audioContext.destination.channelCountMode = "explicit";
+          } catch {}
+        }
         this.spatialStage = new SiaSpatialStage(this.audioContext);
         this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
         if (this.spatialStage.output) {
@@ -1159,6 +1237,11 @@
       } else if (message.key === SPATIAL_DISTANCE_KEY) {
         provider.setSpatialPosition(provider.spatialAngle, Number(message.value), provider.spatialEnabled);
       }
+    } else if (message?.type === "SIA_NEURO_STAGE_MORPH") {
+      const angle = message.angle !== undefined ? Number(message.angle) : provider.spatialAngle;
+      const dist = message.distance !== undefined ? Number(message.distance) : provider.spatialDistance;
+      const duration = message.durationMs !== undefined ? Number(message.durationMs) : 800;
+      provider.morphSpatialPosition(angle, dist, provider.spatialEnabled, duration);
     }
   });
 
