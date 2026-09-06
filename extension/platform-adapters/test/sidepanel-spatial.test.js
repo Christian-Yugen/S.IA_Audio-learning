@@ -175,7 +175,9 @@ function createSpatialHarness() {
     window: {
       AudioContext: MockAudioContext,
       open: () => {},
-      location: { href: "" }
+      location: { href: "" },
+      addEventListener: () => {},
+      removeEventListener: () => {},
     }
   });
 
@@ -210,6 +212,8 @@ test("sliders de ângulo e distância sincronizam coordenadas acústicas e atual
 
   assert.match(badge.textContent, /\+30° Direita · 1.8m/);
   assert.equal(harness.storageData.sia_spatial_distance, 1.8);
+
+  await new Promise(r => setTimeout(r, 20));
 
   const angleUpdate = harness.sentMessages.find(m => m.msg.key === "sia_spatial_angle");
   assert.ok(angleUpdate);
