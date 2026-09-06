@@ -1020,9 +1020,10 @@
 
     if (spatialUi.btnOpenWinSettings) {
       spatialUi.btnOpenWinSettings.addEventListener("click", () => {
-        try {
-          window.open("ms-settings:easeofaccess-audio", "_blank");
-        } catch {}
+        if (spatialUi.testStatus) {
+          spatialUi.testStatus.textContent = "Abrindo configurações de áudio do Windows...";
+          setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 3500);
+        }
       });
     }
 
