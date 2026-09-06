@@ -1546,6 +1546,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             iniciarDucking();
+            notificarEstadoFala(true, registro.texto);
             emitirEventoH5("started", registro);
             registrarDiagnostico("fala-iniciada", registro.texto);
             if (registro.contexto?.naoRegistrarHistorico !== true) {
@@ -1578,9 +1579,17 @@
             }
         };
 
+        utterance.onboundary = evento => {
+            if (registro.geracao !== geracaoDaFala) return;
+            if (evento?.name === "word") {
+                notificarCadenciaFala(evento.charIndex, evento.charLength);
+            }
+        };
+
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             agendarRestauracaoDucking();
+            notificarEstadoFala(false);
             registrarDiagnostico("fala-finalizada", registro.texto);
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
@@ -1613,6 +1622,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             agendarRestauracaoDucking();
+            notificarEstadoFala(false);
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
             ultimoErroSintese = evento.error || "speech-error";
@@ -1705,6 +1715,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             iniciarDucking();
+            notificarEstadoFala(true, registro.texto);
             registrarDiagnostico("fala-neural-iniciada", registro.texto);
             if (registro.contexto?.naoRegistrarHistorico !== true) {
                 void registrarFraseNoHistorico(registro);
@@ -1737,6 +1748,7 @@
         utterance.onend = () => {
             if (registro.geracao !== geracaoDaFala) return;
             agendarRestauracaoDucking();
+            notificarEstadoFala(false);
             registrarDiagnostico("fala-neural-finalizada", registro.texto);
             ultimoTextoConcluido = registro.texto;
             ultimoTextoConcluidoEm = performance.now();
@@ -1763,6 +1775,7 @@
             if (registro.geracao !== geracaoDaFala) return;
 
             agendarRestauracaoDucking();
+            notificarEstadoFala(false);
             registrarDiagnostico("fala-neural-erro", registro.texto);
             ultimoErroSintese = evento?.error || "piper-error";
             if (falaAtual === registro) falaAtual = null;
@@ -1785,15 +1798,52 @@
             / Math.max(0.01, registro.utterance.rate)
             * 1000;
         previsaoFimFilaEm = Math.max(agora, previsaoFimFilaEm) + duracaoPrevistaMs;
-                falaEnfileirada = registro;
+        falaEnfileirada = registro;
         registrarDiagnostico("fala-neural-enfileirada", texto);
+        notificarEstadoFala(true, texto);
         // Começa a síntese assim que a legenda é detectada. A fila reutiliza
         // o mesmo pedido/cache e não gera a frase duas vezes.
         void provider.primeText?.(utterance);
         if (!provider.speak(utterance)) {
-
             falaEnfileirada = null;
             enfileirarFala(texto, contexto);
+        }
+    }
+
+    function estaFalandoOuSintetizando() {
+        return Boolean(
+            falaAtual
+            || falaEnfileirada
+            || (typeof speechSynthesis !== "undefined" && (speechSynthesis.speaking || speechSynthesis.pending))
+            || (globalThis.SiaPiperVoice?.isSpeaking?.() === true)
+        );
+    }
+
+    function notificarEstadoFala(falando, texto = "") {
+        try {
+            if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+                chrome.runtime.sendMessage({
+                    type: "SIA_SPEECH_STATE",
+                    isSpeaking: Boolean(falando),
+                    text: texto || ""
+                }).catch(() => {});
+            }
+        } catch {
+            // Ignora quando o contexto de extensão estiver inativo
+        }
+    }
+
+    function notificarCadenciaFala(charIndex = 0, charLength = 0) {
+        try {
+            if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+                chrome.runtime.sendMessage({
+                    type: "SIA_SPEECH_CADENCE",
+                    charIndex: Number(charIndex) || 0,
+                    charLength: Number(charLength) || 0
+                }).catch(() => {});
+            }
+        } catch {
+            // Ignora quando o contexto de extensão estiver inativo
         }
     }
 
@@ -1814,6 +1864,7 @@
         previsaoFimFilaEm = inicioPrevistoEm + duracaoPrevistaMs;
         falaEnfileirada = registro;
         registrarDiagnostico("fala-enfileirada", texto);
+        notificarEstadoFala(true, texto);
         speechSynthesis.speak(registro.utterance);
     }
 
@@ -1895,10 +1946,8 @@
             return;
         }
 
-        if (usarPiper) {
-            enfileirarFala(valor, contextoFala);
-            return;
-        }
+        enfileirarFala(valor, contextoFala);
+    }
 
     function falar(texto, contexto = {}) {
         if (!traducaoInglesAtiva || !MOTOR_TRADUCAO || contexto?.naoTraduzir === true) {
@@ -2065,6 +2114,7 @@
         limparBufferSentenca();
         restaurarVelocidadeVideo();
         restaurarDuckingImediato();
+        notificarEstadoFala(false);
         if (speechSynthesis.speaking || speechSynthesis.pending) {
             speechSynthesis.cancel();
         }
@@ -2520,13 +2570,16 @@
             }
 
             if (mensagem?.type === "SIA_GET_LEARNING_CONTEXT") {
+                const falador = estaFalandoOuSintetizando();
                 responder({
                     ok: true,
                     courseKey: chaveHistorico,
                     title: document.title,
                     url: location.href,
                     history: historicoFrases,
-                    study: contextoAprendizagem()
+                    study: contextoAprendizagem(),
+                    isSpeaking: falador,
+                    currentSpeechText: falaAtual?.texto || falaEnfileirada?.texto || textoEmFala || historicoFrases[0]?.texto || ""
                 });
                 return;
             }

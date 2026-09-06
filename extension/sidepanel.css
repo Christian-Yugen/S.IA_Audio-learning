@@ -35,7 +35,88 @@ header p { margin: 3px 0 0; color: var(--muted); font-size: 8px; letter-spacing:
   border-radius: 10px;
   background: linear-gradient(145deg, rgb(46 204 113 / 10%), #151515);
 }
-.hero > span { font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+.hero > span, .hero-top .eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 1px; color: var(--accent); }
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.waveform-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgb(24 24 24 / 85%);
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  user-select: none;
+}
+.waveform-status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: all 0.25s ease;
+}
+.waveform-status-badge .waveform-status-text {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  transition: color 0.25s ease;
+}
+.waveform-status-badge[data-state="idle"] .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 5px rgb(46 204 113 / 60%);
+}
+.waveform-status-badge[data-state="speaking"] {
+  border-color: rgb(46 204 113 / 55%);
+  background: rgb(46 204 113 / 12%);
+  box-shadow: 0 0 8px rgb(46 204 113 / 20%);
+}
+.waveform-status-badge[data-state="speaking"] .status-dot {
+  background: #2ecc71;
+  box-shadow: 0 0 7px #2ecc71;
+  animation: status-dot-pulse 1.2s infinite ease-in-out;
+}
+.waveform-status-badge[data-state="speaking"] .waveform-status-text {
+  color: var(--accent);
+  font-weight: 750;
+}
+.waveform-status-badge[data-state="disconnected"] {
+  opacity: 0.6;
+}
+
+@keyframes status-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+/* Palco do Equalizador Gráfico Panorâmico */
+.equalizer-stage {
+  position: relative;
+  width: 100%;
+  margin: 10px 0 14px;
+  padding: 8px 8px 6px;
+  background: #080808;
+  border: 1px solid rgb(46 204 113 / 22%);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 75%), 0 1px 3px rgb(0 0 0 / 40%);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.equalizer-stage.is-speaking {
+  border-color: rgb(46 204 113 / 45%);
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 75%), 0 0 12px rgb(46 204 113 / 20%);
+}
+.equalizer-canvas {
+  display: block;
+  width: 100%;
+  height: 56px;
+}
 .hero p { min-height: 42px; margin: 10px 0 14px; line-height: 1.55; }
 .hero button {
   width: 100%;
