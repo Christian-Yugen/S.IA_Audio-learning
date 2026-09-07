@@ -851,6 +851,10 @@
     }
     if (stage.video) {
       updateVideoSpatialPosition(stage.video.angle, stage.video.distance, persist);
+      if (stage.video.volume !== undefined) {
+        const duckVal = Math.round(stage.video.volume * 100);
+        updateDuckingUI(duckVal, persist);
+      }
     }
     if (spatialUi.neuroStateBadge && stage.state) {
       const stateLabels = {
@@ -874,16 +878,26 @@
   }
 
   function updateDuckingUI(level, persist = true) {
-    currentDucking = Math.max(0, Math.min(100, Number(level) || 0));
+    let num = Number(level);
+    if (!Number.isFinite(num) || num < 0) num = 0;
+    if (num > 0 && num <= 1) {
+      num = Math.round(num * 100);
+    }
+    currentDucking = Math.max(0, Math.min(100, Math.round(num)));
+
     spatialUi.duckingButtons.forEach(btn => {
       const val = Number(btn.dataset.ducking);
-      btn.classList.toggle("active", val === currentDucking);
+      let match = false;
+      if (currentDucking === 0 && val === 0) match = true;
+      else if (currentDucking > 0 && currentDucking <= 25 && val === 15) match = true;
+      else if (currentDucking > 25 && val === 40) match = true;
+      btn.classList.toggle("active", match);
     });
 
     if (spatialUi.duckingModeStatus) {
       if (currentDucking === 0) {
         spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo durante fala)";
-      } else if (currentDucking <= 20) {
+      } else if (currentDucking <= 25) {
         spatialUi.duckingModeStatus.textContent = `Fundo Suave (${currentDucking}% vídeo durante fala)`;
       } else {
         spatialUi.duckingModeStatus.textContent = `Bilíngue (${currentDucking}% vídeo durante fala)`;
@@ -892,8 +906,12 @@
 
     if (persist) {
       try {
-        chrome?.storage?.local?.set?.({ sia_ducking_level: currentDucking });
+        chrome?.storage?.local?.set?.({ 
+          sia_ducking: true, 
+          sia_ducking_level: currentDucking 
+        });
       } catch {}
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_ducking", value: true });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_ducking_level", value: currentDucking });
     }
   }
@@ -1239,7 +1257,7 @@
 
     try {
       chrome?.storage?.local?.get?.(
-        ["sia_spatial_angle", "sia_spatial_distance", "sia_video_angle", "sia_video_distance", "sia_ducking_level", "sia_stereo_calibrated", "sia_neuro_director_active", "sia_neuro_preset"],
+        ["sia_spatial_angle", "sia_spatial_distance", "sia_video_angle", "sia_video_distance", "sia_ducking_level", "sia_ducking", "sia_stereo_calibrated", "sia_neuro_director_active", "sia_neuro_preset"],
         res => {
           const directorActive = res?.sia_neuro_director_active !== undefined ? Boolean(res.sia_neuro_director_active) : true;
           setNeuroDirectorState(directorActive, false);
@@ -1249,24 +1267,11 @@
           }
 
           if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
-            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 25;
-            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 0.8;
+            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 0;
+            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 1.0;
             updateSpatialPosition(angle, dist, false);
           } else {
-            updateSpatialPosition(25, 0.8, false);
-          }
-
-          if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
-            const vAngle = res.sia_video_angle !== undefined ? Number(res.sia_video_angle) : -25;
-            const vDist = res.sia_video_distance !== undefined ? Number(res.sia_video_distance) : 1.5;
-            updateVideoSpatialPosition(vAngle, vDist, false);
-          } else {
-            updateVideoSpatialPosition(-25, 1.5, false);
-          }
-
-          if (globalThis.SiaNeuroDirector?.PRESETS?.[activeNeuroPreset] && spatialUi.neuroInsightText) {
-            const p = globalThis.SiaNeuroDirector.PRESETS[activeNeuroPreset];
-            spatialUi.neuroInsightText.textContent = p.insight;
+            updateSpatialPosition(0, 1.0, false);
           }
 
           if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {

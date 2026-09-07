@@ -56,6 +56,7 @@ function createHarness({
     currentTime: 10.5,
     playbackRate: 1,
     volume,
+    muted: false,
     paused,
     ended: false,
     duration: 120,
@@ -1073,6 +1074,48 @@ test('audio ducking desativado via configuração restaura volume imediatamente 
   const statusAtualizado = await harness.sendMessage({ type: 'SIA_GET_STATUS' });
   assert.equal(statusAtualizado.duckingEnabled, false);
 });
+
+test('modo Foco Total muta vídeo (muted = true e volume = 0) e restaura ao concluir fala', async () => {
+  const harness = createHarness({ manualTimers: true, volume: 1 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  // Configura para Foco Total (0%)
+  await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+
+  // Dispara fala
+  harness.input.push(cue({ text: 'Fala com Foco Total 100% mudo.' }));
+  assert.equal(harness.video.muted, true);
+  assert.equal(harness.video.volume, 0);
+
+  // Conclui a fala e avança timers
+  harness.spoken[0]?.onend?.();
+  harness.advanceTimers(350);
+
+  // Deve restaurar volume para 1 e desmutar
+  assert.equal(harness.video.muted, false);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 1);
+});
+
+test('mudança de nível de ducking durante a fala aplica efeito imediatamente no vídeo', async () => {
+  const harness = createHarness({ manualTimers: true, volume: 1 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  // Inicia fala com nível padrão (0.15)
+  harness.input.push(cue({ text: 'Fala inicial a 15%.' }));
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.15);
+  assert.equal(harness.video.muted, false);
+
+  // Altera em tempo real para Foco Total (0%) durante a fala
+  await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  assert.equal(harness.video.muted, true);
+  assert.equal(harness.video.volume, 0);
+
+  // Altera em tempo real para Bilíngue (40%) durante a fala
+  await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 40 });
+  assert.equal(harness.video.muted, false);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 0.4);
+});
+
 
 
 

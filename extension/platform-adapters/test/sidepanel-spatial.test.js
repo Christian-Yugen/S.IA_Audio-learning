@@ -76,7 +76,7 @@ function createMockElement(id, options = {}) {
   return element;
 }
 
-function createSpatialHarness() {
+function createSpatialHarness(initialStorage = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
     "history-item-template", "toggle-history-expand",
@@ -105,7 +105,7 @@ function createSpatialHarness() {
   ];
 
   const sentMessages = [];
-  const storageData = {};
+  const storageData = { ...initialStorage };
 
   const documentRef = {
     getElementById(id) { return elements.get(`#${id}`) || null; },
@@ -250,13 +250,32 @@ test("seletor de ducking ajusta convivência com o vídeo e salva nível", async
 
   const status = harness.elements.get("#ducking-mode-status");
   assert.match(status.textContent, /15% vídeo/);
+  assert.equal(harness.storageData.sia_ducking, true);
   assert.equal(harness.storageData.sia_ducking_level, 15);
   assert.equal(duckingSuave.classList.contains("active"), true);
 
   const duckingBilingue = harness.duckingBtns[2]; // 40% vídeo
   duckingBilingue.dispatch("click");
   assert.match(status.textContent, /Bilíngue \(40% vídeo/);
+  assert.equal(harness.storageData.sia_ducking, true);
   assert.equal(harness.storageData.sia_ducking_level, 40);
+  assert.equal(duckingBilingue.classList.contains("active"), true);
+
+  const duckingFoco = harness.duckingBtns[0]; // 0% vídeo (Foco Total)
+  duckingFoco.dispatch("click");
+  assert.match(status.textContent, /Foco Total/);
+  assert.equal(harness.storageData.sia_ducking, true);
+  assert.equal(harness.storageData.sia_ducking_level, 0);
+  assert.equal(duckingFoco.classList.contains("active"), true);
+});
+
+test("sidepanel lê sia_ducking_level fracionário (ex: 0.15 ou 0.40) e ativa o botão correto", () => {
+  const harness = createSpatialHarness({ sia_ducking_level: 0.15 });
+  const duckingSuave = harness.duckingBtns[1];
+  assert.equal(duckingSuave.classList.contains("active"), true);
+
+  const harnessBilingue = createSpatialHarness({ sia_ducking_level: 0.4 });
+  const duckingBilingue = harnessBilingue.duckingBtns[2];
   assert.equal(duckingBilingue.classList.contains("active"), true);
 });
 

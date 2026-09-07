@@ -41,6 +41,7 @@
     let duckingAtivo = true;
     let duckingNivel = 0.0;
     let volumeBaseVideo = null;
+    let mutedBaseVideo = null;
     let duckingAnimId = null;
     let duckingHoldTimer = null;
     let duckingEmAndamento = false;
@@ -101,6 +102,21 @@
     }
 
     function obterVideoParaDucking() {
+        if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
+            const todosVideos = Array.from(document.querySelectorAll("video"));
+            if (todosVideos.length > 0) {
+                const videoAtivo = todosVideos.find(v => !v.paused && !v.ended && Number(v.currentTime) > 0);
+                if (videoAtivo) {
+                    videoMonitorado = videoAtivo;
+                    if (!videoAtivo._siaAudioPrimed) {
+                        videoAtivo._siaAudioPrimed = true;
+                        videoAtivo.addEventListener?.("play", tentarDesbloquearAudioNeural, { passive: true });
+                        videoAtivo.addEventListener?.("playing", tentarDesbloquearAudioNeural, { passive: true });
+                    }
+                    return videoAtivo;
+                }
+            }
+        }
         if (videoMonitorado) {
             if (typeof videoMonitorado.isConnected !== "boolean" || videoMonitorado.isConnected) {
                 return videoMonitorado;
@@ -133,13 +149,26 @@
         if (volumeBaseVideo === null) {
             volumeBaseVideo = video.volume;
         }
+        if (typeof video.muted === "boolean" && mutedBaseVideo === null) {
+            mutedBaseVideo = video.muted;
+        }
         if (typeof video.addEventListener === "function") {
             video.addEventListener("pause", restaurarDuckingImediato);
             video.addEventListener("ended", restaurarDuckingImediato);
             video.addEventListener("seeking", restaurarDuckingImediato);
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 40 : 100);
+        if (volumeAlvo === 0) {
+            if (typeof video.muted === "boolean") {
+                video.muted = true;
+            }
+            rampaVolumeVideo(video, 0, 40);
+        } else {
+            if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
+                video.muted = false;
+            }
+            rampaVolumeVideo(video, volumeAlvo, 100);
+        }
     }
 
     function agendarRestauracaoDucking() {
@@ -158,7 +187,12 @@
             const videoAtual = obterVideoParaDucking();
             if (!videoAtual || !Number.isFinite(videoAtual.volume)) {
                 volumeBaseVideo = null;
+                mutedBaseVideo = null;
                 return;
+            }
+            if (typeof videoAtual.muted === "boolean" && mutedBaseVideo !== null) {
+                videoAtual.muted = mutedBaseVideo;
+                mutedBaseVideo = null;
             }
             rampaVolumeVideo(videoAtual, alvo, 300, () => {
                 if (!duckingEmAndamento) {
@@ -168,6 +202,7 @@
                         videoAtual.removeEventListener("seeking", restaurarDuckingImediato);
                     }
                     volumeBaseVideo = null;
+                    mutedBaseVideo = null;
                 }
             });
         }, 280);
@@ -190,11 +225,15 @@
                 video.removeEventListener("ended", restaurarDuckingImediato);
                 video.removeEventListener("seeking", restaurarDuckingImediato);
             }
+            if (typeof video.muted === "boolean" && mutedBaseVideo !== null) {
+                video.muted = mutedBaseVideo;
+            }
             if (volumeBaseVideo !== null && Number.isFinite(video.volume)) {
                 video.volume = Math.max(0, Math.min(1, volumeBaseVideo));
             }
         }
         volumeBaseVideo = null;
+        mutedBaseVideo = null;
     }
 
     function continuaSemPontuacaoFinal(texto) {
@@ -2343,6 +2382,8 @@
                 duckingAtivo = Boolean(valor);
                 if (!duckingAtivo) {
                     restaurarDuckingImediato();
+                } else if (estaFalandoOuSintetizando()) {
+                    iniciarDucking();
                 }
                 break;
             case "sia_ducking_level": {
@@ -2350,11 +2391,28 @@
                 if (Number.isFinite(parsed)) {
                     const norm = parsed > 1 ? parsed / 100 : parsed;
                     duckingNivel = Math.max(0, Math.min(1, norm));
-                    if (duckingEmAndamento && volumeBaseVideo !== null) {
+                    if (duckingAtivo && (duckingEmAndamento || estaFalandoOuSintetizando())) {
                         const video = obterVideoParaDucking();
-                        if (video) {
+                        if (video && Number.isFinite(video.volume)) {
+                            if (volumeBaseVideo === null) {
+                                volumeBaseVideo = video.volume;
+                            }
+                            if (typeof video.muted === "boolean" && mutedBaseVideo === null) {
+                                mutedBaseVideo = video.muted;
+                            }
+                            duckingEmAndamento = true;
                             const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-                            rampaVolumeVideo(video, volumeAlvo, 80);
+                            if (volumeAlvo === 0) {
+                                if (typeof video.muted === "boolean") {
+                                    video.muted = true;
+                                }
+                                rampaVolumeVideo(video, 0, 40);
+                            } else {
+                                if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
+                                    video.muted = false;
+                                }
+                                rampaVolumeVideo(video, volumeAlvo, 80);
+                            }
                         }
                     }
                 }
