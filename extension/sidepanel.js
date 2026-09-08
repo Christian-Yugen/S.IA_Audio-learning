@@ -400,8 +400,14 @@
   }
 
   async function activeTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab;
+    try {
+      const tabs = await chrome?.tabs?.query?.({ active: true, lastFocusedWindow: true });
+      if (tabs?.[0]) return tabs[0];
+      const anyTabs = await chrome?.tabs?.query?.({ active: true });
+      return anyTabs?.[0] || null;
+    } catch {
+      return null;
+    }
   }
 
   async function send(message) {
@@ -851,10 +857,6 @@
     }
     if (stage.video) {
       updateVideoSpatialPosition(stage.video.angle, stage.video.distance, persist);
-      if (stage.video.volume !== undefined) {
-        const duckVal = Math.round(stage.video.volume * 100);
-        updateDuckingUI(duckVal, persist);
-      }
     }
     if (spatialUi.neuroStateBadge && stage.state) {
       const stateLabels = {
@@ -1036,6 +1038,9 @@
             video: p.video,
             insight: p.insight,
           }, true);
+          if (presetKey === "vip") {
+            updateDuckingUI(0, true);
+          }
         } else {
           const angle = Number(btn.dataset.angle);
           const dist = Number(btn.dataset.dist);

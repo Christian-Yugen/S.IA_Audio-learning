@@ -158,11 +158,19 @@
             video.addEventListener("seeking", restaurarDuckingImediato);
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-        if (volumeAlvo === 0) {
+        if (duckingNivel === 0 || volumeAlvo === 0) {
             if (typeof video.muted === "boolean") {
                 video.muted = true;
             }
             rampaVolumeVideo(video, 0, 40);
+            if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
+                document.querySelectorAll("video").forEach(v => {
+                    try {
+                        v.muted = true;
+                        v.volume = 0;
+                    } catch {}
+                });
+            }
         } else {
             if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
                 video.muted = false;
@@ -192,6 +200,11 @@
             }
             if (typeof videoAtual.muted === "boolean" && mutedBaseVideo !== null) {
                 videoAtual.muted = mutedBaseVideo;
+                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function" && mutedBaseVideo === false) {
+                    document.querySelectorAll("video").forEach(v => {
+                        try { v.muted = false; } catch {}
+                    });
+                }
                 mutedBaseVideo = null;
             }
             rampaVolumeVideo(videoAtual, alvo, 300, () => {
@@ -227,6 +240,11 @@
             }
             if (typeof video.muted === "boolean" && mutedBaseVideo !== null) {
                 video.muted = mutedBaseVideo;
+                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function" && mutedBaseVideo === false) {
+                    document.querySelectorAll("video").forEach(v => {
+                        try { v.muted = false; } catch {}
+                    });
+                }
             }
             if (volumeBaseVideo !== null && Number.isFinite(video.volume)) {
                 video.volume = Math.max(0, Math.min(1, volumeBaseVideo));
@@ -2402,11 +2420,19 @@
                             }
                             duckingEmAndamento = true;
                             const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-                            if (volumeAlvo === 0) {
+                            if (duckingNivel === 0 || volumeAlvo === 0) {
                                 if (typeof video.muted === "boolean") {
                                     video.muted = true;
                                 }
                                 rampaVolumeVideo(video, 0, 40);
+                                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
+                                    document.querySelectorAll("video").forEach(v => {
+                                        try {
+                                            v.muted = true;
+                                            v.volume = 0;
+                                        } catch {}
+                                    });
+                                }
                             } else {
                                 if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
                                     video.muted = false;
@@ -2479,6 +2505,17 @@
                 aplicarConfiguracao(chave, valor);
             });
         });
+
+        if (typeof chrome !== "undefined" && chrome?.storage?.onChanged) {
+            chrome.storage.onChanged.addListener((changes, areaName) => {
+                if (areaName !== "local") return;
+                for (const [chave, change] of Object.entries(changes)) {
+                    if ("newValue" in change) {
+                        aplicarConfiguracao(chave, change.newValue);
+                    }
+                }
+            });
+        }
 
         chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
             if (mensagem?.type === "SIA_PLATFORM_DEACTIVATE") {

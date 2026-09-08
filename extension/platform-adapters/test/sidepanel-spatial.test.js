@@ -139,9 +139,12 @@ function createSpatialHarness(initialStorage = {}) {
       }
     },
     runtime: {
-      onMessage: { addListener: () => {} }
+      onMessage: {
+        addListener: (fn) => runtimeListeners.push(fn)
+      }
     }
   };
+  const runtimeListeners = [];
   const MockAudioContext = class {
     constructor() { this.sampleRate = 48000; this.destination = {}; }
     createBuffer(channels, length, sampleRate) {
@@ -192,6 +195,7 @@ function createSpatialHarness(initialStorage = {}) {
     duckingBtns,
     sentMessages,
     storageData,
+    dispatchRuntimeMessage: (msg) => runtimeListeners.forEach(fn => fn(msg)),
   };
 }
 
@@ -277,6 +281,35 @@ test("sidepanel lê sia_ducking_level fracionário (ex: 0.15 ou 0.40) e ativa o 
   const harnessBilingue = createSpatialHarness({ sia_ducking_level: 0.4 });
   const duckingBilingue = harnessBilingue.duckingBtns[2];
   assert.equal(duckingBilingue.classList.contains("active"), true);
+});
+
+test("SIA_NEURO_STAGE_UPDATE do Neuro-Director não sobrescreve a escolha do usuário (Foco Total permanece ativo)", async () => {
+  const harness = createSpatialHarness();
+
+  // Usuário escolhe Foco Total (0%)
+  const duckingFoco = harness.duckingBtns[0];
+  duckingFoco.dispatch("click");
+  assert.equal(duckingFoco.classList.contains("active"), true);
+  assert.equal(harness.storageData.sia_ducking_level, 0);
+
+  // Simula evento automático emitido pela fala na Udemy com preset ONU (volume 0.20)
+  harness.dispatchRuntimeMessage({
+    type: "SIA_NEURO_STAGE_UPDATE",
+    stage: {
+      presetId: "onu",
+      state: "balanced_cognitive",
+      sia: { angle: 25, distance: 0.8 },
+      video: { angle: -25, distance: 1.5, volume: 0.20 },
+      insight: "Separação Áurea ativa."
+    }
+  });
+
+  // Foco Total DEVE continuar ativo e não reverter para Fundo Suave!
+  assert.equal(duckingFoco.classList.contains("active"), true);
+  assert.equal(harness.duckingBtns[1].classList.contains("active"), false);
+  assert.equal(harness.storageData.sia_ducking_level, 0);
+  const status = harness.elements.get("#ducking-mode-status");
+  assert.match(status.textContent, /Foco Total/);
 });
 
 test("botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe confirmação", async () => {
