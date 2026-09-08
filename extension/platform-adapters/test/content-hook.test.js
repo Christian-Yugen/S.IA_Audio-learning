@@ -96,6 +96,10 @@ function createHarness({
       }
       return selector === 'video' ? video : null;
     },
+    querySelectorAll(selector) {
+      if (selector.includes('video')) return [video];
+      return [];
+    },
     addEventListener() {},
   };
   const storageValues = {
@@ -1114,6 +1118,38 @@ test('mudança de nível de ducking durante a fala aplica efeito imediatamente n
   await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 40 });
   assert.equal(harness.video.muted, false);
   assert.equal(Number(harness.video.volume.toFixed(2)), 0.4);
+});
+
+test('modo Foco Total na Udemy bloqueia reativação de volume pelo player via volumechange (trava ativa _siaSilenceEnforcer)', async () => {
+  const harness = createHarness({ manualTimers: true, volume: 1 });
+  harness.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+
+  // Configura para Foco Total (0%)
+  await harness.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+
+  // Inicia a fala com Foco Total
+  harness.input.push(cue({ text: 'Fala com corte total acústico na Udemy.' }));
+  assert.equal(harness.video.muted, true);
+  assert.equal(harness.video.volume, 0);
+  assert.ok(harness.video._siaSilenceEnforcer, 'O enforcer de silêncio deve estar ativo no elemento de vídeo');
+
+  // Simula o player da Udemy (Shaka / React) tentando desmutar ou elevar o volume durante a fala
+  harness.video.muted = false;
+  harness.video.volume = 0.85;
+  harness.video.dispatch('volumechange');
+
+  // O enforcer deve travar instantaneamente de volta para mudo e volume 0
+  assert.equal(harness.video.muted, true);
+  assert.equal(harness.video.volume, 0);
+
+  // Conclui a fala da S·IA
+  harness.spoken[0]?.onend?.();
+  harness.advanceTimers(350);
+
+  // Deve desmutar e restaurar volume original de 1, além de remover o enforcer
+  assert.equal(harness.video.muted, false);
+  assert.equal(Number(harness.video.volume.toFixed(2)), 1);
+  assert.equal(harness.video._siaSilenceEnforcer, null);
 });
 
 

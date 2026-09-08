@@ -123,18 +123,49 @@
             }
         }
         if (typeof document !== "undefined" && typeof document.querySelector === "function") {
-            const video = document.querySelector("video");
-            if (video) {
-                videoMonitorado = video;
-                if (!video._siaAudioPrimed) {
-                    video._siaAudioPrimed = true;
-                    video.addEventListener?.("play", tentarDesbloquearAudioNeural, { passive: true });
-                    video.addEventListener?.("playing", tentarDesbloquearAudioNeural, { passive: true });
+            const videoPrioritario = document.querySelector('video[data-purpose], video[id^="lecture-"]') || document.querySelector("video");
+            if (videoPrioritario) {
+                videoMonitorado = videoPrioritario;
+                if (!videoPrioritario._siaAudioPrimed) {
+                    videoPrioritario._siaAudioPrimed = true;
+                    videoPrioritario.addEventListener?.("play", tentarDesbloquearAudioNeural, { passive: true });
+                    videoPrioritario.addEventListener?.("playing", tentarDesbloquearAudioNeural, { passive: true });
                 }
-                return video;
+                return videoPrioritario;
             }
         }
         return videoMonitorado;
+    }
+
+    function mutarTodosElementosMedia(silenciar) {
+        if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
+        try {
+            document.querySelectorAll("video, audio").forEach(media => {
+                try {
+                    if (silenciar) {
+                        media.muted = true;
+                        media.volume = 0;
+                    } else if (mutedBaseVideo === false) {
+                        media.muted = false;
+                    }
+                } catch {}
+            });
+        } catch {}
+    }
+
+    function travarSilencioDuranteDucking() {
+        if (duckingEmAndamento && duckingNivel === 0) {
+            const video = obterVideoParaDucking();
+            if (video) {
+                if (video.muted !== true) {
+                    try { video.muted = true; } catch {}
+                }
+                if (video.volume !== 0) {
+                    try { video.volume = 0; } catch {}
+                }
+            }
+            mutarTodosElementosMedia(true);
+        }
     }
 
     function iniciarDucking() {
@@ -146,8 +177,8 @@
             duckingHoldTimer = null;
         }
         duckingEmAndamento = true;
-        if (volumeBaseVideo === null) {
-            volumeBaseVideo = video.volume;
+        if (volumeBaseVideo === null || volumeBaseVideo === 0) {
+            volumeBaseVideo = video.volume > 0 ? video.volume : 1.0;
         }
         if (typeof video.muted === "boolean" && mutedBaseVideo === null) {
             mutedBaseVideo = video.muted;
@@ -159,23 +190,36 @@
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
         if (duckingNivel === 0 || volumeAlvo === 0) {
+            if (duckingAnimId) {
+                cancelAnimFrame(duckingAnimId);
+                duckingAnimId = null;
+            }
             if (typeof video.muted === "boolean") {
                 video.muted = true;
             }
-            rampaVolumeVideo(video, 0, 40);
-            if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
-                document.querySelectorAll("video").forEach(v => {
-                    try {
-                        v.muted = true;
-                        v.volume = 0;
-                    } catch {}
-                });
+            video.volume = 0;
+            mutarTodosElementosMedia(true);
+            if (!video._siaSilenceEnforcer) {
+                video._siaSilenceEnforcer = travarSilencioDuranteDucking;
+                video.addEventListener("volumechange", video._siaSilenceEnforcer);
             }
         } else {
+            if (video._siaSilenceEnforcer) {
+                video.removeEventListener("volumechange", video._siaSilenceEnforcer);
+                video._siaSilenceEnforcer = null;
+            }
             if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
                 video.muted = false;
             }
             rampaVolumeVideo(video, volumeAlvo, 100);
+            if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
+                document.querySelectorAll("video, audio").forEach(v => {
+                    try {
+                        if (mutedBaseVideo === false) v.muted = false;
+                        v.volume = volumeAlvo;
+                    } catch {}
+                });
+            }
         }
     }
 
@@ -198,13 +242,13 @@
                 mutedBaseVideo = null;
                 return;
             }
+            if (videoAtual._siaSilenceEnforcer) {
+                videoAtual.removeEventListener("volumechange", videoAtual._siaSilenceEnforcer);
+                videoAtual._siaSilenceEnforcer = null;
+            }
             if (typeof videoAtual.muted === "boolean" && mutedBaseVideo !== null) {
                 videoAtual.muted = mutedBaseVideo;
-                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function" && mutedBaseVideo === false) {
-                    document.querySelectorAll("video").forEach(v => {
-                        try { v.muted = false; } catch {}
-                    });
-                }
+                mutarTodosElementosMedia(false);
                 mutedBaseVideo = null;
             }
             rampaVolumeVideo(videoAtual, alvo, 300, () => {
@@ -213,6 +257,10 @@
                         videoAtual.removeEventListener("pause", restaurarDuckingImediato);
                         videoAtual.removeEventListener("ended", restaurarDuckingImediato);
                         videoAtual.removeEventListener("seeking", restaurarDuckingImediato);
+                    }
+                    if (videoAtual._siaSilenceEnforcer) {
+                        videoAtual.removeEventListener("volumechange", videoAtual._siaSilenceEnforcer);
+                        videoAtual._siaSilenceEnforcer = null;
                     }
                     volumeBaseVideo = null;
                     mutedBaseVideo = null;
@@ -238,13 +286,13 @@
                 video.removeEventListener("ended", restaurarDuckingImediato);
                 video.removeEventListener("seeking", restaurarDuckingImediato);
             }
+            if (video._siaSilenceEnforcer) {
+                video.removeEventListener("volumechange", video._siaSilenceEnforcer);
+                video._siaSilenceEnforcer = null;
+            }
             if (typeof video.muted === "boolean" && mutedBaseVideo !== null) {
                 video.muted = mutedBaseVideo;
-                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function" && mutedBaseVideo === false) {
-                    document.querySelectorAll("video").forEach(v => {
-                        try { v.muted = false; } catch {}
-                    });
-                }
+                mutarTodosElementosMedia(false);
             }
             if (volumeBaseVideo !== null && Number.isFinite(video.volume)) {
                 video.volume = Math.max(0, Math.min(1, volumeBaseVideo));
@@ -418,7 +466,9 @@
             videoId: videoIdParaEstudo(),
             url: location.href,
             title: document.title,
-            course: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "",
+            course: PLATAFORMA_APRENDIZAGEM_ID === "udemy"
+                ? location.pathname.match(/\/course\/([^/]+)/i)?.[1] || ""
+                : location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "",
         };
     }
 
@@ -1200,7 +1250,9 @@
             fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
             url: location.href,
             titulo: document.title,
-            curso: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "coursera",
+            curso: PLATAFORMA_APRENDIZAGEM_ID === "udemy"
+                ? location.pathname.match(/\/course\/([^/]+)/i)?.[1] || "udemy"
+                : location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "coursera",
             criadoEm: Date.now(),
             favorito: false,
             nota: ""
@@ -2412,8 +2464,8 @@
                     if (duckingAtivo && (duckingEmAndamento || estaFalandoOuSintetizando())) {
                         const video = obterVideoParaDucking();
                         if (video && Number.isFinite(video.volume)) {
-                            if (volumeBaseVideo === null) {
-                                volumeBaseVideo = video.volume;
+                            if (volumeBaseVideo === null || volumeBaseVideo === 0) {
+                                volumeBaseVideo = video.volume > 0 ? video.volume : 1.0;
                             }
                             if (typeof video.muted === "boolean" && mutedBaseVideo === null) {
                                 mutedBaseVideo = video.muted;
@@ -2421,23 +2473,36 @@
                             duckingEmAndamento = true;
                             const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
                             if (duckingNivel === 0 || volumeAlvo === 0) {
+                                if (duckingAnimId) {
+                                    cancelAnimFrame(duckingAnimId);
+                                    duckingAnimId = null;
+                                }
                                 if (typeof video.muted === "boolean") {
                                     video.muted = true;
                                 }
-                                rampaVolumeVideo(video, 0, 40);
-                                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
-                                    document.querySelectorAll("video").forEach(v => {
-                                        try {
-                                            v.muted = true;
-                                            v.volume = 0;
-                                        } catch {}
-                                    });
+                                video.volume = 0;
+                                mutarTodosElementosMedia(true);
+                                if (!video._siaSilenceEnforcer) {
+                                    video._siaSilenceEnforcer = travarSilencioDuranteDucking;
+                                    video.addEventListener("volumechange", video._siaSilenceEnforcer);
                                 }
                             } else {
+                                if (video._siaSilenceEnforcer) {
+                                    video.removeEventListener("volumechange", video._siaSilenceEnforcer);
+                                    video._siaSilenceEnforcer = null;
+                                }
                                 if (typeof video.muted === "boolean" && mutedBaseVideo === false) {
                                     video.muted = false;
                                 }
                                 rampaVolumeVideo(video, volumeAlvo, 80);
+                                if (typeof document !== "undefined" && typeof document.querySelectorAll === "function") {
+                                    document.querySelectorAll("video, audio").forEach(v => {
+                                        try {
+                                            if (mutedBaseVideo === false) v.muted = false;
+                                            v.volume = volumeAlvo;
+                                        } catch {}
+                                    });
+                                }
                             }
                         }
                     }
@@ -2499,7 +2564,9 @@
                 if (!(chave in configuracoes)) return;
                 aplicarConfiguracao(chave, configuracoes[chave]);
             });
-            const curso = location.pathname.match(/\/learn\/([^/]+)/)?.[1];
+            const curso = location.hostname.includes("udemy")
+                ? location.pathname.match(/\/course\/([^/]+)/)?.[1]
+                : location.pathname.match(/\/learn\/([^/]+)/)?.[1];
             const perfil = curso && configuracoes.sia_course_profiles?.[curso];
             Object.entries(perfil || {}).forEach(([chave, valor]) => {
                 aplicarConfiguracao(chave, valor);

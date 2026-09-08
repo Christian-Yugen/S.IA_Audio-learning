@@ -401,6 +401,8 @@
 
   async function activeTab() {
     try {
+      const currentWinTabs = await chrome?.tabs?.query?.({ active: true, currentWindow: true });
+      if (currentWinTabs?.[0]) return currentWinTabs[0];
       const tabs = await chrome?.tabs?.query?.({ active: true, lastFocusedWindow: true });
       if (tabs?.[0]) return tabs[0];
       const anyTabs = await chrome?.tabs?.query?.({ active: true });
@@ -683,6 +685,37 @@
         if (isNeuroDirectorActive) {
           applyNeuroStageRecommendation(message.stage, false);
         }
+      }
+    });
+  }
+
+  if (typeof chrome !== "undefined" && chrome?.tabs?.onActivated?.addListener) {
+    chrome.tabs.onActivated.addListener(async () => {
+      await refresh();
+      chrome?.storage?.local?.get?.(["sia_ducking_level", "sia_ducking"], res => {
+        if (res?.sia_ducking_level !== undefined) {
+          updateDuckingUI(Number(res.sia_ducking_level), false);
+        }
+      });
+    });
+  }
+
+  if (typeof chrome !== "undefined" && chrome?.tabs?.onUpdated?.addListener) {
+    chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+      if (changeInfo.status === "complete" || changeInfo.url) {
+        const tab = await activeTab();
+        if (tab?.id === tabId) {
+          await refresh();
+        }
+      }
+    });
+  }
+
+  if (typeof chrome !== "undefined" && chrome?.storage?.onChanged?.addListener) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local") return;
+      if (changes.sia_ducking_level && "newValue" in changes.sia_ducking_level) {
+        updateDuckingUI(Number(changes.sia_ducking_level.newValue), false);
       }
     });
   }

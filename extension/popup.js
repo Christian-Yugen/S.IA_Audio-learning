@@ -79,7 +79,7 @@
       "sia_platform_selections"
     ]);
     const tabAtivo = await activeTab();
-    const courseId = tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
+    const courseId = tabAtivo?.url?.match(/\/course\/([^/]+)/i)?.[1] || tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
     const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
     const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
     let feedbackTimer = 0;
