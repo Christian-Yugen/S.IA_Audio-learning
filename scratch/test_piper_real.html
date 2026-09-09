@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Test Piper Real</title></head>
+<body>
+<pre id="log">Iniciando teste Piper...</pre>
+<script>
+function log(msg) {
+  document.getElementById("log").textContent += "\n" + msg;
+  console.log(msg);
+}
+
+async function run() {
+  try {
+    log("Criando Worker...");
+    const worker = new Worker("/extension/neural-tts/piper-worker.js");
+    
+    worker.onmessage = async (e) => {
+      log("Worker message: " + JSON.stringify(e.data));
+      if (e.data.type === "sia-piper-ready") {
+        log("Worker READY! Solicitando síntese de teste...");
+        worker.postMessage({
+          type: "sia-piper-generate",
+          requestId: 1,
+          text: "Olá, a S·IA está pronta.",
+          speed: 1,
+          sid: 0
+        });
+      } else if (e.data.type === "sia-piper-result") {
+        log("SÍNTESE CONCLUÍDA COM SUCESSO! Samples: " + (e.data.samples?.length || 0));
+        await fetch("http://localhost:8998/done", {
+          method: "POST",
+          body: JSON.stringify({ ok: true, samples: e.data.samples?.length, sampleRate: e.data.sampleRate })
+        });
+      } else if (e.data.type === "sia-piper-error") {
+        log("ERRO NO WORKER: " + e.data.message);
+        await fetch("http://localhost:8998/done", {
+          method: "POST",
+          body: JSON.stringify({ ok: false, error: e.data.message })
+        });
+      }
+    };
+
+    worker.onerror = async (err) => {
+      log("WORKER ONERROR: " + (err.message || err));
+      await fetch("http://localhost:8998/done", {
+        method: "POST",
+        body: JSON.stringify({ ok: false, error: err.message || "Worker error" })
+      });
+    };
+  } catch (err) {
+    log("Exceção: " + (err.message || err));
+    await fetch("http://localhost:8998/done", {
+      method: "POST",
+      body: JSON.stringify({ ok: false, error: err.message })
+    });
+  }
+}
+run();
+</script>
+</body>
+</html>
