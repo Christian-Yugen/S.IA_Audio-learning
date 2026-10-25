@@ -155,6 +155,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     },
     sidePanel: { async open() {} },
   };
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "audio-settings.js"), "utf8"), context);
   vm.runInContext(popupSource, context, { filename: "popup.js" });
   return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan, local, duckingRadios, spatialRadios };
 }
@@ -323,7 +324,11 @@ test("popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado"
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(harness.local.sia_spatial_profile, "intimate");
-  assert.match(hint.textContent, /Proximidade VIP/);
+  assert.equal(harness.local.sia_spatial_angle, 15);
+  assert.equal(harness.local.sia_spatial_distance, 0.6);
+  assert.equal(harness.local.sia_neuro_director_active, false);
+  assert.notEqual(harness.local.sia_voice_engine, "piper-local", "Preset não pode trocar o motor");
+  assert.match(hint.textContent, /Proximidade: 15°, 0.6 m/);
 
   // Desativa Áudio Espacial no toggle
   spatialToggle.checked = false;

@@ -12,37 +12,46 @@ $outputRoot = Join-Path $projectRoot $OutputDirectory
 $archivePath = Join-Path $outputRoot "sia-extension-$version.zip"
 $stagingPath = Join-Path $outputRoot ".staging-$([guid]::NewGuid())"
 
-$files = @(
-    "manifest.json",
-    "content.js",
-    "sync-engine.js",
-    "dom-fallback.js",
-    "popup.html",
-    "popup.css",
-    "popup.js",
-    "sidepanel.html",
-    "sidepanel.css",
-    "sidepanel.js",
-    "service-worker.js",
-    "platform-selection.js",
-    "platform-selection-bootstrap.js",
-    "offscreen.html",
-    "offscreen.js",
-    "platform-adapters/caption-input.js",
-    "platform-adapters/platform-router.js",
-    "platform-adapters/core-event-bridge.js",
-    "platform-adapters/core-diagnostic-state.js",
-    "platform-adapters/udemy/shaka-caption-bridge.js",
-    "platform-adapters/udemy/udemy-host.js",
-    "platform-adapters/udemy/udemy-adapter.js",
-    "platform-adapters/udemy/udemy-adapter-contract.js",
-    "platform-adapters/youtube/youtube-adapter-contract.js",
-    "platform-adapters/youtube/youtube-adapter.js",
-    "platform-adapters/youtube/youtube-caption-aggregator.js",
-    "platform-adapters/youtube/youtube-caption-parser.js",
-    "platform-adapters/youtube/youtube-caption-bridge.js",
-    "platform-adapters/youtube/youtube-host.js"
-)
+$config = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot "package-files.json") | ConvertFrom-Json
+$files = @($config.files)
+$included = @($files)
+foreach ($directory in $config.directories) {
+    $directoryPath = Join-Path $projectRoot $directory
+    $included += @(Get-ChildItem -LiteralPath $directoryPath -Recurse -File | ForEach-Object {
+        $_.FullName.Substring($projectRoot.Length + 1).Replace('\', '/')
+    })
+}
+$required = @($manifest.background.service_worker, $manifest.action.default_popup, $manifest.side_panel.default_path)
+$required += @($manifest.icons.PSObject.Properties | ForEach-Object { $_.Value })
+$required += @($manifest.action.default_icon.PSObject.Properties | ForEach-Object { $_.Value })
+foreach ($entry in $manifest.content_scripts) { $required += @($entry.js); $required += @($entry.css) }
+foreach ($entry in $manifest.web_accessible_resources) {
+    foreach ($pattern in $entry.resources) {
+        if (-not ($included | Where-Object { $_ -like $pattern })) { throw "Recurso fora do pacote: $pattern" }
+    }
+}
+foreach ($relativePath in $included) {
+    $sourcePath = Join-Path $projectRoot $relativePath
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw "Arquivo ausente: $relativePath" }
+    if ($relativePath.EndsWith('.html')) {
+        $html = Get-Content -Raw -LiteralPath $sourcePath
+        foreach ($match in [regex]::Matches($html, '(?:src|href)=["'']([^"'']+)["'']')) {
+            $ref = $match.Groups[1].Value
+            if ($ref -notmatch ':' -and -not $ref.StartsWith('#')) {
+                $parent = Split-Path -Parent $relativePath
+                $required += $(if ($parent) { "$parent/$ref".Replace('\', '/') } else { $ref })
+            }
+        }
+    }
+    if ($relativePath -eq 'service-worker.js') {
+        foreach ($match in [regex]::Matches((Get-Content -Raw -LiteralPath $sourcePath), '"([a-zA-Z0-9_./-]+\.js)"')) {
+            $required += $match.Groups[1].Value
+        }
+    }
+}
+foreach ($ref in $required) {
+    if ($ref -and $ref -notin $included) { throw "Dependência fora da allowlist: $ref" }
+}
 
 try {
     New-Item -ItemType Directory -Path $stagingPath -Force | Out-Null
@@ -56,7 +65,7 @@ try {
         Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
     }
 
-    foreach ($directory in @("icons", "neural-tts")) {
+    foreach ($directory in $config.directories) {
         $sourceDirectory = Join-Path $projectRoot $directory
         $destinationDirectory = Join-Path $stagingPath $directory
         Copy-Item -LiteralPath $sourceDirectory -Destination $destinationDirectory -Recurse -Force

@@ -21,8 +21,7 @@
     sia_translate_en_pt: false,
     sia_ducking: true,
     sia_ducking_level: 0,
-    sia_spatial_audio: true,
-    sia_spatial_profile: "stage",
+    ...globalThis.SiaAudioSettings.defaults,
     sia_compact: false
   });
 
@@ -82,6 +81,7 @@
     const courseId = tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
     const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
     const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
+    if (settings.sia_spatial_profile !== "custom") settings.sia_spatial_profile = globalThis.SiaAudioSettings.keyFor(settings.sia_spatial_profile);
     let feedbackTimer = 0;
     let platformSelectionDirty = false;
     let platformContext = {
@@ -167,7 +167,7 @@
         ui.platformDiagnostic.textContent = `YouTube selecionado · ${scope}. O núcleo de áudio continuará compartilhado.`;
         ui.platformDiagnostic.className = "platform-diagnostic is-ready";
       } else {
-        ui.platformDiagnostic.textContent = `${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} permanece no modo legado automático protegido.`;
+        ui.platformDiagnostic.textContent = `${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} detectado automaticamente.`;
         ui.platformDiagnostic.className = "platform-diagnostic";
       }
     }
@@ -271,13 +271,10 @@
         radio.closest?.(".ducking-profile-pill")?.classList.toggle("is-active", isChecked);
       });
       if (ui.spatialProfileHint) {
-        if (profile === "interpreter") {
-          ui.spatialProfileHint.textContent = "Intérprete Particular: voz lateral a +25° à direita.";
-        } else if (profile === "intimate") {
-          ui.spatialProfileHint.textContent = "Proximidade VIP: voz quente e encorpada a 60cm, presença máxima de estúdio.";
-        } else {
-          ui.spatialProfileHint.textContent = "Palco Frontal: voz alinhada diretamente com a tela da aula, com profundidade 3D natural.";
-        }
+        const p = globalThis.SiaAudioSettings.profileFor(profile);
+        ui.spatialProfileHint.textContent = profile === "custom"
+          ? `Posição personalizada no painel: ${settings.sia_spatial_angle}°, ${settings.sia_spatial_distance} m.`
+          : `${p.name}: ${p.angle}°, ${p.distance.toFixed(1)} m. Requer voz neural; o vídeo mantém sua posição original.`;
       }
     }
 
@@ -694,6 +691,10 @@
     ui.spatialProfiles?.forEach(radio => radio.addEventListener("change", () => {
       if (radio.checked) {
         settings.sia_spatial_profile = radio.value;
+        const profile = globalThis.SiaAudioSettings.profileFor(radio.value);
+        void saveAndSend("sia_neuro_director_active", false, false);
+        void saveAndSend("sia_spatial_angle", profile.angle, false);
+        void saveAndSend("sia_spatial_distance", profile.distance, false);
         renderSpatialProfiles();
         renderSummary();
         void saveAndSend("sia_spatial_profile", settings.sia_spatial_profile);
@@ -765,6 +766,13 @@
     render();
     loadVoices();
     void updateConnectionStatus();
+    chrome.storage?.onChanged?.addListener?.((changes, area) => {
+      if (area !== "local") return;
+      for (const key of Object.keys(DEFAULTS)) {
+        if (changes[key]) settings[key] = changes[key].newValue ?? DEFAULTS[key];
+      }
+      render();
+    });
     speechSynthesis.addEventListener("voiceschanged", loadVoices);
     setInterval(updateConnectionStatus, 1000);
   });

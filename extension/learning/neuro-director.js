@@ -12,40 +12,13 @@
     AMBIENT_RELAX: "ambient_relax",
   });
 
-  const PRESETS = Object.freeze({
-    onu: Object.freeze({
-      id: "onu",
-      name: "Intérprete da ONU",
-      tagline: "Separação Áurea (Recomendado)",
-      sia: Object.freeze({ angle: 25, distance: 0.8, x: 0.34, y: 0.15, z: -0.72, volume: 1.0 }),
-      video: Object.freeze({ angle: -25, distance: 1.5, x: -0.63, y: 0.15, z: -1.36, volume: 0.20 }),
-      insight: "Separação Áurea de 50° ativa: Efeito Cocktail Party reduz a fadiga auditiva em até 70%.",
-    }),
-    vip: Object.freeze({
-      id: "vip",
-      name: "Tutor Particular VIP",
-      tagline: "Foco Frontal Absoluto",
-      sia: Object.freeze({ angle: 0, distance: 0.5, x: 0.0, y: 0.15, z: -0.5, volume: 1.0 }),
-      video: Object.freeze({ angle: 0, distance: 2.0, x: 0.0, y: 0.15, z: -2.0, volume: 0.0 }),
-      insight: "Hiper-foco frontal com vídeo mudo. Ideal para conceitos difíceis, TDAH e retenção acelerada.",
-    }),
-    colleague: Object.freeze({
-      id: "colleague",
-      name: "Colega de Bancada",
-      tagline: "Mentoria Presencial",
-      sia: Object.freeze({ angle: -45, distance: 0.8, x: -0.57, y: 0.15, z: -0.57, volume: 0.95 }),
-      video: Object.freeze({ angle: 0, distance: 1.5, x: 0.0, y: 0.15, z: -1.5, volume: 0.25 }),
-      insight: "Sensação acústica presencial: professor no palco e tutor ao seu lado esquerdo explicando o código.",
-    }),
-    bilingual: Object.freeze({
-      id: "bilingual",
-      name: "Bilingual Shadowing",
-      tagline: "Isolamento Interaural L/R",
-      sia: Object.freeze({ angle: 90, distance: 0.8, x: 0.8, y: 0.15, z: 0.0, volume: 1.0 }),
-      video: Object.freeze({ angle: -90, distance: 1.0, x: -1.0, y: 0.15, z: 0.0, volume: 0.35 }),
-      insight: "Isolamento interaural completo: áudio original no ouvido esquerdo e português no direito.",
-    }),
-  });
+  const PRESETS = Object.freeze(Object.fromEntries(
+    Object.entries(rootSettings().profiles).map(([id, sia]) => [id, Object.freeze({
+      id, name: sia.name, sia,
+      insight: "Posição da voz S·IA. O vídeo conserva o posicionamento original."
+    })])
+  ));
+  function rootSettings() { return globalThis.SiaAudioSettings; }
 
   const CRITICAL_KEYWORDS = new Set([
     "definir", "definição", "conceito", "importante", "fundamental", "essencial",
@@ -67,7 +40,7 @@
 
   function calculateCoordinates(angleDeg, distanceM) {
     const rad = (Number(angleDeg) || 0) * (Math.PI / 180);
-    const dist = Math.max(0.3, Math.min(3.0, Number(distanceM) || 1.0));
+    const dist = Math.max(0.3, Math.min(2.5, Number(distanceM) || 1.0));
     const x = Number((dist * Math.sin(rad)).toFixed(2));
     const z = Number((-dist * Math.cos(rad)).toFixed(2));
     return Object.freeze({
@@ -79,18 +52,23 @@
     });
   }
 
+  function containsPhrase(text, phrase) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "u").test(text);
+  }
+
   function classifyCognitiveState(text) {
     const clean = normalizeText(text);
     if (!clean) return COGNITIVE_STATES.BALANCED_COGNITIVE;
 
     const words = clean.split(/[\s,.;:!?()"-]+/u).filter(Boolean);
-    if (words.length <= 3 && words.some(w => TRANSITION_KEYWORDS.has(w))) {
+    if (words.length <= 3 && [...TRANSITION_KEYWORDS].some(phrase => containsPhrase(clean, phrase))) {
       return COGNITIVE_STATES.AMBIENT_RELAX;
     }
 
     let criticalMatches = 0;
-    for (const w of words) {
-      if (CRITICAL_KEYWORDS.has(w)) criticalMatches++;
+    for (const keyword of CRITICAL_KEYWORDS) {
+      if (containsPhrase(clean, keyword)) criticalMatches++;
     }
 
     const hasEmphasis = /[:!?]/.test(clean);
@@ -108,8 +86,8 @@
     return COGNITIVE_STATES.BALANCED_COGNITIVE;
   }
 
-  function getRecommendedStage(text, { activePreset = "onu", isDirectorEnabled = true } = {}) {
-    const basePreset = PRESETS[activePreset] || PRESETS.onu;
+  function getRecommendedStage(text, { activePreset = "stage", isDirectorEnabled = false } = {}) {
+    const basePreset = PRESETS[globalThis.SiaAudioSettings.keyFor(activePreset)];
 
     if (!isDirectorEnabled) {
       return Object.freeze({
@@ -118,7 +96,7 @@
         presetId: basePreset.id,
         presetName: basePreset.name,
         sia: basePreset.sia,
-        video: basePreset.video,
+
         insight: basePreset.insight,
         durationMs: 800,
       });
@@ -134,8 +112,8 @@
         presetId: basePreset.id,
         presetName: basePreset.name,
         sia: Object.freeze({ ...siaCoords, volume: 1.0 }),
-        video: Object.freeze({ ...basePreset.video, volume: 0.05, distance: Math.max(1.8, basePreset.video.distance * 1.2) }),
-        insight: "IA detectou conceito crítico: Proximidade VIP ativada para retenção profunda e vídeo atenuado.",
+
+        insight: "Palavra-chave de destaque encontrada. Posição aproximada da voz ajustada automaticamente.",
         durationMs: 700,
       });
     }
@@ -148,8 +126,8 @@
         presetId: basePreset.id,
         presetName: basePreset.name,
         sia: Object.freeze({ ...siaCoords, volume: 0.95 }),
-        video: Object.freeze({ ...basePreset.video, volume: Math.min(0.35, basePreset.video.volume * 1.5) }),
-        insight: "IA: Momento de transição/exemplo detectado. Palco ampliado para descanso e alívio mental.",
+
+        insight: "Frase curta ou de transição encontrada pelas regras. Distância da voz ajustada.",
         durationMs: 900,
       });
     }
@@ -160,7 +138,7 @@
       presetId: basePreset.id,
       presetName: basePreset.name,
       sia: basePreset.sia,
-      video: basePreset.video,
+
       insight: basePreset.insight,
       durationMs: 800,
     });

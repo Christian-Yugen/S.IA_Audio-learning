@@ -37,25 +37,27 @@
     </section>
 
     <!-- Palco Sonoro 3D Espacial (Estilo dearVR PRO / Dolby Atmos) -->
-    <section class="spatial-card" id="spatial-card" aria-labelledby="spatial-heading">
+    <details class="spatial-card advanced-settings" id="spatial-card">
+      <summary>Áudio avançado · posição da voz e teste dos fones</summary>
+      <p class="spatial-description">Requer voz neural Piper e áudio espacial ativados no menu de voz. O vídeo mantém sua posição original; apenas o volume pode ser atenuado.</p>
       <div class="spatial-header">
         <div class="spatial-title-group">
-          <span class="eyebrow-cyan">ÁUDIO ESPACIAL 3D · NEURO-STAGE</span>
-          <h2 id="spatial-heading">Palco & Posicionamento</h2>
+          <span class="eyebrow-cyan">ÁUDIO ESPACIAL · EXPERIMENTAL</span>
+          <h2 id="spatial-heading">Posição da voz S·IA</h2>
         </div>
         <div class="spatial-header-actions">
-          <button type="button" id="btn-neuro-director" class="neuro-director-toggle active" title="Alternar Modo Diretor Cognitivo IA">
+          <button type="button" id="btn-neuro-director" class="neuro-director-toggle" aria-pressed="false" title="Alternar ajuste automático por palavras-chave">
             <span class="sparkle-icon">✨</span>
-            <span id="neuro-director-label">Diretor IA Ativo</span>
+            <span id="neuro-director-label">Modo Manual</span>
           </button>
           <div class="spatial-badge" id="spatial-pos-badge" title="Coordenadas acústicas no espaço">
-            <span id="spatial-pos-text">S·IA +25° · Vídeo -25°</span>
+            <span id="spatial-pos-text">Frente · 1.0m</span>
           </div>
         </div>
       </div>
 
       <p class="spatial-description" id="spatial-description">
-        Palco cognitivo dual: arraste a <strong style="color: #2ecc71;">S·IA</strong> ou o <strong style="color: #38bdf8;">Vídeo</strong> no radar, ou deixe o Diretor IA orquestrar as posições no espaço.
+        Ajuste a posição da voz S·IA no radar ou nos controles abaixo. O modo automático usa regras de palavras-chave e pode ser desligado.
       </p>
 
       <!-- Radar Acústico 3D Circular -->
@@ -90,43 +92,37 @@
           </div>
 
           <!-- Puck / Orbe Interativo da S·IA (Verde Esmeralda) -->
-          <div class="spatial-puck" id="spatial-puck" role="slider" aria-label="Posição sonora da S·IA" tabindex="0">
+          <div class="spatial-puck" id="spatial-puck" role="slider" aria-label="Ângulo da voz S·IA; setas esquerda e direita ajustam a posição" aria-valuemin="-180" aria-valuemax="180" aria-valuenow="0" aria-valuetext="Frente, 1.0 metro" tabindex="0">
             <span class="puck-ping" aria-hidden="true"></span>
             <span class="puck-label">S·IA</span>
           </div>
 
-          <!-- Puck / Orbe Interativo do Professor / Vídeo (Azul Safira) -->
-          <div class="spatial-puck puck-video" id="spatial-puck-video" role="slider" aria-label="Posição sonora do Professor / Vídeo" tabindex="0">
-            <span class="puck-ping ping-video" aria-hidden="true"></span>
-            <span class="puck-label">Vídeo</span>
-          </div>
         </div>
       </div>
 
       <!-- Card de Feedback Neuro-Cognitivo em Tempo Real -->
-      <div class="neuro-insight-card" id="neuro-insight-card" role="region" aria-label="Insight cognitivo do Diretor IA">
+      <div class="neuro-insight-card" id="neuro-insight-card" role="region" aria-label="Explicação do ajuste automático">
         <div class="neuro-insight-top">
           <div class="neuro-insight-tag">
             <span class="neuro-dot"></span>
-            <span id="neuro-state-badge">SEPARAÇÃO ÁUREA</span>
+            <span id="neuro-state-badge">MODO MANUAL</span>
           </div>
-          <small id="neuro-mode-status">Diretor Cognitivo IA</small>
+          <small id="neuro-mode-status">Ajuste por palavras-chave</small>
         </div>
-        <p id="neuro-insight-text">Separação Áurea de 50° ativa: Efeito Cocktail Party reduz a fadiga auditiva em até 70%.</p>
+        <p id="neuro-insight-text">Posição da voz ajustável. O efeito percebido depende dos fones e das configurações do sistema.</p>
       </div>
 
       <!-- Presets Rápidos 360° -->
-      <div class="spatial-presets" role="group" aria-label="Predefinições acústicas 360°">
-        <button type="button" class="preset-pill active" data-angle="0" data-dist="1.0" id="preset-front">Frente (0°)</button>
-        <button type="button" class="preset-pill" data-preset="onu" data-angle="25" data-dist="1.0" id="preset-interpreter">Intérprete (+25°)</button>
-        <button type="button" class="preset-pill" data-preset="vip" data-angle="0" data-dist="0.5" id="preset-vip">🎙️ Tutor VIP</button>
-        <button type="button" class="preset-pill" data-preset="colleague" data-angle="-45" data-dist="0.8" id="preset-colleague">👥 Colega</button>
-        <button type="button" class="preset-pill" data-preset="bilingual" data-angle="90" data-dist="0.8" id="preset-bilingual">🌐 Shadow L/R</button>
-        <button type="button" class="preset-pill" data-angle="60" data-dist="1.2" id="preset-side">Lado (+60°)</button>
-        <button type="button" class="preset-pill" data-angle="15" data-dist="0.6" id="preset-intimate">Íntimo (0.6m)</button>
-        <button type="button" class="preset-pill" data-angle="-90" data-dist="0.8" id="preset-left">Ouvido Esq (-90°)</button>
-        <button type="button" class="preset-pill" data-angle="90" data-dist="0.8" id="preset-right">Ouvido Dir (+90°)</button>
-        <button type="button" class="preset-pill" data-angle="180" data-dist="1.0" id="preset-back">Atrás (180°)</button>
+      <div class="spatial-presets" role="group" aria-label="Posições da voz S·IA">
+        <button type="button" class="preset-pill active" data-preset="stage" id="preset-front">Frente</button>
+        <button type="button" class="preset-pill" data-preset="interpreter" id="preset-interpreter">Intérprete</button>
+        <button type="button" class="preset-pill" data-preset="vip" id="preset-vip">Foco frontal</button>
+        <button type="button" class="preset-pill" data-preset="colleague" id="preset-colleague">Ao lado esquerdo</button>
+        <button type="button" class="preset-pill" data-preset="side" id="preset-side">Lado direito</button>
+        <button type="button" class="preset-pill" data-preset="intimate" id="preset-intimate">Proximidade</button>
+        <button type="button" class="preset-pill" data-preset="left" id="preset-left">Canal esquerdo</button>
+        <button type="button" class="preset-pill" data-preset="right" id="preset-right">Canal direito</button>
+        <button type="button" class="preset-pill" data-preset="back" id="preset-back">Atrás (experimental)</button>
       </div>
 
       <!-- Controles Deslizantes de Precisão -->
@@ -153,7 +149,7 @@
           <span>Imersão & Vídeo</span>
           <small id="ducking-mode-status">Foco Total (vídeo mudo durante fala)</small>
         </div>
-        <div class="ducking-options" role="radiogroup" aria-label="Convivência com áudio do vídeo">
+        <div class="ducking-options" role="group" aria-label="Convivência com áudio do vídeo">
           <button type="button" class="ducking-btn active" data-ducking="0" id="ducking-opt-0">
             <strong>Foco Total</strong>
             <small>0% vídeo</small>
@@ -210,8 +206,8 @@
           <div id="calib-success-box" class="calib-success-box" style="display: none;">
             <span class="success-icon">✓</span>
             <div class="success-info">
-              <strong>Fones 100% calibrados em Estéreo!</strong>
-              <small>O palco 3D e a direção angular estão ativos.</small>
+              <strong>Você confirmou os canais separados.</strong>
+              <small>Este teste verifica a separação esquerda/direita; não mede a precisão espacial.</small>
             </div>
             <button type="button" id="btn-recalib" class="btn-recalib" title="Fazer o teste de canais novamente">Refazer</button>
           </div>
@@ -220,10 +216,10 @@
           <div id="mono-detected-card" class="mono-detected-card" style="display: none;">
             <div class="mono-card-title">
               <span class="warning-icon">⚠️</span>
-              <strong>Modo 'Áudio Mono' do Windows Detectado</strong>
+              <strong>Possível mistura dos canais</strong>
             </div>
             <p class="mono-card-desc">
-              O Windows está somando os lados esquerdo e direito em mono. Para que o som 3D e o direcionamento funcionem, desative o áudio mono no sistema.
+              Se os dois sinais foram ouvidos nos dois lados, confira o áudio mono do sistema, os fones e o dispositivo de saída. A extensão não detecta automaticamente essa configuração.
             </p>
             <a href="ms-settings:easeofaccess-audio" id="btn-open-win-settings" class="btn-win-settings" target="_blank" rel="noopener noreferrer">
               <span class="gear-icon">⚙️</span> Desativar 'Áudio Mono' no Windows
@@ -238,7 +234,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </details>
 
     <nav aria-label="Escolha o que ver no histórico">
       <button class="filter active" data-filter="all" type="button">Todos os trechos</button>
@@ -290,6 +286,7 @@
       <small class="note-text"></small>
     </article>
   </template>
+  <script src="audio-settings.js"></script>
   <script src="learning/neuro-director.js"></script>
   <script src="learning/learning-engine.js"></script>
   <script src="sidepanel.js"></script>

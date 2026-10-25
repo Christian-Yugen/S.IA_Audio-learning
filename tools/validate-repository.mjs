@@ -8,6 +8,9 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const extension = join(root, "extension");
 const requiredFiles = [
   "manifest.json",
+  "audio-settings.js",
+  "learning/neuro-director.js",
+  "translation/translation-engine.js",
   "content.js",
   "sync-engine.js",
   "dom-fallback.js",

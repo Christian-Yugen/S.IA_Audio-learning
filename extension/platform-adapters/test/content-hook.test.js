@@ -8,7 +8,7 @@ const inputSource = fs.readFileSync(new URL('../caption-input.js', import.meta.u
 const syncSource = fs.readFileSync(new URL('../../sync-engine.js', import.meta.url), 'utf8');
 const learningSource = fs.readFileSync(new URL('../../learning/learning-engine.js', import.meta.url), 'utf8');
 const translationSource = fs.readFileSync(new URL('../../translation/translation-engine.js', import.meta.url), 'utf8');
-const contentSource = fs.readFileSync(new URL('../../content.js', import.meta.url), 'utf8');
+const contentSource = fs.readFileSync(process.env.SIA_CONTENT_SOURCE_PATH || new URL('../../content.js', import.meta.url), 'utf8');
 
 class FakeUtterance {
   constructor(text) {
@@ -49,6 +49,8 @@ function createHarness({
   const spoken = [];
   const piperSpoken = [];
   const primed = [];
+  const engineChanges = [];
+  const spatialChanges = [];
   let now = 1000;
   let nextTimerId = 1;
   const pendingTimers = new Map();
@@ -101,7 +103,7 @@ function createHarness({
     sia_enabled: true,
     sia_lang: 'pt-BR',
     sia_speed: 1.2,
-    sia_voice_engine: 'browser',
+    sia_voice_engine: piperActive ? 'piper-local' : 'browser',
     sia_translate_en_pt: translateEnabled,
     sia_ducking_level: 0.15,
   };
@@ -192,6 +194,11 @@ function createHarness({
     }),
     SiaPiperVoice: {
       isActive: () => piperActive,
+      setActive(value) { engineChanges.push(value); piperActive = value === "piper-local"; },
+      setSpatialPosition(...args) { spatialChanges.push({ type: "position", args }); },
+      setSpatialAudio(...args) { spatialChanges.push({ type: "enabled", args }); },
+      morphSpatialPosition(...args) { spatialChanges.push({ type: "morph", args }); },
+      primeAudio() { return Promise.resolve({ ok: true }); },
       speak(utterance) {
         piperSpoken.push(utterance);
         utterance.onstart?.();
@@ -216,6 +223,8 @@ function createHarness({
   vm.runInContext(learningSource, context);
   vm.runInContext(translationSource, context);
   vm.runInContext(inputSource, context);
+  vm.runInContext(fs.readFileSync(new URL("../../audio-settings.js", import.meta.url), "utf8"), context);
+  vm.runInContext(fs.readFileSync(new URL("../../learning/neuro-director.js", import.meta.url), "utf8"), context);
   vm.runInContext(contentSource, context);
   return {
     context,
@@ -224,6 +233,8 @@ function createHarness({
     spoken,
     piperSpoken,
     primed,
+    engineChanges,
+    spatialChanges,
     setNow(value) {
       now = Number(value);
     },
@@ -1076,3 +1087,47 @@ test('audio ducking desativado via configuração restaura volume imediatamente 
 
 
 
+
+
+test('regressão 1.11.1: ajustar posição não troca navegador por Piper', async () => {
+  const h = createHarness({ piperActive: false });
+  h.engineChanges.length = 0;
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_angle', value: 45 });
+  assert.equal(h.context.SiaPiperVoice.isActive(), false);
+  assert.deepEqual(h.engineChanges, []);
+});
+
+test('regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha', async () => {
+  const h = createHarness({ piperActive: false });
+  h.engineChanges.length = 0;
+  const prime = await h.sendMessage({ type: 'SIA_PRIME_NEURAL_AUDIO' });
+  assert.equal(prime.ok, false);
+  const spatial = await h.sendMessage({ type: 'SIA_TEST_SPATIAL_AUDIO', angle: 25, distance: 1 });
+  assert.equal(spatial.ok, false);
+  assert.equal(h.context.SiaPiperVoice.isActive(), false);
+  assert.deepEqual(h.engineChanges, []);
+});
+
+test('regressão 1.11.1: modo automático respeita áudio espacial desligado', async () => {
+  const h = createHarness({ piperActive: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_neuro_director_active', value: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_audio', value: false });
+  h.spatialChanges.length = 0;
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue({ text: 'Importante esta definição é fundamental', source: 'texttrack' }));
+  assert.equal(h.piperSpoken.length, 1);
+  assert.equal(h.spatialChanges.filter(c => c.type === 'morph').length, 0);
+});
+
+test('regressão 1.11.1: automático ajusta a voz quando explicitamente ligado', async () => {
+  const h = createHarness({ piperActive: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_audio', value: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_neuro_director_active', value: true });
+  h.spatialChanges.length = 0;
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue({ text: 'Importante esta definição é fundamental', source: 'texttrack' }));
+  const morph = h.spatialChanges.find(c => c.type === 'morph');
+  assert.ok(morph);
+  assert.equal(morph.args[1], 0.5);
+  assert.equal(morph.args[2], true);
+});

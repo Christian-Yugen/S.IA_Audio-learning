@@ -1,0 +1,2183 @@
+TAP version 13
+# Subtest: adaptador DOM integra diagnóstico sem liberar fala
+ok 1 - adaptador DOM integra diagnóstico sem liberar fala
+  ---
+  duration_ms: 3.430097
+  type: 'test'
+  ...
+# Subtest: cue TextTrack temporal é encaminhada como safe-cue, sem chamar áudio
+ok 2 - cue TextTrack temporal é encaminhada como safe-cue, sem chamar áudio
+  ---
+  duration_ms: 1.071057
+  type: 'test'
+  ...
+# Subtest: troca de player reconcilia a identidade e encerra sem listener residual
+ok 3 - troca de player reconcilia a identidade e encerra sem listener residual
+  ---
+  duration_ms: 0.992629
+  type: 'test'
+  ...
+# Subtest: H0 aceita cue temporal segura para o player ativo
+ok 4 - H0 aceita cue temporal segura para o player ativo
+  ---
+  duration_ms: 2.124678
+  type: 'test'
+  ...
+# Subtest: H0 rejeita legenda DOM sem timing e nunca a transforma em entrada segura
+ok 5 - H0 rejeita legenda DOM sem timing e nunca a transforma em entrada segura
+  ---
+  duration_ms: 0.694372
+  type: 'test'
+  ...
+# Subtest: H0 rejeita confiança baixa mesmo quando há tempos numéricos
+ok 6 - H0 rejeita confiança baixa mesmo quando há tempos numéricos
+  ---
+  duration_ms: 0.586921
+  type: 'test'
+  ...
+# Subtest: H0 rejeita timing inválido e player incompatível
+ok 7 - H0 rejeita timing inválido e player incompatível
+  ---
+  duration_ms: 0.638318
+  type: 'test'
+  ...
+# Subtest: H1 deduplica a mesma cue e aceita novo intervalo
+ok 8 - H1 deduplica a mesma cue e aceita novo intervalo
+  ---
+  duration_ms: 0.63283
+  type: 'test'
+  ...
+# Subtest: H1 troca de player limpa a deduplicação e muda a identidade ativa
+ok 9 - H1 troca de player limpa a deduplicação e muda a identidade ativa
+  ---
+  duration_ms: 0.755153
+  type: 'test'
+  ...
+# Subtest: H2 pausa rejeita nova cue e retomada permite cue segura
+ok 10 - H2 pausa rejeita nova cue e retomada permite cue segura
+  ---
+  duration_ms: 0.667091
+  type: 'test'
+  ...
+# Subtest: H2 destroy encerra o hook e rejeita entradas posteriores
+ok 11 - H2 destroy encerra o hook e rejeita entradas posteriores
+  ---
+  duration_ms: 0.561413
+  type: 'test'
+  ...
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma legenda traduzida.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma legenda traduzida.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# Subtest: H3 cue segura chega ao mesmo caminho de fala do content script
+ok 12 - H3 cue segura chega ao mesmo caminho de fala do content script
+  ---
+  duration_ms: 10.415379
+  type: 'test'
+  ...
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma ideia importante para revisar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma ideia importante para revisar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma frase segura para estudo.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma frase segura para estudo.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'repeticao-descartada',
+#   tempoVideo: 10.5,
+#   texto: 'estudo.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Uma cue segura para falar.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 11.1,
+#   texto: 'Segunda frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 11.1,
+#   texto: 'Segunda frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10,
+#   texto: 'A primeira fala.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10,
+#   texto: 'A primeira fala.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10,
+#   texto: 'Primeira parte da frase completa.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10,
+#   texto: 'Primeira parte da frase completa.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'A primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'A primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'A primeira frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 12.1,
+#   texto: 'A próxima frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 12.1,
+#   texto: 'A próxima frase.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'A explicação continua',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'A explicação continua',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'A explicação continua',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 12.1,
+#   texto: 'A frase termina.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 12.1,
+#   texto: 'A frase termina.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira legenda traduzida',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira legenda traduzida',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira legenda traduzida',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Segunda legenda traduzida',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Segunda legenda traduzida',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'A aula apresenta o conceito principal.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'A aula apresenta o conceito principal.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'A aula apresenta o conceito principal.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'O exemplo mostra como aplicar esse conceito.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'O exemplo mostra como aplicar esse conceito.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Fala neural da aula.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Fala neural da aula.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Fala que será apagada.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Fala que será apagada.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase antiga que ainda não começou',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase antiga que ainda não começou',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase nova atualizada',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase nova atualizada',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase um em reprodução',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase um em reprodução',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase dois seguinte na tela',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase dois seguinte na tela',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase três terceira na tela',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase três terceira na tela',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'As entradas são confusas e espalhadas por sistemas, portanto, o pipeline deve coletá-las de maneira repetível e governada.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'As entradas são confusas e espalhadas por sistemas, portanto, o pipeline deve coletá-las de maneira repetível e governada.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.ia: leitor de legendas do Coursera ativo.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Neste vídeo, vamos nos aprofundar um pouco mais.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Neste vídeo, vamos nos aprofundar um pouco mais.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Legenda falada com ducking ativo.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Legenda falada com ducking ativo.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase neural com ducking.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase neural com ducking.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 10.5,
+#   texto: 'Primeira frase neural com ducking.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 12.5,
+#   texto: 'Segunda frase contínua neural.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 12.5,
+#   texto: 'Segunda frase contínua neural.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-finalizada',
+#   tempoVideo: 12.5,
+#   texto: 'Segunda frase contínua neural.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: true,
+#   falaEnfileirada: false,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase com ducking a 80% base.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Frase com ducking a 80% base.',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'browser',
+#   voiceEngineState: 'idle'
+# }
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# Subtest: traduz cue inglesa antes de enviá-la ao núcleo de voz
+ok 13 - traduz cue inglesa antes de enviá-la ao núcleo de voz
+  ---
+  duration_ms: 7.056077
+  type: 'test'
+  ...
+# Subtest: MVP pedagógico cria marcação e cartão sem alterar o caminho de voz
+ok 14 - MVP pedagógico cria marcação e cartão sem alterar o caminho de voz
+  ---
+  duration_ms: 3.687824
+  type: 'test'
+  ...
+# Subtest: cue sobreposta descartada pela deduplicação não substitui a cue de estudo
+ok 15 - cue sobreposta descartada pela deduplicação não substitui a cue de estudo
+  ---
+  duration_ms: 4.130768
+  type: 'test'
+  ...
+# Subtest: H3 cue insegura não alcança a fala do content script
+ok 16 - H3 cue insegura não alcança a fala do content script
+  ---
+  duration_ms: 1.130596
+  type: 'test'
+  ...
+# Subtest: H4 pausa do vídeo impede cue segura de chegar à fala
+ok 17 - H4 pausa do vídeo impede cue segura de chegar à fala
+  ---
+  duration_ms: 1.058488
+  type: 'test'
+  ...
+# Subtest: H5 cue TextTrack usa voz nativa quando Piper está indisponível
+ok 18 - H5 cue TextTrack usa voz nativa quando Piper está indisponível
+  ---
+  duration_ms: 1.603446
+  type: 'test'
+  ...
+# Subtest: H6 cue TextTrack usa Piper compartilhado quando selecionado
+ok 19 - H6 cue TextTrack usa Piper compartilhado quando selecionado
+  ---
+  duration_ms: 1.7864
+  type: 'test'
+  ...
+# Subtest: H7 cue temporal do Shaka usa Piper compartilhado quando ativo
+ok 20 - H7 cue temporal do Shaka usa Piper compartilhado quando ativo
+  ---
+  duration_ms: 1.553792
+  type: 'test'
+  ...
+# Subtest: H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível
+ok 21 - H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível
+  ---
+  duration_ms: 1.488133
+  type: 'test'
+  ...
+# Subtest: YouTube cue agregada chega ao mesmo núcleo de voz nativa
+ok 22 - YouTube cue agregada chega ao mesmo núcleo de voz nativa
+  ---
+  duration_ms: 1.49959
+  type: 'test'
+  ...
+# Subtest: status do YouTube expõe estado de áudio e diagnóstico do núcleo compartilhado
+ok 23 - status do YouTube expõe estado de áudio e diagnóstico do núcleo compartilhado
+  ---
+  duration_ms: 1.089434
+  type: 'test'
+  ...
+# Subtest: YouTube cue agregada usa o Piper compartilhado quando ativo
+ok 24 - YouTube cue agregada usa o Piper compartilhado quando ativo
+  ---
+  duration_ms: 1.285369
+  type: 'test'
+  ...
+# Subtest: Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache
+ok 25 - Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache
+  ---
+  duration_ms: 3.47899
+  type: 'test'
+  ...
+# Subtest: Coursera prepara a primeira cue antes de ela aparecer sem falar antecipadamente
+ok 26 - Coursera prepara a primeira cue antes de ela aparecer sem falar antecipadamente
+  ---
+  duration_ms: 1.635784
+  type: 'test'
+  ...
+# Subtest: Coursera compõe e reutiliza o precache para sentenças fragmentadas sem pontuação na primeira cue
+ok 27 - Coursera compõe e reutiliza o precache para sentenças fragmentadas sem pontuação na primeira cue
+  ---
+  duration_ms: 1.741353
+  type: 'test'
+  ...
+# Subtest: Coursera pré-carrega a próxima cue quando ela chega progressivamente
+ok 28 - Coursera pré-carrega a próxima cue quando ela chega progressivamente
+  ---
+  duration_ms: 1.882895
+  type: 'test'
+  ...
+# Subtest: continuação neural sem pontuação usa pausa curta sem alterar fila ou fallback
+ok 29 - continuação neural sem pontuação usa pausa curta sem alterar fila ou fallback
+  ---
+  duration_ms: 2.194893
+  type: 'test'
+  ...
+# Subtest: Coursera lê legenda do DOM imediatamente após estabilização sem esperar próxima cue ou pontuação
+ok 30 - Coursera lê legenda do DOM imediatamente após estabilização sem esperar próxima cue ou pontuação
+  ---
+  duration_ms: 2.035064
+  type: 'test'
+  ...
+# Subtest: H5 fonte que não é TextTrack
+ok 31 - H5 fonte que não é TextTrack
+  ---
+  duration_ms: 1.253731
+  type: 'test'
+  ...
+# Subtest: H5 teste do popup fala na aba ativa e retorna início nativo
+ok 32 - H5 teste do popup fala na aba ativa e retorna início nativo
+  ---
+  duration_ms: 1.002043
+  type: 'test'
+  ...
+# Subtest: H6 teste neural do popup usa o bridge compartilhado na aba ativa
+ok 33 - H6 teste neural do popup usa o bridge compartilhado na aba ativa
+  ---
+  duration_ms: 1.000722
+  type: 'test'
+  ...
+# Subtest: revisão da legenda volta ao vídeo, usa o intervalo registrado e não cria fala livre
+ok 34 - revisão da legenda volta ao vídeo, usa o intervalo registrado e não cria fala livre
+  ---
+  duration_ms: 2.581633
+  type: 'test'
+  ...
+# Subtest: revisão contextual preserva a única fila Piper e não sintetiza a transcrição isoladamente
+ok 35 - revisão contextual preserva a única fila Piper e não sintetiza a transcrição isoladamente
+  ---
+  duration_ms: 1.462755
+  type: 'test'
+  ...
+# Subtest: revisão contextual recusa registro sem intervalo temporal seguro
+ok 36 - revisão contextual recusa registro sem intervalo temporal seguro
+  ---
+  duration_ms: 1.044948
+  type: 'test'
+  ...
+# Subtest: limpar histórico remove também a transcrição integral local
+ok 37 - limpar histórico remove também a transcrição integral local
+  ---
+  duration_ms: 2.468464
+  type: 'test'
+  ...
+# Subtest: substitui fala enfileirada não iniciada quando uma nova legenda da tela surge
+ok 38 - substitui fala enfileirada não iniciada quando uma nova legenda da tela surge
+  ---
+  duration_ms: 1.80587
+  type: 'test'
+  ...
+# Subtest: com Piper ativo, nova legenda da tela é enviada diretamente ao Piper sem ficar retida em legendaReserva
+ok 39 - com Piper ativo, nova legenda da tela é enviada diretamente ao Piper sem ficar retida em legendaReserva
+  ---
+  duration_ms: 2.031749
+  type: 'test'
+  ...
+# Subtest: legenda DOM bilíngue (português e inglês) extrai e sintetiza apenas a linha em português
+ok 40 - legenda DOM bilíngue (português e inglês) extrai e sintetiza apenas a linha em português
+  ---
+  duration_ms: 2.004949
+  type: 'test'
+  ...
+# Subtest: Coursera: captura da frase ativa na coluna lateral de Transcrição dispara imediatamente e pré-carrega próxima frase
+ok 41 - Coursera: captura da frase ativa na coluna lateral de Transcrição dispara imediatamente e pré-carrega próxima frase
+  ---
+  duration_ms: 2.107062
+  type: 'test'
+  ...
+# Subtest: audio ducking reduz volume do vídeo ao falar frase nativa e restaura ao pausar
+ok 42 - audio ducking reduz volume do vídeo ao falar frase nativa e restaura ao pausar
+  ---
+  duration_ms: 1.378859
+  type: 'test'
+  ...
+# Subtest: audio ducking opera com voz neural Piper e preserva ducking entre legendas consecutivas
+ok 43 - audio ducking opera com voz neural Piper e preserva ducking entre legendas consecutivas
+  ---
+  duration_ms: 1.796166
+  type: 'test'
+  ...
+# Subtest: audio ducking desativado via configuração restaura volume imediatamente e expõe status
+ok 44 - audio ducking desativado via configuração restaura volume imediatamente e expõe status
+  ---
+  duration_ms: 1.634873
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: ajustar posição não troca navegador por Piper
+ok 45 - regressão 1.11.1: ajustar posição não troca navegador por Piper
+  ---
+  duration_ms: 1.6259
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha
+ok 46 - regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha
+  ---
+  duration_ms: 0.96605
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: modo automático respeita áudio espacial desligado
+ok 47 - regressão 1.11.1: modo automático respeita áudio espacial desligado
+  ---
+  duration_ms: 1.310036
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: automático ajusta a voz quando explicitamente ligado
+ok 48 - regressão 1.11.1: automático ajusta a voz quando explicitamente ligado
+  ---
+  duration_ms: 12.956632
+  type: 'test'
+  ...
+# Subtest: cria marcação temporal local com tipo e nota
+ok 49 - cria marcação temporal local com tipo e nota
+  ---
+  duration_ms: 1.173651
+  type: 'test'
+  ...
+# Subtest: descarta marcação sem texto ou sem intervalo temporal
+ok 50 - descarta marcação sem texto ou sem intervalo temporal
+  ---
+  duration_ms: 0.138087
+  type: 'test'
+  ...
+# Subtest: gera pergunta determinística por tipo de marcação
+ok 51 - gera pergunta determinística por tipo de marcação
+  ---
+  duration_ms: 0.115904
+  type: 'test'
+  ...
+# Subtest: cria cartão de recuperação vinculado ao timestamp
+ok 52 - cria cartão de recuperação vinculado ao timestamp
+  ---
+  duration_ms: 0.268483
+  type: 'test'
+  ...
+# Subtest: primeira lembrança agenda revisão para o dia seguinte
+ok 53 - primeira lembrança agenda revisão para o dia seguinte
+  ---
+  duration_ms: 0.301733
+  type: 'test'
+  ...
+# Subtest: lembrança consecutiva amplia o intervalo de revisão
+ok 54 - lembrança consecutiva amplia o intervalo de revisão
+  ---
+  duration_ms: 0.172228
+  type: 'test'
+  ...
+# Subtest: esquecimento retorna a revisão para amanhã e registra lapso
+ok 55 - esquecimento retorna a revisão para amanhã e registra lapso
+  ---
+  duration_ms: 0.221452
+  type: 'test'
+  ...
+# Subtest: lista cartões vencidos por data e respeita limite
+ok 56 - lista cartões vencidos por data e respeita limite
+  ---
+  duration_ms: 0.357747
+  type: 'test'
+  ...
+# Subtest: calcula evolução sem confundir tempo assistido com domínio
+ok 57 - calcula evolução sem confundir tempo assistido com domínio
+  ---
+  duration_ms: 0.83316
+  type: 'test'
+  ...
+# Subtest: reúne todas as falas em ordem temporal e mantém a origem de cada trecho
+ok 58 - reúne todas as falas em ordem temporal e mantém a origem de cada trecho
+  ---
+  duration_ms: 0.410086
+  type: 'test'
+  ...
+# Subtest: retorna arquivo integral vazio quando ainda não há falas
+ok 59 - retorna arquivo integral vazio quando ainda não há falas
+  ---
+  duration_ms: 0.143816
+  type: 'test'
+  ...
+# Subtest: SiaNeuroDirector expõe o catálogo compartilhado de posições da voz
+ok 60 - SiaNeuroDirector expõe o catálogo compartilhado de posições da voz
+  ---
+  duration_ms: 0.941392
+  type: 'test'
+  ...
+# Subtest: SiaNeuroDirector classifica frases por regras de palavras-chave das legendas
+ok 61 - SiaNeuroDirector classifica frases por regras de palavras-chave das legendas
+  ---
+  duration_ms: 19.371758
+  type: 'test'
+  ...
+# Subtest: SiaNeuroDirector calcula palco 3D adaptativo com explicação do insight
+ok 62 - SiaNeuroDirector calcula palco 3D adaptativo com explicação do insight
+  ---
+  duration_ms: 0.371277
+  type: 'test'
+  ...
+# Subtest: SiaNeuroDirector calcula coordenadas cartesianas 3D
+ok 63 - SiaNeuroDirector calcula coordenadas cartesianas 3D
+  ---
+  duration_ms: 0.179559
+  type: 'test'
+  ...
+# Subtest: SiaNeuroDirector interpola curvas cúbicas de Bézier com suavidade nos extremos
+ok 64 - SiaNeuroDirector interpola curvas cúbicas de Bézier com suavidade nos extremos
+  ---
+  duration_ms: 0.175904
+  type: 'test'
+  ...
+# Subtest: expressões compostas são reconhecidas sem confundir partes de palavras
+ok 65 - expressões compostas são reconhecidas sem confundir partes de palavras
+  ---
+  duration_ms: 0.172369
+  type: 'test'
+  ...
+# Subtest: automação é opt-in e recomenda somente posição da voz
+ok 66 - automação é opt-in e recomenda somente posição da voz
+  ---
+  duration_ms: 0.314832
+  type: 'test'
+  ...
+# Subtest: a ponte encaminha eventos de observação ao núcleo comum
+ok 67 - a ponte encaminha eventos de observação ao núcleo comum
+  ---
+  duration_ms: 1.906942
+  type: 'test'
+  ...
+# Subtest: a ponte encaminha apenas cue temporal de alta confiança como safe-cue
+ok 68 - a ponte encaminha apenas cue temporal de alta confiança como safe-cue
+  ---
+  duration_ms: 0.629414
+  type: 'test'
+  ...
+# Subtest: a ponte bloqueia cue DOM sem timing e conserva o diagnóstico inseguro
+ok 69 - a ponte bloqueia cue DOM sem timing e conserva o diagnóstico inseguro
+  ---
+  duration_ms: 0.664968
+  type: 'test'
+  ...
+# Subtest: o roteador seleciona um adaptador compatível e preserva seu ciclo de vida
+ok 70 - o roteador seleciona um adaptador compatível e preserva seu ciclo de vida
+  ---
+  duration_ms: 1.130596
+  type: 'test'
+  ...
+# Subtest: o roteador não inicia adaptador em URL incompatível
+ok 71 - o roteador não inicia adaptador em URL incompatível
+  ---
+  duration_ms: 0.672048
+  type: 'test'
+  ...
+# Subtest: o diagnóstico limpa motivo inseguro quando uma fonte temporal segura se recupera
+ok 72 - o diagnóstico limpa motivo inseguro quando uma fonte temporal segura se recupera
+  ---
+  duration_ms: 0.804417
+  type: 'test'
+  ...
+# Subtest: o estado diagnóstico comum conserva a fonte e bloqueia cue insegura
+ok 73 - o estado diagnóstico comum conserva a fonte e bloqueia cue insegura
+  ---
+  duration_ms: 0.582805
+  type: 'test'
+  ...
+# Subtest: bootstrap request permanece bloqueado no YouTube por padrão
+ok 74 - bootstrap request permanece bloqueado no YouTube por padrão
+  ---
+  duration_ms: 3.051027
+  type: 'test'
+  ...
+# Subtest: bootstrap request injeta somente MAIN e ISOLATED após seleção YouTube
+ok 75 - bootstrap request injeta somente MAIN e ISOLATED após seleção YouTube
+  ---
+  duration_ms: 0.845519
+  type: 'test'
+  ...
+# Subtest: override por aba tem precedência e mismatch de plataforma é rejeitado
+ok 76 - override por aba tem precedência e mismatch de plataforma é rejeitado
+  ---
+  duration_ms: 0.941173
+  type: 'test'
+  ...
+# Subtest: reload limpa somente o conjunto de injeção e preserva seleção de domínio
+ok 77 - reload limpa somente o conjunto de injeção e preserva seleção de domínio
+  ---
+  duration_ms: 0.91967
+  type: 'test'
+  ...
+# Subtest: aplicação por aba persiste a seleção e envia desativação ao content script
+ok 78 - aplicação por aba persiste a seleção e envia desativação ao content script
+  ---
+  duration_ms: 1.361373
+  type: 'test'
+  ...
+# Subtest: normaliza domínios de Coursera, Udemy e YouTube por site
+ok 79 - normaliza domínios de Coursera, Udemy e YouTube por site
+  ---
+  duration_ms: 1.954312
+  type: 'test'
+  ...
+# Subtest: mantém o YouTube desligado por padrão e preserva o automático no Coursera/Udemy
+ok 80 - mantém o YouTube desligado por padrão e preserva o automático no Coursera/Udemy
+  ---
+  duration_ms: 0.654251
+  type: 'test'
+  ...
+# Subtest: aceita a seleção manual quando o domínio corresponde
+ok 81 - aceita a seleção manual quando o domínio corresponde
+  ---
+  duration_ms: 0.782124
+  type: 'test'
+  ...
+# Subtest: bloqueia seleção manual incompatível sem tentar forçar outro adaptador
+ok 82 - bloqueia seleção manual incompatível sem tentar forçar outro adaptador
+  ---
+  duration_ms: 0.784076
+  type: 'test'
+  ...
+# Subtest: bloqueia rotas YouTube que não são páginas watch
+ok 83 - bloqueia rotas YouTube que não são páginas watch
+  ---
+  duration_ms: 0.640281
+  type: 'test'
+  ...
+# Subtest: modo automático reconhece somente plataformas suportadas
+ok 84 - modo automático reconhece somente plataformas suportadas
+  ---
+  duration_ms: 0.640832
+  type: 'test'
+  ...
+# Subtest: modo desativado é compatível, mas informa que a S·IA não deve operar
+ok 85 - modo desativado é compatível, mas informa que a S·IA não deve operar
+  ---
+  duration_ms: 1.140261
+  type: 'test'
+  ...
+# Subtest: valores desconhecidos não ativam uma plataforma arbitrária
+ok 86 - valores desconhecidos não ativam uma plataforma arbitrária
+  ---
+  duration_ms: 0.750266
+  type: 'test'
+  ...
+# Subtest: popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica
+ok 87 - popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica
+  ---
+  duration_ms: 6.382045
+  type: 'test'
+  ...
+# Subtest: popup não mostra conexão genérica quando YouTube não tem legenda temporal
+ok 88 - popup não mostra conexão genérica quando YouTube não tem legenda temporal
+  ---
+  duration_ms: 2.095795
+  type: 'test'
+  ...
+# Subtest: popup recarrega a aba quando YouTube já estava injetado
+ok 89 - popup recarrega a aba quando YouTube já estava injetado
+  ---
+  duration_ms: 4.703959
+  type: 'test'
+  ...
+# Subtest: popup mantém YouTube após updateConnectionStatus e aplica na aba
+ok 90 - popup mantém YouTube após updateConnectionStatus e aplica na aba
+  ---
+  duration_ms: 3.222215
+  type: 'test'
+  ...
+# Subtest: popup gerencia perfis de dublagem do audio ducking e persiste o nível selecionado
+ok 91 - popup gerencia perfis de dublagem do audio ducking e persiste o nível selecionado
+  ---
+  duration_ms: 1.952129
+  type: 'test'
+  ...
+# Subtest: popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado
+ok 92 - popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado
+  ---
+  duration_ms: 2.071849
+  type: 'test'
+  ...
+# Subtest: bridge H7 emite cue temporal do store Shaka
+ok 93 - bridge H7 emite cue temporal do store Shaka
+  ---
+  duration_ms: 2.751649
+  type: 'test'
+  ...
+# Subtest: bridge H7 retransmite a última cue após handshake do host
+ok 94 - bridge H7 retransmite a última cue após handshake do host
+  ---
+  duration_ms: 0.698428
+  type: 'test'
+  ...
+# Subtest: bridge H7 não emite cue quando o vídeo está pausado
+ok 95 - bridge H7 não emite cue quando o vídeo está pausado
+  ---
+  duration_ms: 0.581914
+  type: 'test'
+  ...
+# Subtest: bridge H7 não transforma texto DOM sem timing em cue
+ok 96 - bridge H7 não transforma texto DOM sem timing em cue
+  ---
+  duration_ms: 0.556014
+  type: 'test'
+  ...
+# Subtest: sidepanel preserva replay, atualização de favorito/nota e exportação markdown
+ok 97 - sidepanel preserva replay, atualização de favorito/nota e exportação markdown
+  ---
+  duration_ms: 8.319324
+  type: 'test'
+  ...
+# Subtest: sidepanel limpa o histórico da aula ao confirmar
+ok 98 - sidepanel limpa o histórico da aula ao confirmar
+  ---
+  duration_ms: 2.423146
+  type: 'test'
+  ...
+# Subtest: sidepanel exibe apenas os 4 trechos mais recentes por padrão e expande sob demanda
+ok 99 - sidepanel exibe apenas os 4 trechos mais recentes por padrão e expande sob demanda
+  ---
+  duration_ms: 2.923917
+  type: 'test'
+  ...
+# Subtest: sidepanel explica quando não existe aula compatível e desabilita transcrição
+ok 100 - sidepanel explica quando não existe aula compatível e desabilita transcrição
+  ---
+  duration_ms: 1.328453
+  type: 'test'
+  ...
+# Subtest: sidepanel apresenta estrutura limpa em 3 seções sem cartões confusos
+ok 101 - sidepanel apresenta estrutura limpa em 3 seções sem cartões confusos
+  ---
+  duration_ms: 0.395604
+  type: 'test'
+  ...
+# Subtest: sidepanel orienta a aguardar frases antes de montar o arquivo
+ok 102 - sidepanel orienta a aguardar frases antes de montar o arquivo
+  ---
+  duration_ms: 1.322043
+  type: 'test'
+  ...
+# Subtest: sidepanel monta todas as falas e só depois oferece a revisão no vídeo
+ok 103 - sidepanel monta todas as falas e só depois oferece a revisão no vídeo
+  ---
+  duration_ms: 1.578128
+  type: 'test'
+  ...
+# Subtest: sidepanel salva todas as falas em um único arquivo local
+ok 104 - sidepanel salva todas as falas em um único arquivo local
+  ---
+  duration_ms: 1.789535
+  type: 'test'
+  ...
+# Subtest: visualizador waveform reflete estado de fala ativa e retorno ao repouso
+ok 105 - visualizador waveform reflete estado de fala ativa e retorno ao repouso
+  ---
+  duration_ms: 2.187613
+  type: 'test'
+  ...
+# Subtest: sidepanel.html contém todos os elementos visuais do Palco Sonoro 3D (dearVR PRO Style)
+ok 106 - sidepanel.html contém todos os elementos visuais do Palco Sonoro 3D (dearVR PRO Style)
+  ---
+  duration_ms: 1.096645
+  type: 'test'
+  ...
+# Subtest: sliders de ângulo e distância sincronizam coordenadas acústicas e atualizam o puck
+ok 107 - sliders de ângulo e distância sincronizam coordenadas acústicas e atualizam o puck
+  ---
+  duration_ms: 25.226949
+  type: 'test'
+  ...
+# Subtest: botões de preset definem as posições acústicas exatas e ativam a pílula correspondente
+ok 108 - botões de preset definem as posições acústicas exatas e ativam a pílula correspondente
+  ---
+  duration_ms: 2.218058
+  type: 'test'
+  ...
+# Subtest: seletor de ducking ajusta convivência com o vídeo e salva nível
+ok 109 - seletor de ducking ajusta convivência com o vídeo e salva nível
+  ---
+  duration_ms: 1.428764
+  type: 'test'
+  ...
+# Subtest: botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe confirmação
+ok 110 - botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe confirmação
+  ---
+  duration_ms: 1.447141
+  type: 'test'
+  ...
+# Subtest: fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma estéreo e persiste sia_stereo_calibrated
+ok 111 - fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma estéreo e persiste sia_stereo_calibrated
+  ---
+  duration_ms: 2.17945
+  type: 'test'
+  ...
+# Subtest: fluxo interativo de calibração: resposta 'Não, ouvi nos dois' exibe atalho de áudio mono e permite retentar
+ok 112 - fluxo interativo de calibração: resposta 'Não, ouvi nos dois' exibe atalho de áudio mono e permite retentar
+  ---
+  duration_ms: 26.474656
+  type: 'test'
+  ...
+# Subtest: posição manual preserva o motor escolhido e desliga a automação
+ok 113 - posição manual preserva o motor escolhido e desliga a automação
+  ---
+  duration_ms: 2.916126
+  type: 'test'
+  ...
+# Subtest: painel restaura posição e volume fracionário salvos pelo popup
+ok 114 - painel restaura posição e volume fracionário salvos pelo popup
+  ---
+  duration_ms: 1.614723
+  type: 'test'
+  ...
+# Subtest: radar aceita teclado e mantém presets consistentes com o catálogo
+ok 115 - radar aceita teclado e mantém presets consistentes com o catálogo
+  ---
+  duration_ms: 1.592229
+  type: 'test'
+  ...
+# Subtest: interface recolhe áudio avançado e não oferece posição de vídeo ou diagnóstico falso
+ok 116 - interface recolhe áudio avançado e não oferece posição de vídeo ou diagnóstico falso
+  ---
+  duration_ms: 0.348353
+  type: 'test'
+  ...
+# Subtest: contrato aceita somente watch HTTPS com videoId
+ok 117 - contrato aceita somente watch HTTPS com videoId
+  ---
+  duration_ms: 1.185128
+  type: 'test'
+  ...
+# Subtest: contrato libera somente cue temporal de alta confiança
+ok 118 - contrato libera somente cue temporal de alta confiança
+  ---
+  duration_ms: 0.261192
+  type: 'test'
+  ...
+# Subtest: parser lê JSON3 com proteção XSSI
+ok 119 - parser lê JSON3 com proteção XSSI
+  ---
+  duration_ms: 1.322054
+  type: 'test'
+  ...
+# Subtest: parser lê WebVTT e rejeita cue inválida
+ok 120 - parser lê WebVTT e rejeita cue inválida
+  ---
+  duration_ms: 1.408994
+  type: 'test'
+  ...
+# Subtest: parser usa fallback XML sem chamar DOMParser sob Trusted Types
+ok 121 - parser usa fallback XML sem chamar DOMParser sob Trusted Types
+  ---
+  duration_ms: 1.594131
+  type: 'test'
+  ...
+# Subtest: agregador une palavras consecutivas e emite uma frase única
+ok 122 - agregador une palavras consecutivas e emite uma frase única
+  ---
+  duration_ms: 1.184838
+  type: 'test'
+  ...
+# Subtest: agregador une microcues progressivas e elimina repetição
+ok 123 - agregador une microcues progressivas e elimina repetição
+  ---
+  duration_ms: 0.195874
+  type: 'test'
+  ...
+# Subtest: bridge usa fallback IOS local quando Web timedtext retorna vazio
+ok 124 - bridge usa fallback IOS local quando Web timedtext retorna vazio
+  ---
+  duration_ms: 22.306452
+  type: 'test'
+  ...
+# Subtest: bridge prioriza pt-BR antes de pt genérico
+ok 125 - bridge prioriza pt-BR antes de pt genérico
+  ---
+  duration_ms: 1.210146
+  type: 'test'
+  ...
+# Subtest: adapter libera cue temporal estável sem pontuação depois do tempo máximo
+ok 126 - adapter libera cue temporal estável sem pontuação depois do tempo máximo
+  ---
+  duration_ms: 2.557097
+  type: 'test'
+  ...
+# Subtest: adapter agrega legenda externa palavra-a-palavra antes de emitir
+ok 127 - adapter agrega legenda externa palavra-a-palavra antes de emitir
+  ---
+  duration_ms: 1.303486
+  type: 'test'
+  ...
+# Subtest: adapter escolhe uma única cue externa quando a tolerância sobrepõe frases consecutivas
+ok 128 - adapter escolhe uma única cue externa quando a tolerância sobrepõe frases consecutivas
+  ---
+  duration_ms: 0.792289
+  type: 'test'
+  ...
+# Subtest: adapter não rebaixa transcript temporal carregado por overlay durante intervalo
+ok 129 - adapter não rebaixa transcript temporal carregado por overlay durante intervalo
+  ---
+  duration_ms: 0.491487
+  type: 'test'
+  ...
+# Subtest: adapter emite imediatamente cue temporal externa já fechada
+ok 130 - adapter emite imediatamente cue temporal externa já fechada
+  ---
+  duration_ms: 0.511157
+  type: 'test'
+  ...
+# Subtest: adapter percorre cues externas, respeita pausa e relê após seek para trás
+ok 131 - adapter percorre cues externas, respeita pausa e relê após seek para trás
+  ---
+  duration_ms: 0.519289
+  type: 'test'
+  ...
+# Subtest: adapter limpa estado em troca de vídeo YouTube e aceita apenas a cue nova
+ok 132 - adapter limpa estado em troca de vídeo YouTube e aceita apenas a cue nova
+  ---
+  duration_ms: 0.503656
+  type: 'test'
+  ...
+# Subtest: adapter não repete cue quando a qualidade muda o currentSrc do mesmo vídeo
+ok 133 - adapter não repete cue quando a qualidade muda o currentSrc do mesmo vídeo
+  ---
+  duration_ms: 0.449264
+  type: 'test'
+  ...
+# Subtest: adapter bloqueia cue durante anúncio e retoma após o anúncio
+ok 134 - adapter bloqueia cue durante anúncio e retoma após o anúncio
+  ---
+  duration_ms: 0.633661
+  type: 'test'
+  ...
+# Subtest: adapter preserva buffer de TextTrack fragmentado durante intervalo e fala frase única
+ok 135 - adapter preserva buffer de TextTrack fragmentado durante intervalo e fala frase única
+  ---
+  duration_ms: 1.060321
+  type: 'test'
+  ...
+# Subtest: adapter mantém frase quando a lacuna entre palavras supera a estabilidade atual
+ok 136 - adapter mantém frase quando a lacuna entre palavras supera a estabilidade atual
+  ---
+  duration_ms: 0.829434
+  type: 'test'
+  ...
+# Subtest: adapter não divide sentença longa em grupos pelo limite curto de retenção
+ok 137 - adapter não divide sentença longa em grupos pelo limite curto de retenção
+  ---
+  duration_ms: 1.176435
+  type: 'test'
+  ...
+# Subtest: adapter preserva frase nativa quando snapshot externo fragmentado já está carregado
+ok 138 - adapter preserva frase nativa quando snapshot externo fragmentado já está carregado
+  ---
+  duration_ms: 0.811418
+  type: 'test'
+  ...
+# Subtest: adapter usa cues futuras da TextTrack para emitir a sentença inteira de uma vez
+ok 139 - adapter usa cues futuras da TextTrack para emitir a sentença inteira de uma vez
+  ---
+  duration_ms: 0.680401
+  type: 'test'
+  ...
+# Subtest: adapter mantém prosódia quando a continuação começa na linha visual seguinte
+ok 140 - adapter mantém prosódia quando a continuação começa na linha visual seguinte
+  ---
+  duration_ms: 0.781242
+  type: 'test'
+  ...
+# Subtest: adapter encontra TextTrack e emite cue segura sem áudio próprio
+ok 141 - adapter encontra TextTrack e emite cue segura sem áudio próprio
+  ---
+  duration_ms: 0.41321
+  type: 'test'
+  ...
+# Subtest: offscreen correlaciona duas abas mesmo com requestId repetido
+ok 142 - offscreen correlaciona duas abas mesmo com requestId repetido
+  ---
+  duration_ms: 6.179222
+  type: 'test'
+  ...
+# Subtest: offscreen encaminha silenceScale para o worker Piper
+ok 143 - offscreen encaminha silenceScale para o worker Piper
+  ---
+  duration_ms: 3.236576
+  type: 'test'
+  ...
+# Subtest: dispose de uma aba não encerra o worker da outra sessão
+ok 144 - dispose de uma aba não encerra o worker da outra sessão
+  ---
+  duration_ms: 28.612639
+  type: 'test'
+  ...
+# Subtest: mantém o motor do navegador como padrão
+ok 145 - mantém o motor do navegador como padrão
+  ---
+  duration_ms: 2.888024
+  type: 'test'
+  ...
+# Subtest: não assina mudanças globais de motor entre abas
+ok 146 - não assina mudanças globais de motor entre abas
+  ---
+  duration_ms: 0.758929
+  type: 'test'
+  ...
+# Subtest: ativa o Piper somente quando selecionado e reproduz o resultado do Worker
+ok 147 - ativa o Piper somente quando selecionado e reproduz o resultado do Worker
+  ---
+  duration_ms: 42.773543
+  type: 'test'
+  ...
+# Subtest: preserva a cue quando o AudioContext está bloqueado e retoma após gesto
+ok 148 - preserva a cue quando o AudioContext está bloqueado e retoma após gesto
+  ---
+  duration_ms: 82.479528
+  type: 'test'
+  ...
+# Subtest: converte resume pendente em bloqueio recuperável sem perder a cue
+ok 149 - converte resume pendente em bloqueio recuperável sem perder a cue
+  ---
+  duration_ms: 1442.211541
+  type: 'test'
+  ...
+# Subtest: reutiliza a frase pré-sintetizada sem gerar áudio duas vezes
+ok 150 - reutiliza a frase pré-sintetizada sem gerar áudio duas vezes
+  ---
+  duration_ms: 44.960467
+  type: 'test'
+  ...
+# Subtest: desativa e cancela a fila sem gerar exceção
+ok 151 - desativa e cancela a fila sem gerar exceção
+  ---
+  duration_ms: 41.649658
+  type: 'test'
+  ...
+# [S·IA Piper] fallback para voz do navegador Error: [Error] simulated generation error
+#     at PiperLocalProvider.processQueue (piper-bridge.js:1081:37)
+# Subtest: converte falha de geração em desativação do provedor
+ok 152 - converte falha de geração em desativação do provedor
+  ---
+  duration_ms: 52.014753
+  type: 'test'
+  ...
+# Subtest: prepara o AudioContext antes da geração neural
+ok 153 - prepara o AudioContext antes da geração neural
+  ---
+  duration_ms: 1.628143
+  type: 'test'
+  ...
+# Subtest: não tenta abrir o AudioContext automaticamente ao selecionar Piper
+ok 154 - não tenta abrir o AudioContext automaticamente ao selecionar Piper
+  ---
+  duration_ms: 41.075312
+  type: 'test'
+  ...
+# Subtest: transição suave entre legendas: não interrompe a fala anterior e reproduz a nova em sequência
+ok 155 - transição suave entre legendas: não interrompe a fala anterior e reproduz a nova em sequência
+  ---
+  duration_ms: 97.113152
+  type: 'test'
+  ...
+# Subtest: configura e posiciona a voz 3D no espaço com áudio cristalino 4K transparente (equalpower) e livre de abafamento
+ok 156 - configura e posiciona a voz 3D no espaço com áudio cristalino 4K transparente (equalpower) e livre de abafamento
+  ---
+  duration_ms: 2.01295
+  type: 'test'
+  ...
+# Subtest: atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE
+ok 157 - atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE
+  ---
+  duration_ms: 1.366921
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: desligar e religar espacial conserva posição personalizada e motor
+ok 158 - regressão 1.11.1: desligar e religar espacial conserva posição personalizada e motor
+  ---
+  duration_ms: 0.774081
+  type: 'test'
+  ...
+# Subtest: estima uma duração mínima para textos curtos
+ok 159 - estima uma duração mínima para textos curtos
+  ---
+  duration_ms: 1.068574
+  type: 'test'
+  ...
+# Subtest: considera palavras e pontuação na duração
+ok 160 - considera palavras e pontuação na duração
+  ---
+  duration_ms: 0.21993
+  type: 'test'
+  ...
+# Subtest: distingue continuação de encerramento por pontuação
+ok 161 - distingue continuação de encerramento por pontuação
+  ---
+  duration_ms: 0.192889
+  type: 'test'
+  ...
+# Subtest: marca fragmentos sem pontuação como continuação prosódica
+ok 162 - marca fragmentos sem pontuação como continuação prosódica
+  ---
+  duration_ms: 0.176154
+  type: 'test'
+  ...
+# Subtest: remove palavras repetidas entre o fim da fala e a nova cue
+ok 163 - remove palavras repetidas entre o fim da fala e a nova cue
+  ---
+  duration_ms: 1.105959
+  type: 'test'
+  ...
+# Subtest: descarta uma cue totalmente repetida
+ok 164 - descarta uma cue totalmente repetida
+  ---
+  duration_ms: 0.119329
+  type: 'test'
+  ...
+# Subtest: distribui a fala antecipada pelo intervalo completo da sentença
+ok 165 - distribui a fala antecipada pelo intervalo completo da sentença
+  ---
+  duration_ms: 0.203476
+  type: 'test'
+  ...
+# Subtest: remove sobreposição após uma frase concluída com ponto final
+ok 166 - remove sobreposição após uma frase concluída com ponto final
+  ---
+  duration_ms: 0.245018
+  type: 'test'
+  ...
+# Subtest: aumenta a taxa gradualmente quando a fila reduz o tempo disponível
+ok 167 - aumenta a taxa gradualmente quando a fila reduz o tempo disponível
+  ---
+  duration_ms: 0.237426
+  type: 'test'
+  ...
+# Subtest: reduz a correção gradualmente quando o atraso desaparece
+ok 168 - reduz a correção gradualmente quando o atraso desaparece
+  ---
+  duration_ms: 0.228993
+  type: 'test'
+  ...
+# Subtest: considera a calibração de uma voz mais lenta
+ok 169 - considera a calibração de uma voz mais lenta
+  ---
+  duration_ms: 0.187411
+  type: 'test'
+  ...
+# Subtest: mantém a taxa base quando a cue tem tempo suficiente
+ok 170 - mantém a taxa base quando a cue tem tempo suficiente
+  ---
+  duration_ms: 0.16657
+  type: 'test'
+  ...
+# Subtest: acelera a voz sem ultrapassar o limite configurado
+ok 171 - acelera a voz sem ultrapassar o limite configurado
+  ---
+  duration_ms: 0.130065
+  type: 'test'
+  ...
+# Subtest: reduz o vídeo e respeita o limite mínimo
+ok 172 - reduz o vídeo e respeita o limite mínimo
+  ---
+  duration_ms: 0.098798
+  type: 'test'
+  ...
+# Subtest: preserva uma velocidade personalizada quando não há atraso
+ok 173 - preserva uma velocidade personalizada quando não há atraso
+  ---
+  duration_ms: 0.087461
+  type: 'test'
+  ...
+# Subtest: normaliza idiomas BCP 47 para o par suportado pelo Chrome
+ok 174 - normaliza idiomas BCP 47 para o par suportado pelo Chrome
+  ---
+  duration_ms: 0.696565
+  type: 'test'
+  ...
+# Subtest: traduz inglês para português e reutiliza o cache
+ok 175 - traduz inglês para português e reutiliza o cache
+  ---
+  duration_ms: 0.610607
+  type: 'test'
+  ...
+# Subtest: não chama o tradutor quando origem e destino são equivalentes
+ok 176 - não chama o tradutor quando origem e destino são equivalentes
+  ---
+  duration_ms: 0.254091
+  type: 'test'
+  ...
+# Subtest: informa indisponibilidade sem inventar tradução
+ok 177 - informa indisponibilidade sem inventar tradução
+  ---
+  duration_ms: 0.493451
+  type: 'test'
+  ...
+# Subtest: aquece uma única instância e reaproveita tradução antecipada
+ok 178 - aquece uma única instância e reaproveita tradução antecipada
+  ---
+  duration_ms: 8.025512
+  type: 'test'
+  ...
+1..178
+# tests 178
+# suites 0
+# pass 178
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4822.036444

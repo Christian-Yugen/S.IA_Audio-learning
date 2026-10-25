@@ -1,12 +1,21 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.11.0",
-  "version_name": "1.11.0 · S·IA Neuro-Stage 3D e Diretor Acústico Cognitivo por IA",
+  "version": "1.11.1",
+  "version_name": "1.11.1 · Estabilização de áudio e interface",
   "description": "Lê e sincroniza legendas de cursos no Coursera, Udemy e YouTube com ativação segura por plataforma.",
   "minimum_chrome_version": "114",
-  "permissions": ["activeTab", "storage", "sidePanel", "offscreen", "scripting"],
-  "host_permissions": ["https://*.youtube.com/*", "https://youtube.com/*"],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel",
+    "offscreen",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://youtube.com/*"
+  ],
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -40,23 +49,47 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.coursera.org/*"],
-      "js": ["sync-engine.js", "dom-fallback.js", "neural-tts/piper-bridge.js", "learning/neuro-director.js", "learning/learning-engine.js", "translation/translation-engine.js", "content.js"]
+      "matches": [
+        "https://*.coursera.org/*"
+      ],
+      "js": [
+        "audio-settings.js",
+        "sync-engine.js",
+        "dom-fallback.js",
+        "neural-tts/piper-bridge.js",
+        "learning/neuro-director.js",
+        "learning/learning-engine.js",
+        "translation/translation-engine.js",
+        "content.js"
+      ]
     },
     {
-      "matches": ["https://www.youtube.com/watch*", "https://m.youtube.com/watch*", "https://youtube.com/watch*"],
-      "js": ["platform-selection-bootstrap.js"],
+      "matches": [
+        "https://www.youtube.com/watch*",
+        "https://m.youtube.com/watch*",
+        "https://youtube.com/watch*"
+      ],
+      "js": [
+        "platform-selection-bootstrap.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
-      "js": ["platform-adapters/udemy/shaka-caption-bridge.js"],
+      "matches": [
+        "https://www.udemy.com/course/*/learn/lecture/*"
+      ],
+      "js": [
+        "platform-adapters/udemy/shaka-caption-bridge.js"
+      ],
       "world": "MAIN",
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.udemy.com/course/*/learn/lecture/*"],
+      "matches": [
+        "https://www.udemy.com/course/*/learn/lecture/*"
+      ],
       "js": [
+        "audio-settings.js",
         "sync-engine.js",
         "neural-tts/piper-bridge.js",
         "learning/neuro-director.js",
@@ -78,14 +111,21 @@
         "neural-tts/piper-worker.js",
         "neural-tts/runtime/*"
       ],
-      "matches": ["https://*.coursera.org/*", "https://www.udemy.com/*", "https://*.youtube.com/*", "https://youtube.com/*"]
+      "matches": [
+        "https://*.coursera.org/*",
+        "https://www.udemy.com/*",
+        "https://*.youtube.com/*",
+        "https://youtube.com/*"
+      ]
     },
     {
       "resources": [
         "platform-adapters/udemy/udemy-adapter.js",
         "platform-adapters/udemy/udemy-adapter-contract.js"
       ],
-      "matches": ["https://www.udemy.com/*"]
+      "matches": [
+        "https://www.udemy.com/*"
+      ]
     },
     {
       "resources": [
@@ -96,7 +136,10 @@
         "platform-adapters/youtube/youtube-caption-bridge.js",
         "platform-adapters/youtube/youtube-host.js"
       ],
-      "matches": ["https://*.youtube.com/*", "https://youtube.com/*"]
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://youtube.com/*"
+      ]
     }
   ]
 }

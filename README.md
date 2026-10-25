@@ -6,23 +6,19 @@ A extensão lê as legendas exibidas pelo player, organiza os fragmentos em sent
 
 > **Princípio do projeto:** a S·IA deve crescer sem comprometer o que já funciona. Toda nova plataforma será adicionada por um adaptador isolado, enquanto o núcleo de áudio permanecerá único, compartilhado e protegido.
 
-## Estado atual
+## Estado atual — 1.11.1 candidata à validação no Chrome
 
-O baseline funcional protegido é a **1.8.14**, com o caminho do Coursera e o motor neural local já validados. A branch experimental **1.8.17** acrescenta um seletor seguro de plataforma: Coursera e Udemy permanecem automáticos, enquanto o YouTube começa **desligado** e só é carregado após escolha explícita no popup. O motor nativo do navegador continua sendo a alternativa padrão; o Piper é opcional e deve ser ativado pelo usuário.
+Esta versão estabiliza a recuperação da 1.11.0: preferências espaciais não ativam
+Piper sem escolha do usuário, o modo automático respeita o espacial desligado,
+o catálogo de posições é compartilhado e o pacote verifica suas dependências.
+Os controles avançados ficam recolhidos. A posição espacial aplica-se somente
+à voz neural S·IA; o vídeo conserva sua posição original e permite atenuação de volume.
+O ajuste automático é uma heurística de palavras-chave, desligada por padrão.
 
-| Capacidade | Estado |
-|---|---|
-| Leitura de legendas no Coursera | Validada |
-| Fallback de legenda pelo DOM | Implementado |
-| Voz nativa do navegador | Padrão e preservada |
-| Piper PT-BR local | Experimental e opcional |
-| Pré-síntese da próxima legenda | Implementada |
-| Fallback automático para voz nativa | Implementado |
-| Diagnóstico de fonte e estado | Em evolução e obrigatório para novas plataformas |
-| Adaptador Udemy | Automático, preservado e validado na fixture local |
-| Seletor seguro de plataforma | Implementado; escolha por aba ou domínio |
-| Adaptador YouTube | Experimental, manual e desligado por padrão |
-| Recursos educacionais avançados | Roadmap posterior à expansão multiplataforma |
+- [Mudanças, instalação e rollback](docs/releases/1.11.1.md)
+- [Evidências antes/depois e limitações](docs/reports/1.11.1-validation.md)
+- Testes automatizados não substituem ouvir uma aula real no Chrome.
+- Os roteiros de expansão abaixo são históricos; não declaram novas funções prontas.
 
 ## Garantias de preservação
 

@@ -30,8 +30,9 @@
     const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
     let traducaoInglesAtiva = false;
-    let neuroDirectorAtivo = true;
-    let activeNeuroPreset = "onu";
+    let neuroDirectorAtivo = false;
+    let audioEspacialAtivo = true;
+    let activeNeuroPreset = "stage";
     let geracaoTraducao = 0;
     let ultimoErroTraducao = "";
     let ultimaPreTraducaoEm = 0;
@@ -1544,7 +1545,7 @@
     }
 
     function aplicarDiretorCognitivoSeAtivo(texto) {
-        if (!MOTOR_NEURO || !neuroDirectorAtivo) return;
+        if (!MOTOR_NEURO || !neuroDirectorAtivo || !audioEspacialAtivo || !globalThis.SiaPiperVoice?.isActive?.()) return;
         try {
             const stage = MOTOR_NEURO.getRecommendedStage(texto, {
                 activePreset: activeNeuroPreset,
@@ -1552,7 +1553,7 @@
             });
             if (stage) {
                 if (globalThis.SiaPiperVoice?.morphSpatialPosition && stage.sia) {
-                    globalThis.SiaPiperVoice.morphSpatialPosition(stage.sia.angle, stage.sia.distance, true, stage.durationMs);
+                    globalThis.SiaPiperVoice.morphSpatialPosition(stage.sia.angle, stage.sia.distance, audioEspacialAtivo, stage.durationMs);
                 }
                 notificarPalcoNeuro(stage);
             }
@@ -2364,6 +2365,7 @@
             case "sia_spatial_profile":
             case "sia_spatial_angle":
             case "sia_spatial_distance": {
+                if (chave === "sia_spatial_audio") audioEspacialAtivo = Boolean(valor);
                 if (globalThis.SiaPiperVoice) {
                     if (chave === "sia_spatial_audio" && globalThis.SiaPiperVoice.setSpatialAudio) {
                         globalThis.SiaPiperVoice.setSpatialAudio(Boolean(valor), undefined);
@@ -2374,9 +2376,6 @@
                     } else if (chave === "sia_spatial_distance" && globalThis.SiaPiperVoice.setSpatialPosition) {
                         globalThis.SiaPiperVoice.setSpatialPosition(undefined, Number(valor), undefined);
                     }
-                    if (!globalThis.SiaPiperVoice.isActive?.()) {
-                        globalThis.SiaPiperVoice.setActive?.("piper-local");
-                    }
                 }
                 break;
             }
@@ -2384,7 +2383,7 @@
                 neuroDirectorAtivo = Boolean(valor);
                 break;
             case "sia_neuro_preset":
-                activeNeuroPreset = String(valor || "onu");
+                activeNeuroPreset = String(valor || "stage");
                 break;
         }
     }
@@ -2529,7 +2528,10 @@
 
             if (mensagem?.type === "SIA_PRIME_NEURAL_AUDIO") {
                 const provider = globalThis.SiaPiperVoice;
-                provider?.setActive?.("piper-local");
+                if (!provider?.isActive?.()) {
+                    responder({ ok: false, reason: "piper-inactive", message: "Selecione a voz neural no menu de voz para usar este recurso." });
+                    return;
+                }
                 if (!provider?.primeAudio) {
                     responder({ ok: false, message: "bridge neural não carregado" });
                     return;
@@ -2607,8 +2609,9 @@
 
             if (mensagem?.type === "SIA_TEST_SPATIAL_AUDIO") {
                 const provider = globalThis.SiaPiperVoice;
-                if (!provider?.isActive?.()) {
-                    provider?.setActive?.("piper-local");
+                if (!provider?.isActive?.() || !audioEspacialAtivo) {
+                    responder({ ok: false, reason: "spatial-unavailable", message: "Selecione a voz neural e ative o áudio espacial para testar." });
+                    return;
                 }
                 void provider?.primeAudio?.();
 
@@ -2650,7 +2653,7 @@
                 } else {
                     posTexto = `a ${Math.abs(angle)} graus à sua esquerda`;
                 }
-                const textoTeste = mensagem.text || `Posicionamento acústico confirmado. A S·IA está falando ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
+                const textoTeste = mensagem.text || `Teste de posição da voz S·IA: ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
 
                 const utterance = {
                     text: normalizarTexto(textoTeste),
