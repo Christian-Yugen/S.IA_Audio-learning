@@ -32,7 +32,9 @@
     "platform-adapters/youtube/youtube-host.js",
     "audio-settings.js",
     "learning/neuro-director.js",
-    "translation/translation-engine.js"
+    "translation/translation-engine.js",
+    "platform-adapters/ai-guru/ai-guru-adapter.js",
+    "platform-adapters/ai-guru/ai-guru-host.js"
   ],
   "directories": [
     "icons",

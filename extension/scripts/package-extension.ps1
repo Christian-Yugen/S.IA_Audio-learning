@@ -18,7 +18,8 @@ $included = @($files)
 foreach ($directory in $config.directories) {
     $directoryPath = Join-Path $projectRoot $directory
     $included += @(Get-ChildItem -LiteralPath $directoryPath -Recurse -File | ForEach-Object {
-        $_.FullName.Substring($projectRoot.Length + 1).Replace('\', '/')
+        $relative = $_.FullName.Substring($projectRoot.Length + 1).Replace('\', '/')
+        if (-not ($relative.Split('/') | Where-Object { $_.StartsWith('.') })) { $relative }
     })
 }
 $required = @($manifest.background.service_worker, $manifest.action.default_popup, $manifest.side_panel.default_path)
@@ -57,18 +58,12 @@ try {
     New-Item -ItemType Directory -Path $stagingPath -Force | Out-Null
     New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 
-    foreach ($file in $files) {
+    foreach ($file in $included) {
         $sourcePath = Join-Path $projectRoot $file
         $destinationPath = Join-Path $stagingPath $file
         $destinationDirectory = Split-Path -Parent $destinationPath
         New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
-    }
-
-    foreach ($directory in $config.directories) {
-        $sourceDirectory = Join-Path $projectRoot $directory
-        $destinationDirectory = Join-Path $stagingPath $directory
-        Copy-Item -LiteralPath $sourceDirectory -Destination $destinationDirectory -Recurse -Force
     }
 
     if (Test-Path -LiteralPath $archivePath) {

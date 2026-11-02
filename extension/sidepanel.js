@@ -848,7 +848,7 @@
 
     if (spatialUi.duckingModeStatus) {
       if (currentDucking === 0) {
-        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo durante fala)";
+        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo também nos intervalos)";
       } else if (currentDucking <= 20) {
         spatialUi.duckingModeStatus.textContent = `Fundo Suave (${currentDucking}% vídeo durante fala)`;
       } else {

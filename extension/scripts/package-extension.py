@@ -66,7 +66,7 @@ def package_extension(output_directory: Path) -> Path:
         relative_paths.update(
             path.relative_to(project_root).as_posix()
             for path in directory_path.rglob("*")
-            if path.is_file()
+            if path.is_file() and not any(part.startswith(".") for part in path.relative_to(project_root).parts)
         )
 
     validate_package(project_root, relative_paths, manifest)

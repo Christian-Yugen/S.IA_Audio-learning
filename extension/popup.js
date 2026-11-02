@@ -250,7 +250,7 @@
       });
       if (ui.duckingProfileHint) {
         if (Math.abs(level - 0) < 0.01) {
-          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.";
+          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): mantém o vídeo em silêncio durante a leitura, inclusive entre as frases.";
         } else if (Math.abs(level - 0.4) < 0.05) {
           ui.duckingProfileHint.textContent = "Modo Bilíngue: mantém o áudio original a 40% para treinar o ouvido em inglês.";
         } else {
@@ -430,8 +430,9 @@
       const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
       const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
       const isYoutubeWatch = Boolean(tab?.url?.match(/^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?[^#]*\bv=[^&#]+/i));
-      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch) {
-        setStatus("Abra uma página compatível do Coursera, Udemy ou YouTube", "unavailable");
+      const isAiGuru = globalThis.SiaPlatformSelection?.isCompatible(tab?.url || "", "ai-guru") === true;
+      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch && !isAiGuru) {
+        setStatus("Abra Coursera, Udemy, YouTube ou AI Guru Academy", "unavailable");
         return;
       }
       if (isYoutubeWatch && platformContext.requested === "off") {
@@ -484,6 +485,11 @@
         } else {
           setStatus("YouTube conectado · aguardando legenda temporal", "checking");
         }
+      } else if (status.platformId === "ai-guru" && !status.captionActive) {
+        const diagnostic = status.platformDiagnostic || {};
+        setStatus(diagnostic.state === "ADAPTER_ERROR" || diagnostic.state === "WAITING_FOR_CAPTIONS"
+          ? "AI Guru Academy · legenda temporal indisponível; consulte o diagnóstico"
+          : "AI Guru Academy conectada · aguardando legenda temporal", "checking");
       } else if (status.bufferingSentence && !status.speechActive) {
         setStatus("Preparando frase · aguardando pontuação", "connected");
       } else if (status.captionActive) {

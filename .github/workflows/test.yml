@@ -37,6 +37,8 @@ jobs:
         run: |
           node --check audio-settings.js
           node --check content.js
+          node --check platform-adapters/ai-guru/ai-guru-adapter.js
+          node --check platform-adapters/ai-guru/ai-guru-host.js
           node --check dom-fallback.js
           node --check learning/neuro-director.js
           node --check neural-tts/piper-bridge.js
