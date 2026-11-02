@@ -1208,3 +1208,48 @@ test('AI Guru: bootstrap real conecta adaptador, roteador e núcleo de voz sem f
   windowRef.dispatchEvent(new Event('pagehide'));
   assert.equal(h.context.SiaPlatformRouter.getActive(), null);
 });
+
+for (const piperActive of [false, true]) {
+  test('Foco Total mantém silêncio entre frases e restaura ao desativar; Piper=' + piperActive, async () => {
+    const h = createHarness({ manualTimers: true, piperActive, volume: 0.8 });
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    assert.equal(h.video.volume, 0);
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    const utterance = (piperActive ? h.piperSpoken : h.spoken)[0];
+    assert.ok(utterance);
+    utterance.onend();
+    h.advanceTimers(2000);
+    assert.equal(h.video.volume, 0);
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_enabled', value: false });
+    assert.equal(h.video.volume, 0.8);
+  });
+}
+
+test('sair de Foco Total no intervalo restaura volume e preserva modo suave', async () => {
+  const h = createHarness({ manualTimers: true, volume: 0.7 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  assert.equal(h.video.volume, 0);
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 15 });
+  assert.equal(h.video.volume, 0.7);
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue());
+  assert.equal(Number(h.video.volume.toFixed(3)), 0.105);
+  h.spoken[0].onend();
+  h.advanceTimers(1000);
+  assert.equal(h.video.volume, 0.7);
+});
+
+for (const piperActive of [false, true]) {
+  test('selecionar Foco Total durante fala não restaura áudio ao concluir; Piper=' + piperActive, async () => {
+    const h = createHarness({ manualTimers: true, piperActive, volume: 0.9 });
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    (piperActive ? h.piperSpoken : h.spoken)[0].onend();
+    h.advanceTimers(3000);
+    assert.equal(h.video.volume, 0);
+    h.video.pause();
+    assert.equal(h.video.volume, 0.9);
+  });
+}

@@ -148,7 +148,16 @@
             video.addEventListener("seeking", restaurarDuckingImediato);
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 40 : 100);
+        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 0 : 100);
+    }
+
+    function aplicarFocoTotal() {
+        if (!extensaoAtiva || !duckingAtivo || duckingNivel !== 0) return;
+        const video = obterVideoParaDucking();
+        if (!video || video.paused || video.ended) return;
+        const estavaFalando = duckingEmAndamento;
+        iniciarDucking();
+        duckingEmAndamento = estavaFalando;
     }
 
     function agendarRestauracaoDucking() {
@@ -156,6 +165,8 @@
         const video = obterVideoParaDucking();
         if (!video || volumeBaseVideo === null) return;
         duckingEmAndamento = false;
+        // Foco Total preserva o silêncio também nos intervalos da narração.
+        if (duckingNivel === 0 && extensaoAtiva && !video.paused && !video.ended) return;
         if (duckingHoldTimer) {
             clearTimeout(duckingHoldTimer);
             duckingHoldTimer = null;
@@ -2309,7 +2320,7 @@
             case "sia_enabled":
                 extensaoAtiva = Boolean(valor);
                 if (!extensaoAtiva) interromperFala();
-                if (extensaoAtiva) sinteseBloqueada = false;
+                if (extensaoAtiva) { sinteseBloqueada = false; aplicarFocoTotal(); }
                 break;
             case "sia_voice":
                 vozSelecionada = String(valor || "");
@@ -2360,18 +2371,20 @@
                 duckingAtivo = Boolean(valor);
                 if (!duckingAtivo) {
                     restaurarDuckingImediato();
-                }
+                } else aplicarFocoTotal();
                 break;
             case "sia_ducking_level": {
                 const parsed = Number(valor);
                 if (Number.isFinite(parsed)) {
                     const norm = parsed > 1 ? parsed / 100 : parsed;
                     duckingNivel = Math.max(0, Math.min(1, norm));
+                    if (duckingNivel === 0) aplicarFocoTotal();
+                    else if (!duckingEmAndamento && volumeBaseVideo !== null) restaurarDuckingImediato();
                     if (duckingEmAndamento && volumeBaseVideo !== null) {
                         const video = obterVideoParaDucking();
                         if (video) {
                             const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-                            rampaVolumeVideo(video, volumeAlvo, 80);
+                            rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 0 : 80);
                         }
                     }
                 }
@@ -2882,6 +2895,9 @@
                 : historicoFrases.map(item => ({ ...item }));
             transcricaoCortada = transcricaoFrases.length >= CONFIG.maximoTranscricaoFrases;
         });
+        document.addEventListener("play", aplicarFocoTotal, true);
+        document.addEventListener("seeked", aplicarFocoTotal, true);
+        aplicarFocoTotal();
         if (!PLATAFORMA_EXTERNA) {
             setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
         }

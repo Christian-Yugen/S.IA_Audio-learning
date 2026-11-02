@@ -250,7 +250,7 @@
       });
       if (ui.duckingProfileHint) {
         if (Math.abs(level - 0) < 0.01) {
-          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.";
+          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): mantém o vídeo em silêncio durante a leitura, inclusive entre as frases.";
         } else if (Math.abs(level - 0.4) < 0.05) {
           ui.duckingProfileHint.textContent = "Modo Bilíngue: mantém o áudio original a 40% para treinar o ouvido em inglês.";
         } else {
