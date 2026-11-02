@@ -44,6 +44,13 @@ const manifest = JSON.parse(read("extension/manifest.json"));
 if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ""))) {
   fail(`versão semver inválida: ${manifest.version}`);
 }
+for (const entry of manifest.web_accessible_resources || []) {
+  for (const pattern of entry.matches || []) {
+    if (!/^https?:\/\/[^/]+\/\*$/.test(pattern)) {
+      fail(`web_accessible_resources: padrão incompatível com Chrome: ${pattern}`);
+    }
+  }
+}
 if (!manifest.permissions?.includes("offscreen")) fail("permissão offscreen ausente");
 if (!manifest.content_security_policy?.extension_pages?.includes("wasm-unsafe-eval")) {
   fail("CSP sem wasm-unsafe-eval");
