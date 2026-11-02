@@ -21,8 +21,7 @@
     sia_translate_en_pt: false,
     sia_ducking: true,
     sia_ducking_level: 0,
-    sia_spatial_audio: true,
-    sia_spatial_profile: "stage",
+    ...globalThis.SiaAudioSettings.defaults,
     sia_compact: false
   });
 
@@ -82,6 +81,7 @@
     const courseId = tabAtivo?.url?.match(/\/learn\/([^/]+)/)?.[1] || "";
     const courseProfile = courseId ? saved.sia_course_profiles?.[courseId] : null;
     const settings = { ...DEFAULTS, ...saved, ...(courseProfile || {}) };
+    if (settings.sia_spatial_profile !== "custom") settings.sia_spatial_profile = globalThis.SiaAudioSettings.keyFor(settings.sia_spatial_profile);
     let feedbackTimer = 0;
     let platformSelectionDirty = false;
     let platformContext = {
@@ -167,7 +167,7 @@
         ui.platformDiagnostic.textContent = `YouTube selecionado · ${scope}. O núcleo de áudio continuará compartilhado.`;
         ui.platformDiagnostic.className = "platform-diagnostic is-ready";
       } else {
-        ui.platformDiagnostic.textContent = `${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} permanece no modo legado automático protegido.`;
+        ui.platformDiagnostic.textContent = `${globalThis.SiaPlatformSelection.PLATFORM_LABELS[detected]} detectado automaticamente.`;
         ui.platformDiagnostic.className = "platform-diagnostic";
       }
     }
@@ -250,7 +250,7 @@
       });
       if (ui.duckingProfileHint) {
         if (Math.abs(level - 0) < 0.01) {
-          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.";
+          ui.duckingProfileHint.textContent = "Foco Total (Dublagem Limpa): mantém o vídeo em silêncio durante a leitura, inclusive entre as frases.";
         } else if (Math.abs(level - 0.4) < 0.05) {
           ui.duckingProfileHint.textContent = "Modo Bilíngue: mantém o áudio original a 40% para treinar o ouvido em inglês.";
         } else {
@@ -271,13 +271,10 @@
         radio.closest?.(".ducking-profile-pill")?.classList.toggle("is-active", isChecked);
       });
       if (ui.spatialProfileHint) {
-        if (profile === "interpreter") {
-          ui.spatialProfileHint.textContent = "Intérprete Particular: voz lateral a +25° à direita.";
-        } else if (profile === "intimate") {
-          ui.spatialProfileHint.textContent = "Proximidade VIP: voz quente e encorpada a 60cm, presença máxima de estúdio.";
-        } else {
-          ui.spatialProfileHint.textContent = "Palco Frontal: voz alinhada diretamente com a tela da aula, com profundidade 3D natural.";
-        }
+        const p = globalThis.SiaAudioSettings.profileFor(profile);
+        ui.spatialProfileHint.textContent = profile === "custom"
+          ? `Posição personalizada no painel: ${settings.sia_spatial_angle}°, ${settings.sia_spatial_distance} m.`
+          : `${p.name}: ${p.angle}°, ${p.distance.toFixed(1)} m. Requer voz neural; o vídeo mantém sua posição original.`;
       }
     }
 
@@ -433,8 +430,9 @@
       const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
       const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
       const isYoutubeWatch = Boolean(tab?.url?.match(/^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?[^#]*\bv=[^&#]+/i));
-      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch) {
-        setStatus("Abra uma página compatível do Coursera, Udemy ou YouTube", "unavailable");
+      const isAiGuru = globalThis.SiaPlatformSelection?.isCompatible(tab?.url || "", "ai-guru") === true;
+      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch && !isAiGuru) {
+        setStatus("Abra Coursera, Udemy, YouTube ou AI Guru Academy", "unavailable");
         return;
       }
       if (isYoutubeWatch && platformContext.requested === "off") {
@@ -487,6 +485,11 @@
         } else {
           setStatus("YouTube conectado · aguardando legenda temporal", "checking");
         }
+      } else if (status.platformId === "ai-guru" && !status.captionActive) {
+        const diagnostic = status.platformDiagnostic || {};
+        setStatus(diagnostic.state === "ADAPTER_ERROR" || diagnostic.state === "WAITING_FOR_CAPTIONS"
+          ? "AI Guru Academy · legenda temporal indisponível; consulte o diagnóstico"
+          : "AI Guru Academy conectada · aguardando legenda temporal", "checking");
       } else if (status.bufferingSentence && !status.speechActive) {
         setStatus("Preparando frase · aguardando pontuação", "connected");
       } else if (status.captionActive) {
@@ -694,6 +697,10 @@
     ui.spatialProfiles?.forEach(radio => radio.addEventListener("change", () => {
       if (radio.checked) {
         settings.sia_spatial_profile = radio.value;
+        const profile = globalThis.SiaAudioSettings.profileFor(radio.value);
+        void saveAndSend("sia_neuro_director_active", false, false);
+        void saveAndSend("sia_spatial_angle", profile.angle, false);
+        void saveAndSend("sia_spatial_distance", profile.distance, false);
         renderSpatialProfiles();
         renderSummary();
         void saveAndSend("sia_spatial_profile", settings.sia_spatial_profile);
@@ -765,6 +772,13 @@
     render();
     loadVoices();
     void updateConnectionStatus();
+    chrome.storage?.onChanged?.addListener?.((changes, area) => {
+      if (area !== "local") return;
+      for (const key of Object.keys(DEFAULTS)) {
+        if (changes[key]) settings[key] = changes[key].newValue ?? DEFAULTS[key];
+      }
+      render();
+    });
     speechSynthesis.addEventListener("voiceschanged", loadVoices);
     setInterval(updateConnectionStatus, 1000);
   });

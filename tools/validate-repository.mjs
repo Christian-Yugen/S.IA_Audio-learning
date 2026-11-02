@@ -8,6 +8,9 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const extension = join(root, "extension");
 const requiredFiles = [
   "manifest.json",
+  "audio-settings.js",
+  "learning/neuro-director.js",
+  "translation/translation-engine.js",
   "content.js",
   "sync-engine.js",
   "dom-fallback.js",
@@ -40,6 +43,13 @@ function read(path) {
 const manifest = JSON.parse(read("extension/manifest.json"));
 if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ""))) {
   fail(`versão semver inválida: ${manifest.version}`);
+}
+for (const entry of manifest.web_accessible_resources || []) {
+  for (const pattern of entry.matches || []) {
+    if (!/^https?:\/\/[^/]+\/\*$/.test(pattern)) {
+      fail(`web_accessible_resources: padrão incompatível com Chrome: ${pattern}`);
+    }
+  }
 }
 if (!manifest.permissions?.includes("offscreen")) fail("permissão offscreen ausente");
 if (!manifest.content_security_policy?.extension_pages?.includes("wasm-unsafe-eval")) {

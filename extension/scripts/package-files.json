@@ -1,0 +1,43 @@
+{
+  "files": [
+    "manifest.json",
+    "content.js",
+    "sync-engine.js",
+    "dom-fallback.js",
+    "popup.html",
+    "popup.css",
+    "popup.js",
+    "sidepanel.html",
+    "sidepanel.css",
+    "sidepanel.js",
+    "learning/learning-engine.js",
+    "service-worker.js",
+    "platform-selection.js",
+    "platform-selection-bootstrap.js",
+    "offscreen.html",
+    "offscreen.js",
+    "platform-adapters/caption-input.js",
+    "platform-adapters/platform-router.js",
+    "platform-adapters/core-event-bridge.js",
+    "platform-adapters/core-diagnostic-state.js",
+    "platform-adapters/udemy/shaka-caption-bridge.js",
+    "platform-adapters/udemy/udemy-host.js",
+    "platform-adapters/udemy/udemy-adapter.js",
+    "platform-adapters/udemy/udemy-adapter-contract.js",
+    "platform-adapters/youtube/youtube-adapter-contract.js",
+    "platform-adapters/youtube/youtube-adapter.js",
+    "platform-adapters/youtube/youtube-caption-aggregator.js",
+    "platform-adapters/youtube/youtube-caption-parser.js",
+    "platform-adapters/youtube/youtube-caption-bridge.js",
+    "platform-adapters/youtube/youtube-host.js",
+    "audio-settings.js",
+    "learning/neuro-director.js",
+    "translation/translation-engine.js",
+    "platform-adapters/ai-guru/ai-guru-adapter.js",
+    "platform-adapters/ai-guru/ai-guru-host.js"
+  ],
+  "directories": [
+    "icons",
+    "neural-tts"
+  ]
+}

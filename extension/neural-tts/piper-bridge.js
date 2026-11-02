@@ -9,80 +9,7 @@
   const SPATIAL_ANGLE_KEY = "sia_spatial_angle";
   const SPATIAL_DISTANCE_KEY = "sia_spatial_distance";
 
-  const SPATIAL_PROFILES = Object.freeze({
-    stage: Object.freeze({
-      name: "Palco Frontal",
-      angle: 0,
-      distance: 1.0,
-      x: 0.00,
-      y: 0.15,
-      z: -1.00,
-      clarityBoost: 1.5
-    }),
-    center: Object.freeze({
-      name: "Frente (0°)",
-      angle: 0,
-      distance: 1.0,
-      x: 0.00,
-      y: 0.15,
-      z: -1.00,
-      clarityBoost: 1.5
-    }),
-    interpreter: Object.freeze({
-      name: "Intérprete Particular",
-      angle: 25,
-      distance: 1.0,
-      x: 0.42,
-      y: 0.15,
-      z: -0.91,
-      clarityBoost: 1.5
-    }),
-    side: Object.freeze({
-      name: "Lado (+60°)",
-      angle: 60,
-      distance: 1.2,
-      x: 1.04,
-      y: 0.15,
-      z: -0.60,
-      clarityBoost: 1.5
-    }),
-    intimate: Object.freeze({
-      name: "Proximidade VIP",
-      angle: 15,
-      distance: 0.6,
-      x: 0.16,
-      y: 0.15,
-      z: -0.58,
-      clarityBoost: 2.0
-    }),
-    left: Object.freeze({
-      name: "Ouvido Esquerdo",
-      angle: -90,
-      distance: 0.8,
-      x: -0.80,
-      y: 0.15,
-      z: 0.00,
-      clarityBoost: 1.5
-    }),
-    right: Object.freeze({
-      name: "Ouvido Direito",
-      angle: 90,
-      distance: 0.8,
-      x: 0.80,
-      y: 0.15,
-      z: 0.00,
-      clarityBoost: 1.5
-    }),
-    back: Object.freeze({
-      name: "Atrás da Cabeça",
-      angle: 180,
-      distance: 1.0,
-      x: 0.00,
-      y: 0.15,
-      z: 1.00,
-      clarityBoost: 1.0
-    })
-  });
+  const SPATIAL_PROFILES = globalThis.SiaAudioSettings.profiles;
 
   const WORKER_PATH = "neural-tts/piper-worker.js";
   const RUNTIME_PATHS = Object.freeze({
@@ -482,7 +409,7 @@
     }
 
     applyProfile(profileKey, enabled = true) {
-      this.profileKey = SPATIAL_PROFILES[profileKey] ? profileKey : "stage";
+      this.profileKey = globalThis.SiaAudioSettings.keyFor(profileKey);
       const config = SPATIAL_PROFILES[this.profileKey];
       this.applyPosition(config.angle, config.distance, enabled);
     }
@@ -561,15 +488,15 @@
         this.spatialEnabled = enabled;
       }
       if (typeof profile === "string" && profile) {
-        this.spatialProfile = profile;
-        const cfg = SPATIAL_PROFILES[profile];
+        this.spatialProfile = globalThis.SiaAudioSettings.keyFor(profile);
+        const cfg = SPATIAL_PROFILES[this.spatialProfile];
         if (cfg) {
           this.spatialAngle = cfg.angle;
           this.spatialDistance = cfg.distance;
         }
       }
       if (this.spatialStage) {
-        this.spatialStage.applyProfile(this.spatialProfile, this.spatialEnabled);
+        this.spatialStage.applyPosition(this.spatialAngle, this.spatialDistance, this.spatialEnabled);
       }
     }
 
@@ -1237,7 +1164,7 @@
       if (message.key === ENGINE_KEY) {
         provider.setActive(message.value);
       } else if (message.key === SPATIAL_KEY) {
-        provider.setSpatialAudio(message.value, provider.spatialProfile);
+        provider.setSpatialAudio(Boolean(message.value));
       } else if (message.key === SPATIAL_PROFILE_KEY) {
         provider.setSpatialAudio(provider.spatialEnabled, message.value);
       } else if (message.key === SPATIAL_ANGLE_KEY) {

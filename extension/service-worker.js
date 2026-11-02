@@ -48,6 +48,7 @@ const youtubeBootstrap = Object.freeze({
     "platform-adapters/youtube/youtube-caption-bridge.js"
   ],
   isolatedFiles: [
+    "audio-settings.js",
     "sync-engine.js",
     "neural-tts/piper-bridge.js",
     "learning/neuro-director.js",

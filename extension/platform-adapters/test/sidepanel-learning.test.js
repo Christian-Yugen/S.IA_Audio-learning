@@ -174,6 +174,8 @@ function createHarness({ context = baseStudyContext(), transcriptResponse = null
     },
   };
   const onMessageListeners = [];
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "audio-settings.js"), "utf8"), contextVm);
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "learning/neuro-director.js"), "utf8"), contextVm);
   vm.runInContext(sidepanelSource, contextVm, { filename: "sidepanel.js" });
   const flush = () => new Promise(resolve => setImmediate(resolve));
   return { elements, filters, sentMessages, intervals, state, createdLinks, onMessageListeners, flush };

@@ -76,7 +76,7 @@ function createMockElement(id, options = {}) {
   return element;
 }
 
-function createSpatialHarness() {
+function createSpatialHarness({ saved = {} } = {}) {
   const ids = [
     "current-sentence", "replay-current", "history", "history-count", "export-saved", "clear-history",
     "history-item-template", "toggle-history-expand",
@@ -93,10 +93,10 @@ function createSpatialHarness() {
   elements.get("#history-item-template").content = { firstElementChild: createMockElement("history-item") };
 
   const presets = [
-    createMockElement("preset-front", { dataset: { angle: "0", dist: "1.0" } }),
-    createMockElement("preset-interpreter", { dataset: { angle: "25", dist: "1.0" } }),
-    createMockElement("preset-side", { dataset: { angle: "60", dist: "1.2" } }),
-    createMockElement("preset-intimate", { dataset: { angle: "15", dist: "0.6" } }),
+    createMockElement("preset-front", { dataset: { preset: "stage" } }),
+    createMockElement("preset-interpreter", { dataset: { preset: "interpreter" } }),
+    createMockElement("preset-side", { dataset: { preset: "side" } }),
+    createMockElement("preset-intimate", { dataset: { preset: "intimate" } }),
   ];
   const duckingBtns = [
     createMockElement("ducking-opt-0", { dataset: { ducking: "0" } }),
@@ -105,7 +105,8 @@ function createSpatialHarness() {
   ];
 
   const sentMessages = [];
-  const storageData = {};
+  const storageData = { ...saved };
+  const storageListeners = [];
 
   const documentRef = {
     getElementById(id) { return elements.get(`#${id}`) || null; },
@@ -133,6 +134,7 @@ function createSpatialHarness() {
       remove: () => {},
     },
     storage: {
+      onChanged: { addListener: fn => storageListeners.push(fn) },
       local: {
         get: (keys, cb) => cb(storageData),
         set: (data) => Object.assign(storageData, data)
@@ -184,6 +186,8 @@ function createSpatialHarness() {
     }
   });
 
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "audio-settings.js"), "utf8"), contextVm);
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "learning/neuro-director.js"), "utf8"), contextVm);
   vm.runInContext(sidepanelSource, contextVm);
 
   return {
@@ -192,6 +196,7 @@ function createSpatialHarness() {
     duckingBtns,
     sentMessages,
     storageData,
+    storageListeners,
   };
 }
 
@@ -208,7 +213,7 @@ test("sliders de ângulo e distância sincronizam coordenadas acústicas e atual
 
   assert.match(badge.textContent, /\+30° Direita · 1.0m/);
   assert.equal(harness.storageData.sia_spatial_angle, 30);
-  assert.equal(harness.storageData.sia_voice_engine, "piper-local");
+  assert.equal(harness.storageData.sia_voice_engine, undefined, "Mover a voz não deve ativar Piper");
 
   distSlider.value = "1.8";
   distSlider.dispatch("input");
@@ -272,7 +277,7 @@ test("botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe con
   assert.ok(testMsg);
   assert.equal(testMsg.msg.angle, 0);
   assert.equal(testMsg.msg.distance, 1.0);
-  assert.match(testStatus.textContent, /✓ Posição confirmada no fone de ouvido!/);
+  assert.match(testStatus.textContent, /✓ Reprodução iniciada/);
 });
 
 test("fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma estéreo e persiste sia_stereo_calibrated", () => {
@@ -288,7 +293,7 @@ test("fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma e
   assert.equal(harness.storageData.sia_stereo_calibrated, true);
   assert.equal(questionBox.style.display, "none");
   assert.equal(successBox.style.display, "flex");
-  assert.equal(badge.textContent, "Calibrado ✓");
+  assert.equal(badge.textContent, "Canais confirmados ✓");
   assert.equal(badge.classList.contains("calibrated"), true);
 });
 
@@ -306,10 +311,49 @@ test("fluxo interativo de calibração: resposta 'Não, ouvi nos dois' exibe ata
   assert.equal(harness.storageData.sia_stereo_calibrated, false);
   assert.equal(questionBox.style.display, "none");
   assert.equal(monoCard.style.display, "grid");
-  assert.equal(badge.textContent, "Mono detectado ⚠️");
+  assert.equal(badge.textContent, "Verificar canais ⚠️");
 
   retryBtn.dispatch("click");
   assert.equal(questionBox.style.display, "grid");
   assert.equal(monoCard.style.display, "none");
   assert.equal(badge.textContent, "Clique para testar");
+});
+
+
+test("posição manual preserva o motor escolhido e desliga a automação", async () => {
+  const h = createSpatialHarness({ saved: { sia_voice_engine: "browser", sia_neuro_director_active: true } });
+  const angle = h.elements.get("#spatial-angle-slider");
+  angle.value = "45"; angle.dispatch("input");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.storageData.sia_voice_engine, "browser");
+  assert.equal(h.storageData.sia_neuro_director_active, false);
+  assert.equal(h.storageData.sia_spatial_profile, "custom");
+  assert.ok(!h.sentMessages.some(({msg}) => msg.key === "sia_voice_engine"));
+  assert.ok(h.sentMessages.some(({msg}) => msg.key === "sia_neuro_director_active" && msg.value === false));
+});
+
+test("painel restaura posição e volume fracionário salvos pelo popup", () => {
+  const h = createSpatialHarness({ saved: { sia_spatial_profile: "intimate", sia_ducking_level: 0.4 } });
+  assert.match(h.elements.get("#spatial-pos-text").textContent, /\+15° Direita · 0.6m/);
+  assert.equal(h.duckingBtns[2].classList.contains("active"), true);
+  Object.assign(h.storageData, { sia_spatial_angle: -30, sia_spatial_distance: 1.8 });
+  h.storageListeners[0]({ sia_spatial_angle: { newValue: -30 } }, "local");
+  assert.match(h.elements.get("#spatial-pos-text").textContent, /-30° Esquerda · 1.8m/);
+});
+
+test("radar aceita teclado e mantém presets consistentes com o catálogo", () => {
+  const h = createSpatialHarness();
+  h.elements.get("#spatial-puck").dispatch("keydown", { key: "ArrowRight", preventDefault() {} });
+  assert.equal(h.storageData.sia_spatial_angle, 5);
+  h.presets[1].dispatch("click");
+  assert.equal(h.storageData.sia_neuro_preset, "interpreter");
+  assert.equal(h.storageData.sia_spatial_profile, "interpreter");
+  assert.equal(h.storageData.sia_spatial_distance, 1.0);
+});
+
+test("interface recolhe áudio avançado e não oferece posição de vídeo ou diagnóstico falso", () => {
+  assert.match(sidepanelHtml, /<details[^>]*id="spatial-card"/);
+  assert.doesNotMatch(sidepanelHtml, /<details[^>]*id="spatial-card"[^>]*\bopen\b/);
+  assert.doesNotMatch(sidepanelHtml, /id="spatial-puck-video"|70%|100% calibrados|Windows Detectado|Diretor IA Ativo/);
+  assert.match(sidepanelHtml, /não detecta automaticamente/);
 });

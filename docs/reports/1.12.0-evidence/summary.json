@@ -1,0 +1,58 @@
+{
+  "checks": [
+    {
+      "name": "node-tests",
+      "exit": 0,
+      "tests": 197,
+      "pass": 197,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "name": "packaging",
+      "exit": 0
+    },
+    {
+      "name": "repository",
+      "exit": 0
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "extension/sync-engine.js",
+      "unchanged": true,
+      "sha256": "8c2e9ad28c1c570e44d4c3c42148ada403dec696864b21675aedd2d6d9bef00a"
+    },
+    {
+      "path": "extension/neural-tts/piper-bridge.js",
+      "unchanged": true,
+      "sha256": "5cfc238282f1cbe8fede539198a365a94cbdbe72b8e3c25bd288b4927a9bb3a4"
+    },
+    {
+      "path": "extension/translation/translation-engine.js",
+      "unchanged": true,
+      "sha256": "8b4dc6ad62320cda6bdb66dccb20c407c6228156da8fbc438b2ee72ed6c10956"
+    },
+    {
+      "path": "extension/platform-adapters/udemy/udemy-adapter.js",
+      "unchanged": true,
+      "sha256": "d7f5fb8a6eb29b250d8af4850aa50467137a846467a4f4ff676b2c251801326c"
+    },
+    {
+      "path": "extension/platform-adapters/udemy/udemy-host.js",
+      "unchanged": true,
+      "sha256": "e68533c0f8ad9ca3cecab59bc4c36a405574fa55020506c80ff57abdb2fd6698"
+    },
+    {
+      "path": "extension/platform-adapters/youtube/youtube-adapter.js",
+      "unchanged": true,
+      "sha256": "b70d6a0dc0724acb9ea0e793ec0a53fc4434507542c498f62f35c15b8568c87d"
+    },
+    {
+      "path": "extension/platform-adapters/youtube/youtube-host.js",
+      "unchanged": true,
+      "sha256": "471843df8e563f329b85e5b5c790e814cb1e746b38c854366591fb3c2e2ad9fd"
+    }
+  ]
+}

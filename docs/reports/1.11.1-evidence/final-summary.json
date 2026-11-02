@@ -1,0 +1,162 @@
+{
+  "checks": [
+    {
+      "check": "all-node-tests",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "extension/tests/offscreen.test.js",
+        "extension/tests/piper-bridge.test.js",
+        "extension/tests/sync-engine.test.js",
+        "extension/tests/translation-engine.test.js",
+        "extension/platform-adapters/test/adapter-core-integration.test.js",
+        "extension/platform-adapters/test/caption-input.test.js",
+        "extension/platform-adapters/test/content-hook.test.js",
+        "extension/platform-adapters/test/learning-engine.test.js",
+        "extension/platform-adapters/test/neuro-stage.test.js",
+        "extension/platform-adapters/test/platform-routing.test.js",
+        "extension/platform-adapters/test/platform-selection-service-worker.test.js",
+        "extension/platform-adapters/test/platform-selection.test.js",
+        "extension/platform-adapters/test/popup-platform-selection.test.js",
+        "extension/platform-adapters/test/shaka-caption-bridge.test.js",
+        "extension/platform-adapters/test/sidepanel-learning.test.js",
+        "extension/platform-adapters/test/sidepanel-spatial.test.js",
+        "extension/platform-adapters/test/youtube-safe-slice.test.js"
+      ],
+      "exit": 0,
+      "tests": 178,
+      "pass": 178,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "check": "packaging-tests",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "extension/tests",
+        "-p",
+        "test_packaging.py",
+        "-v"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "repository-check",
+      "command": [
+        "node",
+        "tools/validate-repository.mjs"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-audio-settings.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/audio-settings.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-content.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/content.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-learning-neuro-director.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/learning/neuro-director.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-neural-tts-piper-bridge.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/neural-tts/piper-bridge.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-popup.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/popup.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-sidepanel.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/sidepanel.js"
+      ],
+      "exit": 0
+    },
+    {
+      "check": "syntax-service-worker.js",
+      "command": [
+        "node",
+        "--check",
+        "extension/service-worker.js"
+      ],
+      "exit": 0
+    }
+  ],
+  "core_repeatability": [
+    {
+      "run": 1,
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    }
+  ],
+  "sync_engine_sha256": "8c2e9ad28c1c570e44d4c3c42148ada403dec696864b21675aedd2d6d9bef00a",
+  "node": "v24.22.1",
+  "python": "Python 3.12.14"
+}
