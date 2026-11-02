@@ -6,6 +6,7 @@
     COURSERA: "coursera",
     UDEMY: "udemy",
     YOUTUBE: "youtube",
+    AI_GURU: "ai-guru",
     OFF: "off"
   });
   const PLATFORM_LABELS = Object.freeze({
@@ -13,6 +14,7 @@
     coursera: "Coursera",
     udemy: "Udemy",
     youtube: "YouTube",
+    "ai-guru": "AI Guru Academy",
     off: "Desativado"
   });
 
@@ -37,6 +39,7 @@
 
   function platformForHost(host) {
     const value = String(host || "").toLowerCase().replace(/^www\./, "");
+    if (value === "ai-guru-academy.com") return MODES.AI_GURU;
     if (value === "coursera.org" || value.endsWith(".coursera.org")) return MODES.COURSERA;
     if (value === "udemy.com" || value.endsWith(".udemy.com")) return MODES.UDEMY;
     if (value === "youtube.com" || value.endsWith(".youtube.com")) return MODES.YOUTUBE;
@@ -56,6 +59,7 @@
     try {
       const parsed = new URL(url);
       const normalized = normalizePlatform(platform);
+      if (normalized === MODES.AI_GURU) return parsed.protocol === "https:" && /^\/pt-br\/[^/]+\/[^/]+\/?$/.test(parsed.pathname);
       if (normalized === MODES.YOUTUBE) {
         return parsed.pathname === "/watch" && Boolean(parsed.searchParams.get("v"));
       }

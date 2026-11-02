@@ -3,10 +3,19 @@
 > Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
 > sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.11.1-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.12.0-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
+
+## AI Guru Academy — 1.12.0
+
+Nova opção no seletor para aulas em português da AI Guru Academy.
+O adaptador lê legendas temporais do vídeo e do modo Ouvir, pelo mesmo núcleo
+de voz, tradução, histórico e sincronização. Não lê menus nem o texto do artigo.
+A página inspecionada fornece legenda em inglês: para ouvir em português,
+marque "Traduzir legendas em inglês para português antes da leitura".
+[Instalação, testes e limites](../docs/releases/1.12.0.md).
 
 ## Estabilização 1.11.1
 

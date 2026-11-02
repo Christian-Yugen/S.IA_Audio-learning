@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "S·IA | Audio-learning by UXBRAS®",
-  "version": "1.11.1",
-  "version_name": "1.11.1 · Estabilização de áudio e interface",
-  "description": "Lê e sincroniza legendas de cursos no Coursera, Udemy e YouTube com ativação segura por plataforma.",
+  "version": "1.12.0",
+  "version_name": "1.12.0 · AI Guru Academy",
+  "description": "Lê e sincroniza legendas de aulas no Coursera, Udemy, YouTube e AI Guru Academy com ativação por plataforma.",
   "minimum_chrome_version": "114",
   "permissions": [
     "activeTab",
@@ -103,6 +103,29 @@
         "platform-adapters/udemy/udemy-host.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.ai-guru-academy.com/pt-br/*",
+        "https://ai-guru-academy.com/pt-br/*"
+      ],
+      "js": [
+        "audio-settings.js",
+        "sync-engine.js",
+        "neural-tts/piper-bridge.js",
+        "learning/neuro-director.js",
+        "learning/learning-engine.js",
+        "translation/translation-engine.js",
+        "platform-adapters/caption-input.js",
+        "content.js",
+        "platform-adapters/platform-router.js",
+        "platform-adapters/core-event-bridge.js",
+        "platform-adapters/core-diagnostic-state.js",
+        "platform-adapters/youtube/youtube-caption-parser.js",
+        "platform-adapters/ai-guru/ai-guru-adapter.js",
+        "platform-adapters/ai-guru/ai-guru-host.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
@@ -115,7 +138,9 @@
         "https://*.coursera.org/*",
         "https://www.udemy.com/*",
         "https://*.youtube.com/*",
-        "https://youtube.com/*"
+        "https://youtube.com/*",
+        "https://www.ai-guru-academy.com/pt-br/*",
+        "https://ai-guru-academy.com/pt-br/*"
       ]
     },
     {

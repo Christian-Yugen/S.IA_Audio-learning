@@ -70,3 +70,16 @@ test("valores desconhecidos não ativam uma plataforma arbitrária", () => {
   assert.equal(selection.normalizePlatform("hack"), "auto");
   assert.equal(selection.isCompatible("https://www.youtube.com/watch?v=abc", "hack"), true);
 });
+
+
+test("AI Guru tem seleção própria e automática sem ampliar acesso a outros domínios", () => {
+  const s = loadSelection();
+  const url = "https://www.ai-guru-academy.com/pt-br/fundamentos/how-to-read-this-catalog/?track=first-steps";
+  assert.equal(s.platformForHost("www.ai-guru-academy.com"), "ai-guru");
+  assert.equal(s.defaultModeForUrl(url), "auto");
+  assert.equal(s.describeSelection(url, "ai-guru").compatible, true);
+  assert.equal(s.isCompatible(url.replace("https:", "http:"), "ai-guru"), false);
+  assert.equal(s.isCompatible(url.replace(".com/", ".com.evil/"), "ai-guru"), false);
+  assert.equal(s.isCompatible("https://www.youtube.com/watch?v=test", "ai-guru"), false);
+  assert.equal(s.isCompatible("https://www.ai-guru-academy.com/pt-br/trilhas/", "ai-guru"), false);
+});

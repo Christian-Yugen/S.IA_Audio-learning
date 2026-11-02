@@ -430,8 +430,9 @@
       const isCourseraLecture = Boolean(tab?.url?.match(/^https:\/\/([^.]+\.)?coursera\.org\//i));
       const isUdemyLecture = Boolean(tab?.url?.match(/^https:\/\/www\.udemy\.com\/course\/[^/]+\/learn\/lecture\/[^/?#]+/i));
       const isYoutubeWatch = Boolean(tab?.url?.match(/^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?[^#]*\bv=[^&#]+/i));
-      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch) {
-        setStatus("Abra uma página compatível do Coursera, Udemy ou YouTube", "unavailable");
+      const isAiGuru = globalThis.SiaPlatformSelection?.isCompatible(tab?.url || "", "ai-guru") === true;
+      if (!isCourseraLecture && !isUdemyLecture && !isYoutubeWatch && !isAiGuru) {
+        setStatus("Abra Coursera, Udemy, YouTube ou AI Guru Academy", "unavailable");
         return;
       }
       if (isYoutubeWatch && platformContext.requested === "off") {
@@ -484,6 +485,11 @@
         } else {
           setStatus("YouTube conectado · aguardando legenda temporal", "checking");
         }
+      } else if (status.platformId === "ai-guru" && !status.captionActive) {
+        const diagnostic = status.platformDiagnostic || {};
+        setStatus(diagnostic.state === "ADAPTER_ERROR" || diagnostic.state === "WAITING_FOR_CAPTIONS"
+          ? "AI Guru Academy · legenda temporal indisponível; consulte o diagnóstico"
+          : "AI Guru Academy conectada · aguardando legenda temporal", "checking");
       } else if (status.bufferingSentence && !status.speechActive) {
         setStatus("Preparando frase · aguardando pontuação", "connected");
       } else if (status.captionActive) {

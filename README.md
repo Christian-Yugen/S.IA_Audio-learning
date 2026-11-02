@@ -6,9 +6,12 @@ A extensão lê as legendas exibidas pelo player, organiza os fragmentos em sent
 
 > **Princípio do projeto:** a S·IA deve crescer sem comprometer o que já funciona. Toda nova plataforma será adicionada por um adaptador isolado, enquanto o núcleo de áudio permanecerá único, compartilhado e protegido.
 
-## Estado atual — 1.11.1 candidata à validação no Chrome
+## Estado atual — 1.12.0 candidata à validação no Chrome
 
-Esta versão estabiliza a recuperação da 1.11.0: preferências espaciais não ativam
+A 1.12.0 acrescenta o adaptador de legendas de AI Guru Academy sobre a base 1.11.1.
+Veja [instalação e evidências](docs/releases/1.12.0.md).
+
+A base 1.11.1 estabiliza a recuperação da 1.11.0: preferências espaciais não ativam
 Piper sem escolha do usuário, o modo automático respeita o espacial desligado,
 o catálogo de posições é compartilhado e o pacote verifica suas dependências.
 Os controles avançados ficam recolhidos. A posição espacial aplica-se somente

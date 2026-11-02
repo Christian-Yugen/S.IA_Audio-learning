@@ -23,9 +23,10 @@ class PackagingTests(unittest.TestCase):
                 archive.extractall(output / "extracted")
                 names = set(archive.namelist())
                 manifest = json.loads(archive.read("manifest.json"))
-                self.assertEqual(manifest["version"], "1.11.1")
+                self.assertEqual(manifest["version"], json.loads((EXTENSION / "manifest.json").read_text())["version"])
                 self.assertTrue({"audio-settings.js", "learning/neuro-director.js", "translation/translation-engine.js"} <= names)
                 self.assertFalse(any(name.startswith(("tests/", "scripts/", "platform-adapters/test/")) for name in names))
+                self.assertFalse(any(part.startswith(".") for name in names for part in Path(name).parts))
                 packager.validate_package(output / "extracted", names, manifest)
                 for name in names:
                     self.assertEqual((output / "extracted" / name).read_bytes(), (EXTENSION / name).read_bytes(), name)
@@ -35,7 +36,7 @@ class PackagingTests(unittest.TestCase):
         names = set(packager.FILES)
         for directory in packager.DIRECTORIES:
             names.update(file.relative_to(EXTENSION).as_posix() for file in (EXTENSION / directory).rglob("*") if file.is_file())
-        for dependency in ("learning/neuro-director.js", "translation/translation-engine.js", "audio-settings.js"):
+        for dependency in ("learning/neuro-director.js", "translation/translation-engine.js", "audio-settings.js", "platform-adapters/ai-guru/ai-guru-adapter.js", "platform-adapters/ai-guru/ai-guru-host.js"):
             with self.subTest(dependency=dependency):
                 with self.assertRaisesRegex(ValueError, dependency):
                     packager.validate_package(EXTENSION, names - {dependency}, manifest)
