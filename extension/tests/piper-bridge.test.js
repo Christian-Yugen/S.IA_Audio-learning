@@ -204,6 +204,7 @@ function createHarness({ engine = "browser", failGeneration = false, audioBlocke
     globalThis: null
   };
   context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "audio-settings.js"), "utf8"), context);
   vm.runInNewContext(bridgeSource, context, { filename: "piper-bridge.js" });
 
   return {
@@ -536,3 +537,18 @@ test("atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE", async () 
   assert.equal(harness.provider.spatialStage.bypassGain.gain.value, 1.0);
 });
 
+
+
+test("regressão 1.11.1: desligar e religar espacial conserva posição personalizada e motor", () => {
+  const h = createHarness();
+  const deliver = (key, value) => h.messages.forEach(fn => fn({ type: "SIA_CONFIG_UPDATE", key, value }));
+  deliver("sia_spatial_angle", 37);
+  deliver("sia_spatial_distance", 1.7);
+  deliver("sia_spatial_audio", false);
+  assert.equal(h.status().spatialAudio, false);
+  assert.equal(h.status().engine, "browser");
+  deliver("sia_spatial_audio", true);
+  assert.equal(h.status().spatialAngle, 37);
+  assert.equal(h.status().spatialDistance, 1.7);
+  assert.equal(h.status().engine, "browser");
+});

@@ -589,3 +589,9 @@ input:checked + .custom-radio::after {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Advanced options remain available without crowding everyday controls. */
+.advanced-settings { margin: 14px 0; }
+.advanced-settings > summary { cursor: pointer; padding: 12px; font-weight: 600; border: 1px solid #466454; border-radius: 10px; color: inherit; }
+.advanced-settings > summary:focus-visible, button:focus-visible, [role="slider"]:focus-visible { outline: 2px solid #7cf0ac; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

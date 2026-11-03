@@ -45,7 +45,7 @@ function createElement(id, value = "") {
   return element;
 }
 
-function createHarness({ statusResponse = null, requestedPlatform = "off", applyResponse = null } = {}) {
+function createHarness({ statusResponse = null, requestedPlatform = "off", applyResponse = null, tabUrl = "https://www.youtube.com/watch?v=fixture" } = {}) {
   const elements = new Map();
   const ids = [
     "toggle-power", "toggle-compact", "summary-voice", "summary-speed", "summary-audio", "summary-sync",
@@ -58,7 +58,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
   for (const id of ids) elements.set(`#${id}`, createElement(id));
   elements.set(".container", createElement("container"));
   elements.set(".power-text", createElement("power-text"));
-  elements.get("#select-platform").options = ["off", "auto", "coursera", "udemy", "youtube"].map(value => createElement(`platform-${value}`, value));
+  elements.get("#select-platform").options = ["off", "auto", "coursera", "udemy", "youtube", "ai-guru"].map(value => createElement(`platform-${value}`, value));
   elements.get("#select-platform").value = "off";
   elements.get("#select-platform").selectedOptions = [elements.get("#select-platform").options[0]];
   elements.get("#select-engine").value = "browser";
@@ -98,7 +98,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
       return [];
     },
   };
-  const tab = { id: 17, url: "https://www.youtube.com/watch?v=fixture" };
+  const tab = { id: 17, url: tabUrl };
   const local = {};
   const context = vm.createContext({
     console,
@@ -155,6 +155,7 @@ function createHarness({ statusResponse = null, requestedPlatform = "off", apply
     },
     sidePanel: { async open() {} },
   };
+  vm.runInContext(fs.readFileSync(path.join(extensionRoot, "audio-settings.js"), "utf8"), context);
   vm.runInContext(popupSource, context, { filename: "popup.js" });
   return { elements, intervals, reloads, runtimeMessages, domReady, context, connectionStatusSpan, local, duckingRadios, spatialRadios };
 }
@@ -323,7 +324,11 @@ test("popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado"
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(harness.local.sia_spatial_profile, "intimate");
-  assert.match(hint.textContent, /Proximidade VIP/);
+  assert.equal(harness.local.sia_spatial_angle, 15);
+  assert.equal(harness.local.sia_spatial_distance, 0.6);
+  assert.equal(harness.local.sia_neuro_director_active, false);
+  assert.notEqual(harness.local.sia_voice_engine, "piper-local", "Preset não pode trocar o motor");
+  assert.match(hint.textContent, /Proximidade: 15°, 0.6 m/);
 
   // Desativa Áudio Espacial no toggle
   spatialToggle.checked = false;
@@ -335,3 +340,14 @@ test("popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado"
   assert.equal(container.style.display, "none");
 });
 
+
+
+test("AI Guru aparece no seletor e usa o diagnóstico comum de legendas", async () => {
+  const h = createHarness({ tabUrl: "https://www.ai-guru-academy.com/pt-br/fundamentos/how-to-read-this-catalog/?track=first-steps", requestedPlatform: "ai-guru",
+    statusResponse: { platformId: "ai-guru", videoFound: true, syncEngineReady: true, paused: false, ended: false, captionActive: false, platformDiagnostic: { state: "WAITING_FOR_CAPTIONS" } } });
+  await h.domReady(); await h.intervals[0]();
+  assert.equal(h.elements.get("#select-platform").value, "ai-guru");
+  const option = h.elements.get("#select-platform").options.find(o => o.value === "ai-guru");
+  assert.equal(option.disabled, false);
+  assert.match(h.connectionStatusSpan.textContent, /AI Guru Academy.*legenda temporal indisponível/);
+});

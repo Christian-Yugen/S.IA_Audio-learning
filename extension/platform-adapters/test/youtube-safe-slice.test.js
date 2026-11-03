@@ -1154,3 +1154,14 @@ test("adapter encontra TextTrack e emite cue segura sem áudio próprio", () => 
   assert.equal(events.some(event => event.type === "SIA_ADAPTER_ERROR"), false);
   adapter.stop();
 });
+
+
+test("Whisper cleanup removes external cues without changing native tracks", () => {
+  const adapter = createYoutubeAdapter({ documentRef: { querySelector() { return null; }, querySelectorAll() { return []; } }, locationRef: { href: "https://www.youtube.com/watch?v=xl4dvczQWOA" }, windowRef: { setTimeout() { return 1; }, clearTimeout() {} }, emit() {} });
+  adapter.setExternalTimedCues({ videoId: "xl4dvczQWOA", trackKey: "whisper", cues: [{ text: "Hello", startTime: 0, endTime: 4 }] });
+  assert.equal(adapter.externalSourceReady, true);
+  adapter.clearExternalTimedCues();
+  assert.equal(adapter.externalSourceReady, false);
+  assert.equal(adapter.externalCues.length, 0);
+  assert.equal(adapter.externalCueGroups.length, 0);
+});

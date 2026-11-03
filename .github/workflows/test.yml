@@ -19,19 +19,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Run extension tests
-        run: node --test tests/sync-engine.test.js tests/piper-bridge.test.js tests/translation-engine.test.js
-
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run all extension and adapter tests
+        run: node --test --test-concurrency=1 tests/*.test.js platform-adapters/test/*.test.js
+      - name: Check packaging and extraction
+        run: python -m unittest discover -s tests -p test_packaging.py -v
+      - name: Validate protected baseline and repository
+        run: node ../tools/validate-repository.mjs
       - name: Validate JavaScript syntax
         run: |
+          node --check audio-settings.js
           node --check content.js
+          node --check platform-adapters/ai-guru/ai-guru-adapter.js
+          node --check platform-adapters/ai-guru/ai-guru-host.js
           node --check dom-fallback.js
+          node --check learning/neuro-director.js
           node --check neural-tts/piper-bridge.js
           node --check neural-tts/piper-worker.js
           node --check offscreen.js

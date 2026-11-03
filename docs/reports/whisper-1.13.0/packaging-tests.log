@@ -1,0 +1,10 @@
+test_archive_extracts_with_all_manifest_html_and_runtime_dependencies (test_packaging.PackagingTests.test_archive_extracts_with_all_manifest_html_and_runtime_dependencies) ... ok
+test_rejects_missing_director_translation_and_shared_settings (test_packaging.PackagingTests.test_rejects_missing_director_translation_and_shared_settings) ... ok
+test_scripts_share_one_allowlist (test_packaging.PackagingTests.test_scripts_share_one_allowlist) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.902s
+
+OK
+Pacote determinístico criado: /tmp/tmpbsxs2pkt/sia-extension-1.13.0.zip
+Arquivos incluídos: 51

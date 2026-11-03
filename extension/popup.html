@@ -34,17 +34,20 @@
       <span>Verificando página atual…</span>
     </div>
 
+    <details class="advanced-settings platform-settings">
+      <summary>Plataforma e ativação por site</summary>
     <section class="section card platform-card" aria-labelledby="platform-title">
       <h2 id="platform-title" class="section-title"><span>00</span> Plataforma de base</h2>
-      <p class="section-description">Escolha o adaptador desta página antes de iniciar a leitura.</p>
+      <p class="section-description">Coursera, Udemy e AI Guru Academy são reconhecidos automaticamente. No YouTube, escolha a plataforma para ativar.</p>
       <label class="field" for="select-platform">
         <span>Plataforma</span>
         <select id="select-platform">
           <option value="off">Desativado nesta página</option>
-          <option value="auto">Automático — Coursera/Udemy</option>
+          <option value="auto">Automático — Coursera/Udemy/AI Guru</option>
           <option value="coursera">Coursera</option>
           <option value="udemy">Udemy</option>
           <option value="youtube">YouTube</option>
+          <option value="ai-guru">AI Guru Academy</option>
         </select>
       </label>
       <label class="platform-scope">
@@ -54,6 +57,8 @@
       <button id="apply-platform" class="button platform-apply" type="button">Aplicar nesta aba</button>
       <p id="platform-diagnostic" class="platform-diagnostic" role="status">Verificando plataforma atual…</p>
     </section>
+
+    </details>
 
     <section id="compact-summary" class="compact-summary" aria-label="Resumo das configurações">
       <div><span>Voz</span><strong id="summary-voice">Automática</strong></div>
@@ -76,7 +81,7 @@
         <select id="select-voice"><option value="">Carregando vozes…</option></select>
       </label>
       <label class="field" for="select-lang">
-        <span>Idioma das legendas</span>
+        <span>Idioma da leitura</span>
         <select id="select-lang">
           <option value="pt-BR">PT — Português (Brasil)</option>
           <option value="en-US">EN — Inglês (EUA)</option>
@@ -96,11 +101,6 @@
         <span class="slider-header"><span>Velocidade base</span><output id="label-speed">1.2x</output></span>
         <input type="range" id="input-speed" min="0.6" max="3.5" step="0.1" value="1.2">
         <span class="range-scale"><span>0.6x</span><span>3.5x</span></span>
-      </label>
-      <label class="slider-field" for="input-pitch">
-        <span class="slider-header"><span>Tom <em>(pitch)</em></span><output id="label-pitch">1.0</output></span>
-        <input type="range" id="input-pitch" min="0.5" max="1.5" step="0.1" value="1">
-        <span class="range-scale"><span>0.5</span><span>1.5</span></span>
       </label>
       <label class="slider-field" for="input-volume">
         <span class="slider-header"><span>Volume</span><output id="label-volume">100%</output></span>
@@ -131,13 +131,30 @@
             <span class="pill-desc">40% · Audível</span>
           </label>
         </div>
-        <small id="ducking-profile-hint" class="ducking-profile-hint">Foco Total (Dublagem Limpa): silencia 100% o vídeo durante a fala e restaura nas pausas.</small>
+        <small id="ducking-profile-hint" class="ducking-profile-hint">Foco Total (Dublagem Limpa): mantém o vídeo em silêncio durante a leitura, inclusive entre as frases.</small>
       </div>
+    </section>
+
+    <div class="actions">
+      <button id="replay-last" class="button recall" type="button">↺ Repetir última frase</button>
+      <button id="open-companion" class="button companion" type="button">Acompanhar aula e histórico</button>
+      <button id="test-voice" class="button primary" type="button">Testar voz</button>
+      <button id="reset-settings" class="button secondary" type="button">Restaurar padrões</button>
+    </div>
+
+    <details class="advanced-settings">
+      <summary>Áudio avançado e sincronização</summary>
+      <div class="card">
+      <label class="slider-field" for="input-pitch">
+        <span class="slider-header"><span>Tom <em>(pitch)</em></span><output id="label-pitch">1.0</output></span>
+        <input type="range" id="input-pitch" min="0.5" max="1.5" step="0.1" value="1">
+        <span class="range-scale"><span>0.5</span><span>1.5</span></span>
+      </label>
       <label class="platform-scope translation-toggle" style="margin-top: 14px;">
         <input id="spatial-audio" type="checkbox" checked>
-        <span>Áudio Espacial 3D (Binaural HRTF) 🎧</span>
+        <span>Posição espacial da voz neural 🎧</span>
       </label>
-      <small>Posiciona a voz da S·IA no espaço 3D para evitar cansaço auditivo e separar a fala do vídeo.</small>
+      <small>Disponível com voz neural Piper. Usa diferenças de volume e atraso entre canais. Não altera a posição do áudio do vídeo.</small>
       <div id="spatial-profiles-container" class="ducking-profiles">
         <span class="ducking-profiles-title">Palco Sonoro Tridimensional</span>
         <div class="ducking-profile-options" role="radiogroup" aria-label="Perfil do palco sonoro 3D">
@@ -159,8 +176,7 @@
         </div>
         <small id="spatial-profile-hint" class="ducking-profile-hint">Palco Frontal: voz alinhada diretamente com a tela da aula, com profundidade 3D natural.</small>
       </div>
-    </section>
-
+      </div>
     <section class="section card" aria-labelledby="sync-title">
       <h2 id="sync-title" class="section-title"><span>03</span> Comportamento de sincronia</h2>
       <p class="section-description">Quando a legenda for extensa</p>
@@ -178,19 +194,16 @@
       </div>
     </section>
 
-    <div class="actions">
-      <button id="replay-last" class="button recall" type="button">↺ Repetir última frase</button>
-      <button id="open-companion" class="button companion" type="button">Abrir S·IA Companion</button>
-      <button id="test-voice" class="button primary" type="button">Testar voz</button>
-      <button id="reset-settings" class="button secondary" type="button">Restaurar padrões</button>
-    </div>
+    </details>
 
     <footer class="footer">
       <span id="save-feedback" class="save-feedback" aria-live="polite">Configurações salvas</span>
       <span id="version-label">Versão carregada</span>
     </footer>
   </main>
+  <script src="audio-settings.js"></script>
   <script src="platform-selection.js"></script>
   <script src="popup.js"></script>
+  <script src="whisper/popup.js"></script>
 </body>
 </html>

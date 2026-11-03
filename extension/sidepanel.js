@@ -687,7 +687,6 @@
   const spatialUi = {
     radar: document.getElementById("spatial-radar"),
     puck: document.getElementById("spatial-puck"),
-    puckVideo: document.getElementById("spatial-puck-video"),
     btnNeuroDirector: document.getElementById("btn-neuro-director"),
     neuroDirectorLabel: document.getElementById("neuro-director-label"),
     neuroInsightCard: document.getElementById("neuro-insight-card"),
@@ -719,13 +718,10 @@
 
   let currentAngle = 0;
   let currentDistance = 1.0;
-  let currentVideoAngle = -25;
-  let currentVideoDistance = 1.5;
   let currentDucking = 0;
   let isDraggingPuck = false;
-  let isDraggingVideoPuck = false;
-  let isNeuroDirectorActive = true;
-  let activeNeuroPreset = "onu";
+  let isNeuroDirectorActive = false;
+  let activeNeuroPreset = "stage";
 
   function updateSpatialPosition(angle, distance, persist = true) {
     let deg = Math.round(Number(angle) || 0);
@@ -770,10 +766,10 @@
     if (spatialUi.distValue) spatialUi.distValue.textContent = `${currentDistance.toFixed(1)} m`;
 
     spatialUi.presetButtons.forEach(btn => {
-      const bAngle = Number(btn.dataset.angle);
-      const bDist = Number(btn.dataset.dist);
-      const match = Math.abs(bAngle - currentAngle) <= 5 && Math.abs(bDist - currentDistance) <= 0.2;
+      const p = globalThis.SiaAudioSettings.profiles[btn.dataset.preset];
+      const match = Boolean(p && Math.abs(p.angle - currentAngle) < 0.1 && Math.abs(p.distance - currentDistance) < 0.01);
       btn.classList.toggle("active", match);
+      btn.setAttribute?.("aria-pressed", String(match));
     });
 
     if (persist) {
@@ -781,61 +777,33 @@
         chrome?.storage?.local?.set?.({
           sia_spatial_angle: currentAngle,
           sia_spatial_distance: currentDistance,
-          sia_voice_engine: "piper-local",
+          sia_spatial_profile: "custom",
+          sia_neuro_director_active: false,
         });
       } catch {}
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_angle", value: currentAngle });
       void send({ type: "SIA_CONFIG_UPDATE", key: "sia_spatial_distance", value: currentDistance });
-      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_voice_engine", value: "piper-local" });
-    }
-  }
-
-  function updateVideoSpatialPosition(angle, distance, persist = true) {
-    let deg = Math.round(Number(angle) || 0);
-    while (deg > 180) deg -= 360;
-    while (deg < -180) deg += 360;
-    currentVideoAngle = deg;
-    currentVideoDistance = Math.max(0.3, Math.min(2.5, Math.round((Number(distance) || 1.0) * 10) / 10));
-
-    if (spatialUi.puckVideo) {
-      const rPct = Math.min(45, (currentVideoDistance / 2.0) * 44);
-      const rad = (currentVideoAngle * Math.PI) / 180;
-      const leftPct = 50 + rPct * Math.sin(rad);
-      const topPct = 50 - rPct * Math.cos(rad);
-      spatialUi.puckVideo.style.left = `${leftPct}%`;
-      spatialUi.puckVideo.style.top = `${topPct}%`;
-    }
-
-    updateSpatialBadgeText();
-
-    if (persist) {
-      try {
-        chrome?.storage?.local?.set?.({
-          sia_video_angle: currentVideoAngle,
-          sia_video_distance: currentVideoDistance,
-        });
-      } catch {}
-      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_video_angle", value: currentVideoAngle });
-      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_video_distance", value: currentVideoDistance });
+      setNeuroDirectorState(false, false);
+      void send({ type: "SIA_CONFIG_UPDATE", key: "sia_neuro_director_active", value: false });
     }
   }
 
   function updateSpatialBadgeText() {
-    if (spatialUi.posBadge) {
-      const siaDir = currentAngle >= 0 ? `+${currentAngle}°` : `${currentAngle}°`;
-      const vidDir = currentVideoAngle >= 0 ? `+${currentVideoAngle}°` : `${currentVideoAngle}°`;
-      spatialUi.posBadge.title = `S·IA ${siaDir} · Vídeo ${vidDir}`;
-    }
+    if (spatialUi.posBadge) spatialUi.posBadge.title = `Voz S·IA: ${currentAngle}°, ${currentDistance.toFixed(1)} m`;
+    spatialUi.puck?.setAttribute?.("aria-valuenow", String(currentAngle));
+    spatialUi.puck?.setAttribute?.("aria-valuetext", `${currentAngle} graus, ${currentDistance.toFixed(1)} metro`);
   }
 
   function setNeuroDirectorState(active, persist = true) {
     isNeuroDirectorActive = Boolean(active);
     if (spatialUi.btnNeuroDirector) {
       spatialUi.btnNeuroDirector.classList.toggle("active", isNeuroDirectorActive);
+      spatialUi.btnNeuroDirector.setAttribute?.("aria-pressed", String(isNeuroDirectorActive));
     }
     if (spatialUi.neuroDirectorLabel) {
-      spatialUi.neuroDirectorLabel.textContent = isNeuroDirectorActive ? "Diretor IA Ativo" : "Modo Manual";
+      spatialUi.neuroDirectorLabel.textContent = isNeuroDirectorActive ? "Automático por regras" : "Modo Manual";
     }
+    if (!isNeuroDirectorActive && spatialUi.neuroStateBadge) spatialUi.neuroStateBadge.textContent = "MODO MANUAL";
     if (persist) {
       try {
         chrome?.storage?.local?.set?.({ sia_neuro_director_active: isNeuroDirectorActive });
@@ -849,16 +817,13 @@
     if (stage.sia) {
       updateSpatialPosition(stage.sia.angle, stage.sia.distance, persist);
     }
-    if (stage.video) {
-      updateVideoSpatialPosition(stage.video.angle, stage.video.distance, persist);
-    }
     if (spatialUi.neuroStateBadge && stage.state) {
       const stateLabels = {
         vip_focus: "FOCO VIP ATIVO",
         ambient_relax: "PALCO AMBIENTE",
-        balanced_cognitive: "SEPARAÇÃO ÁUREA",
+        balanced_cognitive: "POSIÇÃO BASE",
       };
-      spatialUi.neuroStateBadge.textContent = stateLabels[stage.state] || "SEPARAÇÃO ÁUREA";
+      spatialUi.neuroStateBadge.textContent = stateLabels[stage.state] || "POSIÇÃO BASE";
     }
     if (spatialUi.neuroInsightText && stage.insight) {
       spatialUi.neuroInsightText.textContent = stage.insight;
@@ -878,11 +843,12 @@
     spatialUi.duckingButtons.forEach(btn => {
       const val = Number(btn.dataset.ducking);
       btn.classList.toggle("active", val === currentDucking);
+      btn.setAttribute?.("aria-pressed", String(val === currentDucking));
     });
 
     if (spatialUi.duckingModeStatus) {
       if (currentDucking === 0) {
-        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo durante fala)";
+        spatialUi.duckingModeStatus.textContent = "Foco Total (vídeo mudo também nos intervalos)";
       } else if (currentDucking <= 20) {
         spatialUi.duckingModeStatus.textContent = `Fundo Suave (${currentDucking}% vídeo durante fala)`;
       } else {
@@ -943,52 +909,16 @@
     spatialUi.puck.addEventListener("pointerup", finishDrag);
     spatialUi.puck.addEventListener("pointercancel", finishDrag);
 
-    function handleVideoPointerCoord(clientX, clientY) {
-      const rect = spatialUi.radar.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const dx = clientX - centerX;
-      const dy = clientY - centerY;
-
-      const distPx = Math.sqrt(dx * dx + dy * dy);
-      const maxR = rect.width * 0.44;
-      const normDist = Math.max(0.15, Math.min(1.25, distPx / maxR));
-      const dist = Math.round(normDist * 2.0 * 10) / 10;
-
-      const angleRad = Math.atan2(dx, -dy);
-      let angleDeg = Math.round((angleRad * 180) / Math.PI);
-      angleDeg = Math.max(-180, Math.min(180, angleDeg));
-
-      updateVideoSpatialPosition(angleDeg, dist, true);
-    }
-
-    if (spatialUi.puckVideo) {
-      spatialUi.puckVideo.addEventListener("pointerdown", e => {
-        isDraggingVideoPuck = true;
-        spatialUi.puckVideo.classList.add("is-dragging");
-        try { spatialUi.puckVideo.setPointerCapture?.(e.pointerId); } catch {}
+    spatialUi.puck.addEventListener("keydown", e => {
+      const steps = { ArrowLeft: -5, ArrowRight: 5 };
+      if (steps[e.key] !== undefined) {
         e.preventDefault();
-      });
-
-      spatialUi.puckVideo.addEventListener("pointermove", e => {
-        if (!isDraggingVideoPuck) return;
-        handleVideoPointerCoord(e.clientX, e.clientY);
-      });
-
-      const finishVideoDrag = e => {
-        if (!isDraggingVideoPuck) return;
-        isDraggingVideoPuck = false;
-        spatialUi.puckVideo.classList.remove("is-dragging");
-        try { spatialUi.puckVideo.releasePointerCapture?.(e.pointerId); } catch {}
-      };
-
-      spatialUi.puckVideo.addEventListener("pointerup", finishVideoDrag);
-      spatialUi.puckVideo.addEventListener("pointercancel", finishVideoDrag);
-    }
+        updateSpatialPosition(currentAngle + steps[e.key], currentDistance, true);
+      }
+    });
 
     spatialUi.radar.addEventListener("click", e => {
       if (e.target === spatialUi.puck || spatialUi.puck.contains(e.target)) return;
-      if (spatialUi.puckVideo && (e.target === spatialUi.puckVideo || spatialUi.puckVideo.contains(e.target))) return;
       handlePointerCoord(e.clientX, e.clientY);
     });
 
@@ -1000,7 +930,7 @@
             activePreset: activeNeuroPreset,
             isDirectorEnabled: true,
           });
-          applyNeuroStageRecommendation(stage, true);
+          applyNeuroStageRecommendation(stage, false);
         }
       });
     }
@@ -1008,21 +938,12 @@
     spatialUi.presetButtons.forEach(btn => {
       btn.addEventListener("click", () => {
         const presetKey = btn.dataset.preset;
-        if (presetKey && globalThis.SiaNeuroDirector?.PRESETS?.[presetKey]) {
-          const p = globalThis.SiaNeuroDirector.PRESETS[presetKey];
-          activeNeuroPreset = presetKey;
-          applyNeuroStageRecommendation({
-            state: "balanced_cognitive",
-            presetId: presetKey,
-            sia: p.sia,
-            video: p.video,
-            insight: p.insight,
-          }, true);
-        } else {
-          const angle = Number(btn.dataset.angle);
-          const dist = Number(btn.dataset.dist);
-          updateSpatialPosition(angle, dist, true);
-        }
+        const profile = globalThis.SiaAudioSettings.profiles[presetKey];
+        if (!profile) return;
+        updateSpatialPosition(profile.angle, profile.distance, true);
+        activeNeuroPreset = presetKey;
+        try { chrome.storage.local.set({ sia_spatial_profile: presetKey, sia_neuro_preset: presetKey }); } catch {}
+        void send({ type: "SIA_CONFIG_UPDATE", key: "sia_neuro_preset", value: presetKey });
       });
     });
 
@@ -1050,8 +971,6 @@
         if (spatialUi.testStatus) spatialUi.testStatus.textContent = "Sintetizando e tocando no fone de ouvido...";
 
         try {
-          await send({ type: "SIA_PRIME_NEURAL_AUDIO" }).catch(() => {});
-
           const res = await send({
             type: "SIA_TEST_SPATIAL_AUDIO",
             angle: currentAngle,
@@ -1060,7 +979,7 @@
 
           if (spatialUi.testStatus) {
             if (res?.ok) {
-              spatialUi.testStatus.textContent = "✓ Posição confirmada no fone de ouvido!";
+              spatialUi.testStatus.textContent = "✓ Reprodução iniciada. Confira a posição ouvindo nos fones.";
             } else {
               spatialUi.testStatus.textContent = res?.message || "Abra uma aula com a S·IA ativa para testar.";
             }
@@ -1086,7 +1005,7 @@
         if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "none";
         if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "flex";
         if (spatialUi.calibBadge) {
-          spatialUi.calibBadge.textContent = "Calibrado ✓";
+          spatialUi.calibBadge.textContent = "Canais confirmados ✓";
           spatialUi.calibBadge.classList.add("calibrated");
         }
       } else if (state === false) {
@@ -1094,7 +1013,7 @@
         if (spatialUi.calibSuccessBox) spatialUi.calibSuccessBox.style.display = "none";
         if (spatialUi.monoDetectedCard) spatialUi.monoDetectedCard.style.display = "grid";
         if (spatialUi.calibBadge) {
-          spatialUi.calibBadge.textContent = "Mono detectado ⚠️";
+          spatialUi.calibBadge.textContent = "Verificar canais ⚠️";
           spatialUi.calibBadge.classList.remove("calibrated");
         }
       } else {
@@ -1172,7 +1091,7 @@
         } catch {}
         setCalibrationState(true);
         if (spatialUi.testStatus) {
-          spatialUi.testStatus.textContent = "✓ Calibração confirmada! Som 3D ativo na aula.";
+          spatialUi.testStatus.textContent = "✓ Você confirmou os canais separados.";
           setTimeout(() => { if (spatialUi.testStatus) spatialUi.testStatus.textContent = ""; }, 4000);
         }
       });
@@ -1185,7 +1104,7 @@
         } catch {}
         setCalibrationState(false);
         if (spatialUi.testStatus) {
-          spatialUi.testStatus.textContent = "⚠️ Áudio Mono detectado no Windows.";
+          spatialUi.testStatus.textContent = "⚠️ Confira o áudio mono do sistema e o dispositivo de saída.";
         }
       });
     }
@@ -1237,72 +1156,25 @@
       });
     }
 
-    try {
-      chrome?.storage?.local?.get?.(
-        ["sia_spatial_angle", "sia_spatial_distance", "sia_video_angle", "sia_video_distance", "sia_ducking_level", "sia_stereo_calibrated", "sia_neuro_director_active", "sia_neuro_preset"],
-        res => {
-          const directorActive = res?.sia_neuro_director_active !== undefined ? Boolean(res.sia_neuro_director_active) : true;
-          setNeuroDirectorState(directorActive, false);
-
-          if (res?.sia_neuro_preset) {
-            activeNeuroPreset = res.sia_neuro_preset;
-          }
-
-          if (res?.sia_spatial_angle !== undefined || res?.sia_spatial_distance !== undefined) {
-            const angle = res.sia_spatial_angle !== undefined ? Number(res.sia_spatial_angle) : 25;
-            const dist = res.sia_spatial_distance !== undefined ? Number(res.sia_spatial_distance) : 0.8;
-            updateSpatialPosition(angle, dist, false);
-          } else {
-            updateSpatialPosition(25, 0.8, false);
-          }
-
-          if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
-            const vAngle = res.sia_video_angle !== undefined ? Number(res.sia_video_angle) : -25;
-            const vDist = res.sia_video_distance !== undefined ? Number(res.sia_video_distance) : 1.5;
-            updateVideoSpatialPosition(vAngle, vDist, false);
-          } else {
-            updateVideoSpatialPosition(-25, 1.5, false);
-          }
-
-          if (globalThis.SiaNeuroDirector?.PRESETS?.[activeNeuroPreset] && spatialUi.neuroInsightText) {
-            const p = globalThis.SiaNeuroDirector.PRESETS[activeNeuroPreset];
-            spatialUi.neuroInsightText.textContent = p.insight;
-          }
-
-          if (res?.sia_video_angle !== undefined || res?.sia_video_distance !== undefined) {
-            const vAngle = res.sia_video_angle !== undefined ? Number(res.sia_video_angle) : -25;
-            const vDist = res.sia_video_distance !== undefined ? Number(res.sia_video_distance) : 1.5;
-            updateVideoSpatialPosition(vAngle, vDist, false);
-          } else {
-            updateVideoSpatialPosition(-25, 1.5, false);
-          }
-
-          if (globalThis.SiaNeuroDirector?.PRESETS?.[activeNeuroPreset] && spatialUi.neuroInsightText) {
-            const p = globalThis.SiaNeuroDirector.PRESETS[activeNeuroPreset];
-            spatialUi.neuroInsightText.textContent = p.insight;
-          }
-
-          if (res?.sia_ducking_level !== undefined) {
-            updateDuckingUI(Number(res.sia_ducking_level), false);
-          } else {
-            updateDuckingUI(0, false);
-          }
-
-          if (res?.sia_stereo_calibrated === true) {
-            setCalibrationState(true);
-          } else if (res?.sia_stereo_calibrated === false) {
-            setCalibrationState(false);
-          } else {
-            setCalibrationState(null);
-          }
-        }
-      );
-    } catch {
-      updateSpatialPosition(0, 1.0, false);
-      updateVideoSpatialPosition(-25, 1.5, false);
-      updateDuckingUI(0, false);
-      setCalibrationState(null);
+    function restoreSpatialSettings(res = {}) {
+      const defaults = globalThis.SiaAudioSettings.defaults;
+      setNeuroDirectorState(res.sia_neuro_director_active ?? defaults.sia_neuro_director_active, false);
+      activeNeuroPreset = res.sia_neuro_preset || defaults.sia_neuro_preset;
+      const profile = globalThis.SiaAudioSettings.profileFor(res.sia_spatial_profile || defaults.sia_spatial_profile);
+      updateSpatialPosition(res.sia_spatial_angle ?? profile.angle, res.sia_spatial_distance ?? profile.distance, false);
+      const level = Number(res.sia_ducking_level ?? 0);
+      updateDuckingUI(level <= 1 ? level * 100 : level, false);
+      setCalibrationState(res.sia_stereo_calibrated ?? null);
+      if (spatialUi.neuroInsightText && !isNeuroDirectorActive) {
+        spatialUi.neuroInsightText.textContent = "Modo manual: sua posição fica fixa. O vídeo mantém a posição original.";
+      }
     }
+    const keys = [...Object.keys(globalThis.SiaAudioSettings.defaults), "sia_ducking_level", "sia_stereo_calibrated"];
+    const restore = () => chrome?.storage?.local?.get?.(keys, restoreSpatialSettings);
+    try { restore(); } catch { restoreSpatialSettings(); }
+    chrome?.storage?.onChanged?.addListener?.((changes, area) => {
+      if (area === "local" && keys.some(key => key in changes)) restore();
+    });
   }
 
   setupSpatialControls();

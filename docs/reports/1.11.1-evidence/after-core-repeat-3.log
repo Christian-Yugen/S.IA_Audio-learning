@@ -1,0 +1,90 @@
+TAP version 13
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# S.IA: entrada de cues externas ativa.
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-enfileirada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# [S·IA diagnóstico] {
+#   evento: 'fala-neural-iniciada',
+#   tempoVideo: 10.5,
+#   texto: 'Importante esta definição é fundamental',
+#   speaking: false,
+#   pending: false,
+#   paused: false,
+#   falaAtual: false,
+#   falaEnfileirada: true,
+#   reserva: false,
+#   voiceEngine: 'piper-local',
+#   voiceEngineState: 'ready'
+# }
+# Subtest: regressão 1.11.1: ajustar posição não troca navegador por Piper
+ok 1 - regressão 1.11.1: ajustar posição não troca navegador por Piper
+  ---
+  duration_ms: 8.699202
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha
+ok 2 - regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha
+  ---
+  duration_ms: 1.230927
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: modo automático respeita áudio espacial desligado
+ok 3 - regressão 1.11.1: modo automático respeita áudio espacial desligado
+  ---
+  duration_ms: 3.634143
+  type: 'test'
+  ...
+# Subtest: regressão 1.11.1: automático ajusta a voz quando explicitamente ligado
+ok 4 - regressão 1.11.1: automático ajusta a voz quando explicitamente ligado
+  ---
+  duration_ms: 13.86903
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 115.557968

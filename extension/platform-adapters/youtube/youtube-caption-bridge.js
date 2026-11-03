@@ -81,7 +81,8 @@
     try {
       const url = new URL(preferred.baseUrl, location.origin);
       url.searchParams.set('fmt', 'json3');
-      if (!/^pt(?:[-_]|$)/i.test(String(preferred.languageCode || ''))) {
+      const originalUrl = url.toString();
+      if (preferred.isTranslatable !== false && !/^pt(?:[-_]|$)/i.test(String(preferred.languageCode || ''))) {
         url.searchParams.set('tlang', TARGET_LANGUAGE);
       }
       return {
@@ -91,6 +92,7 @@
         trackKey: String(preferred.vssId || preferred.baseUrl || ''),
         source,
         url: url.toString(),
+        originalUrl,
       };
     } catch {
       return null;
@@ -99,6 +101,10 @@
 
   function responseCandidates() {
     const candidates = [];
+    try {
+      const response = document.getElementById('movie_player')?.getPlayerResponse?.();
+      if (response && typeof response === 'object') candidates.push(response);
+    } catch { /* Player may be rebuilding during navigation. */ }
     if (window.ytInitialPlayerResponse && typeof window.ytInitialPlayerResponse === 'object') {
       candidates.push(window.ytInitialPlayerResponse);
     }
@@ -118,6 +124,7 @@
   function findWebCaptionTrack() {
     const videoId = extractVideoId();
     for (const response of responseCandidates()) {
+      if (response.videoDetails?.videoId && response.videoDetails.videoId !== videoId) continue;
       const track = preferredTrack(responseTracks(response), videoId, 'youtube-web');
       if (track) return track;
     }
@@ -216,10 +223,21 @@
       source: track.source,
     });
     try {
-      const response = await fetch(track.url, { credentials: 'same-origin', cache: 'no-store' });
-      if (!response.ok) throw new Error(`timedtext-http-${response.status}`);
-      const cues = globalThis.SiaYoutubeCaptionParser.parse(await response.text());
-      if (!Array.isArray(cues) || !cues.length) throw new Error('timedtext-empty');
+      let cues;
+      let usedOriginal = false;
+      const urls = [...new Set([track.url, track.originalUrl].filter(Boolean))];
+      for (let index = 0; index < urls.length; index += 1) {
+        try {
+          const response = await fetch(urls[index], { credentials: 'same-origin', cache: 'no-store' });
+          if (!response.ok) throw new Error(`timedtext-http-${response.status}`);
+          cues = globalThis.SiaYoutubeCaptionParser.parse(await response.text());
+          if (!Array.isArray(cues) || !cues.length) throw new Error('timedtext-empty');
+          usedOriginal = index > 0;
+          break;
+        } catch (error) {
+          if (index === urls.length - 1 || String(error?.message).includes('429')) throw error;
+        }
+      }
       if (activeKey !== requestKey || extractVideoId() !== track.videoId) return;
       deliveredKey = requestKey;
       timedtextRetryAt = 0;
@@ -227,7 +245,7 @@
         type: SNAPSHOT_EVENT,
         videoId: track.videoId,
         trackKey: activeKey,
-        languageCode: track.languageCode,
+        languageCode: usedOriginal ? track.languageCode : (new URL(track.url).searchParams.get('tlang') || track.languageCode),
         source: 'youtube-timedtext',
         sourceConfidence: 'high',
         cues,

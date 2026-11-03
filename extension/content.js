@@ -25,13 +25,15 @@
     const MOTOR_APRENDIZAGEM = globalThis.SiaLearningEngine || null;
     const MOTOR_TRADUCAO = globalThis.SiaTranslationEngine?.create?.() || null;
     const MOTOR_NEURO = globalThis.SiaNeuroDirector || null;
-    const PLATAFORMA_EXTERNA = ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
-    const PLATAFORMA_EXTERNA_ID = location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
+    const PLATAFORMA_AI_GURU = ["www.ai-guru-academy.com", "ai-guru-academy.com"].includes(location.hostname.toLowerCase());
+    const PLATAFORMA_EXTERNA = PLATAFORMA_AI_GURU || ["www.udemy.com", "www.youtube.com", "m.youtube.com", "youtube.com"].includes(location.hostname.toLowerCase());
+    const PLATAFORMA_EXTERNA_ID = PLATAFORMA_AI_GURU ? "ai-guru" : location.hostname.toLowerCase().includes("youtube") ? "youtube" : "udemy";
     const PLATAFORMA_APRENDIZAGEM_ID = PLATAFORMA_EXTERNA ? PLATAFORMA_EXTERNA_ID : "coursera";
     let plataformaAtiva = true;
     let traducaoInglesAtiva = false;
-    let neuroDirectorAtivo = true;
-    let activeNeuroPreset = "onu";
+    let neuroDirectorAtivo = false;
+    let audioEspacialAtivo = true;
+    let activeNeuroPreset = "stage";
     let geracaoTraducao = 0;
     let ultimoErroTraducao = "";
     let ultimaPreTraducaoEm = 0;
@@ -44,6 +46,7 @@
     let duckingAnimId = null;
     let duckingHoldTimer = null;
     let duckingEmAndamento = false;
+    let narracaoIniciadaParaFoco = false;
 
     const requestAnimFrame = typeof requestAnimationFrame === "function"
         ? requestAnimationFrame
@@ -100,6 +103,13 @@
         } catch {}
     }
 
+    function obterMidiaDaPagina() {
+        if (PLATAFORMA_AI_GURU) {
+            return globalThis.SiaAiGuruHost?.getMedia?.() || document.querySelector("video");
+        }
+        return document.querySelector("video");
+    }
+
     function obterVideoParaDucking() {
         if (videoMonitorado) {
             if (typeof videoMonitorado.isConnected !== "boolean" || videoMonitorado.isConnected) {
@@ -107,7 +117,7 @@
             }
         }
         if (typeof document !== "undefined" && typeof document.querySelector === "function") {
-            const video = document.querySelector("video");
+            const video = obterMidiaDaPagina();
             if (video) {
                 videoMonitorado = video;
                 if (!video._siaAudioPrimed) {
@@ -130,6 +140,7 @@
             duckingHoldTimer = null;
         }
         duckingEmAndamento = true;
+        narracaoIniciadaParaFoco = true;
         if (volumeBaseVideo === null) {
             volumeBaseVideo = video.volume;
         }
@@ -139,7 +150,16 @@
             video.addEventListener("seeking", restaurarDuckingImediato);
         }
         const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 40 : 100);
+        rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 0 : 100);
+    }
+
+    function aplicarFocoTotal() {
+        if (!narracaoIniciadaParaFoco || !extensaoAtiva || !duckingAtivo || duckingNivel !== 0) return;
+        const video = obterVideoParaDucking();
+        if (!video || video.paused || video.ended) return;
+        const estavaFalando = duckingEmAndamento;
+        iniciarDucking();
+        duckingEmAndamento = estavaFalando;
     }
 
     function agendarRestauracaoDucking() {
@@ -147,6 +167,8 @@
         const video = obterVideoParaDucking();
         if (!video || volumeBaseVideo === null) return;
         duckingEmAndamento = false;
+        // Foco Total preserva o silêncio também nos intervalos da narração.
+        if (duckingNivel === 0 && extensaoAtiva && !video.paused && !video.ended) return;
         if (duckingHoldTimer) {
             clearTimeout(duckingHoldTimer);
             duckingHoldTimer = null;
@@ -174,6 +196,7 @@
     }
 
     function restaurarDuckingImediato() {
+        narracaoIniciadaParaFoco = false;
         duckingEmAndamento = false;
         if (duckingHoldTimer) {
             clearTimeout(duckingHoldTimer);
@@ -344,6 +367,7 @@
 
     function videoIdParaEstudo() {
         try {
+            if (PLATAFORMA_AI_GURU) return location.pathname.split("/").filter(Boolean).at(-1) || "";
             return new URL(location.href).searchParams.get("v") || "";
         } catch {
             return "";
@@ -374,7 +398,7 @@
 
     function emitirEventoH5(fase, registro, error = "") {
         const contexto = registro?.contexto || {};
-        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption", "YT-temporal-caption-aggregated"].includes(contexto.gate)) return;
+        if (!["H5-native-udemy-texttrack", "H6-shared-udemy-texttrack", "H7-shaka-temporal-caption", "YT-temporal-caption-aggregated", "AI-GURU-temporal-caption"].includes(contexto.gate)) return;
         if (typeof globalThis.dispatchEvent !== "function" || typeof globalThis.CustomEvent !== "function") return;
         try {
             globalThis.dispatchEvent(new globalThis.CustomEvent("SIA_H5_NATIVE_SPEECH", {
@@ -1143,7 +1167,7 @@
             fim: Number.isFinite(fim) && fim > 0 ? fim : Number(video?.currentTime) || 0,
             url: location.href,
             titulo: document.title,
-            curso: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || "coursera",
+            curso: location.pathname.match(/\/learn\/([^/]+)/)?.[1] || (PLATAFORMA_AI_GURU ? "ai-guru" : "coursera"),
             criadoEm: Date.now(),
             favorito: false,
             nota: ""
@@ -1214,7 +1238,7 @@
 
     function repetirMarcacaoEstudo(id = "") {
         const mark = marcacoesEstudo.find(item => item.id === id);
-        const video = document.querySelector("video");
+        const video = obterMidiaDaPagina();
         if (!mark || !video) return false;
         interromperFala();
         ultimoTextoDetectado = "";
@@ -1279,7 +1303,7 @@
     }
 
     function repetirTranscricaoNoVideo() {
-        const video = document.querySelector("video");
+        const video = obterMidiaDaPagina();
         const trechos = obterTrechosTemporaisSegurosDaTranscricao();
         const primeiro = trechos[0];
         const ultimo = trechos.at(-1);
@@ -1381,7 +1405,7 @@
         const entrada = id
             ? historicoFrases.find(item => item.id === id)
             : historicoFrases.at(-1);
-        const video = document.querySelector("video");
+        const video = obterMidiaDaPagina();
         if (!entrada || !video) return false;
 
         interromperFala();
@@ -1544,7 +1568,7 @@
     }
 
     function aplicarDiretorCognitivoSeAtivo(texto) {
-        if (!MOTOR_NEURO || !neuroDirectorAtivo) return;
+        if (!MOTOR_NEURO || !neuroDirectorAtivo || !audioEspacialAtivo || !globalThis.SiaPiperVoice?.isActive?.()) return;
         try {
             const stage = MOTOR_NEURO.getRecommendedStage(texto, {
                 activePreset: activeNeuroPreset,
@@ -1552,7 +1576,7 @@
             });
             if (stage) {
                 if (globalThis.SiaPiperVoice?.morphSpatialPosition && stage.sia) {
-                    globalThis.SiaPiperVoice.morphSpatialPosition(stage.sia.angle, stage.sia.distance, true, stage.durationMs);
+                    globalThis.SiaPiperVoice.morphSpatialPosition(stage.sia.angle, stage.sia.distance, audioEspacialAtivo, stage.durationMs);
                 }
                 notificarPalcoNeuro(stage);
             }
@@ -1668,7 +1692,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
-            agendarRestauracaoDucking();
+            restaurarDuckingImediato();
             notificarEstadoFala(false);
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
@@ -1822,7 +1846,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
-            agendarRestauracaoDucking();
+            restaurarDuckingImediato();
             notificarEstadoFala(false);
             registrarDiagnostico("fala-neural-erro", registro.texto);
             ultimoErroSintese = evento?.error || "piper-error";
@@ -2080,10 +2104,12 @@
             return false;
         }
 
-        const video = document.querySelector("video");
+        const video = obterMidiaDaPagina();
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
-        precacheTraducoesFuturas(video, Number(cue.endTime));
+        const legendaWhisperEmPortugues = globalThis.SiaYoutubeWhisper?.language?.() === "pt";
+        const legendaAiGuruEmPortugues = PLATAFORMA_AI_GURU && /^pt(?:-|$)/i.test(globalThis.SiaAiGuruHost?.getCaptionLanguage?.() || "en");
+        if (!legendaAiGuruEmPortugues) precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
         if (video.currentTime > Number(cue.endTime) + 0.35) return false;
         if (video.currentTime + 0.35 < Number(cue.startTime)) return false;
@@ -2096,7 +2122,7 @@
         coberturaLegendaAte = Number(cue.endTime);
         const usarPiper = globalThis.SiaPiperVoice?.isActive?.() === true;
         const voiceEngine = usarPiper ? "piper-local" : "browser";
-        const gate = cue.source === "shaka-caption"
+        const gate = PLATAFORMA_AI_GURU ? "AI-GURU-temporal-caption" : cue.source === "shaka-caption"
             ? "H7-shaka-temporal-caption"
             : "H6-shared-udemy-texttrack";
         emitirEventoH5("requested", {
@@ -2117,6 +2143,7 @@
             sentencaAntecipada: false,
             source: cue.source,
             sourceConfidence: cue.sourceConfidence,
+            naoTraduzir: legendaAiGuruEmPortugues || legendaWhisperEmPortugues,
             playerIdentity: cue.playerIdentity,
             nativeOnly: !usarPiper,
             voiceEngine,
@@ -2132,6 +2159,14 @@
 
         removerEntradaDeCaption();
         removerEntradaDeCaption = input.subscribe(evento => {
+            if ([input.EVENTS?.PAUSED, input.EVENTS?.PLAYER_CHANGED, input.EVENTS?.DESTROYED].includes(evento?.type)) {
+                restaurarDuckingImediato();
+            }
+            if (PLATAFORMA_AI_GURU && [input.EVENTS?.PAUSED, input.EVENTS?.PLAYER_CHANGED].includes(evento?.type)) {
+                interromperFala();
+                ultimoTextoDetectado = "";
+                textoCandidato = "";
+            }
             if (evento?.type !== input.EVENTS?.ACCEPTED) return;
             processarCueExterna(evento.cue);
         });
@@ -2170,7 +2205,7 @@
     function observarLegenda() {
         if (!extensaoAtiva) return;
 
-        const video = document.querySelector("video");
+        const video = obterMidiaDaPagina();
 
         if (!video) {
             if (videoMonitorado) interromperFala();
@@ -2292,7 +2327,7 @@
             case "sia_enabled":
                 extensaoAtiva = Boolean(valor);
                 if (!extensaoAtiva) interromperFala();
-                if (extensaoAtiva) sinteseBloqueada = false;
+                if (extensaoAtiva) { sinteseBloqueada = false; aplicarFocoTotal(); }
                 break;
             case "sia_voice":
                 vozSelecionada = String(valor || "");
@@ -2336,25 +2371,27 @@
                 ultimaPreTraducaoEm = 0;
                 if (traducaoInglesAtiva) {
                     void MOTOR_TRADUCAO?.prepare?.({ sourceLanguage: "en", targetLanguage: "pt-BR" });
-                    precacheTraducoesFuturas(document.querySelector("video"));
+                    precacheTraducoesFuturas(obterMidiaDaPagina());
                 }
                 break;
             case "sia_ducking":
                 duckingAtivo = Boolean(valor);
                 if (!duckingAtivo) {
                     restaurarDuckingImediato();
-                }
+                } else aplicarFocoTotal();
                 break;
             case "sia_ducking_level": {
                 const parsed = Number(valor);
                 if (Number.isFinite(parsed)) {
                     const norm = parsed > 1 ? parsed / 100 : parsed;
                     duckingNivel = Math.max(0, Math.min(1, norm));
+                    if (duckingNivel === 0) aplicarFocoTotal();
+                    else if (!duckingEmAndamento && volumeBaseVideo !== null) restaurarDuckingImediato();
                     if (duckingEmAndamento && volumeBaseVideo !== null) {
                         const video = obterVideoParaDucking();
                         if (video) {
                             const volumeAlvo = Math.max(0, Math.min(volumeBaseVideo, volumeBaseVideo * duckingNivel));
-                            rampaVolumeVideo(video, volumeAlvo, 80);
+                            rampaVolumeVideo(video, volumeAlvo, volumeAlvo === 0 ? 0 : 80);
                         }
                     }
                 }
@@ -2364,6 +2401,7 @@
             case "sia_spatial_profile":
             case "sia_spatial_angle":
             case "sia_spatial_distance": {
+                if (chave === "sia_spatial_audio") audioEspacialAtivo = Boolean(valor);
                 if (globalThis.SiaPiperVoice) {
                     if (chave === "sia_spatial_audio" && globalThis.SiaPiperVoice.setSpatialAudio) {
                         globalThis.SiaPiperVoice.setSpatialAudio(Boolean(valor), undefined);
@@ -2374,9 +2412,6 @@
                     } else if (chave === "sia_spatial_distance" && globalThis.SiaPiperVoice.setSpatialPosition) {
                         globalThis.SiaPiperVoice.setSpatialPosition(undefined, Number(valor), undefined);
                     }
-                    if (!globalThis.SiaPiperVoice.isActive?.()) {
-                        globalThis.SiaPiperVoice.setActive?.("piper-local");
-                    }
                 }
                 break;
             }
@@ -2384,7 +2419,7 @@
                 neuroDirectorAtivo = Boolean(valor);
                 break;
             case "sia_neuro_preset":
-                activeNeuroPreset = String(valor || "onu");
+                activeNeuroPreset = String(valor || "stage");
                 break;
         }
     }
@@ -2529,7 +2564,10 @@
 
             if (mensagem?.type === "SIA_PRIME_NEURAL_AUDIO") {
                 const provider = globalThis.SiaPiperVoice;
-                provider?.setActive?.("piper-local");
+                if (!provider?.isActive?.()) {
+                    responder({ ok: false, reason: "piper-inactive", message: "Selecione a voz neural no menu de voz para usar este recurso." });
+                    return;
+                }
                 if (!provider?.primeAudio) {
                     responder({ ok: false, message: "bridge neural não carregado" });
                     return;
@@ -2607,8 +2645,9 @@
 
             if (mensagem?.type === "SIA_TEST_SPATIAL_AUDIO") {
                 const provider = globalThis.SiaPiperVoice;
-                if (!provider?.isActive?.()) {
-                    provider?.setActive?.("piper-local");
+                if (!provider?.isActive?.() || !audioEspacialAtivo) {
+                    responder({ ok: false, reason: "spatial-unavailable", message: "Selecione a voz neural e ative o áudio espacial para testar." });
+                    return;
                 }
                 void provider?.primeAudio?.();
 
@@ -2650,7 +2689,7 @@
                 } else {
                     posTexto = `a ${Math.abs(angle)} graus à sua esquerda`;
                 }
-                const textoTeste = mensagem.text || `Posicionamento acústico confirmado. A S·IA está falando ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
+                const textoTeste = mensagem.text || `Teste de posição da voz S·IA: ${posTexto}, a ${distance.toFixed(1)} metros de distância.`;
 
                 const utterance = {
                     text: normalizarTexto(textoTeste),
@@ -2701,7 +2740,7 @@
             }
 
             if (mensagem?.type === "SIA_GET_STATUS") {
-                const video = document.querySelector("video");
+                const video = obterMidiaDaPagina();
                 responder({
                     enabled: extensaoAtiva,
                     videoFound: Boolean(video),
@@ -2863,6 +2902,23 @@
                 : historicoFrases.map(item => ({ ...item }));
             transcricaoCortada = transcricaoFrases.length >= CONFIG.maximoTranscricaoFrases;
         });
+        addEventListener("SIA_CORE_EVENT", evento => {
+            const detalhe = evento?.detail || {};
+            const estado = detalhe.state || detalhe.diagnostic?.state;
+            if (detalhe.kind === "unsafe-cue-blocked"
+                || ["UNSAFE_TO_SPEAK", "WAITING_FOR_CAPTIONS", "ERROR", "STOPPED"].includes(estado)
+                || ["SIA_ADAPTER_ERROR", "SIA_PLATFORM_LEFT"].includes(detalhe.type)) {
+                interromperFala();
+            }
+        });
+        addEventListener("SIA_WHISPER_STOPPED", () => {
+            interromperFala();
+            narracaoIniciadaParaFoco = false;
+            restaurarDuckingImediato();
+        });
+        document.addEventListener("play", aplicarFocoTotal, true);
+        document.addEventListener("seeked", aplicarFocoTotal, true);
+        aplicarFocoTotal();
         if (!PLATAFORMA_EXTERNA) {
             setInterval(observarLegenda, CONFIG.intervaloMonitoramentoMs);
         }

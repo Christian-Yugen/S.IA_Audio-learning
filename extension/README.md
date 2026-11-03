@@ -3,10 +3,28 @@
 > Transforme as legendas de aulas compatíveis do Coursera, Udemy e YouTube em uma experiência de áudio
 > sincronizada, contínua e revisável, com estudo ativo local opcional.
 
-![Versão](https://img.shields.io/badge/versão-1.10.0-2ecc71)
+![Versão](https://img.shields.io/badge/versão-1.12.0-2ecc71)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-2a2a2a)
 ![Processamento](https://img.shields.io/badge/processamento-100%25%20local-2ecc71)
+
+## AI Guru Academy — 1.12.0
+
+Nova opção no seletor para aulas em português da AI Guru Academy.
+O adaptador lê legendas temporais do vídeo e do modo Ouvir, pelo mesmo núcleo
+de voz, tradução, histórico e sincronização. Não lê menus nem o texto do artigo.
+A página inspecionada fornece legenda em inglês: para ouvir em português,
+marque "Traduzir legendas em inglês para português antes da leitura".
+[Instalação, testes e limites](../docs/releases/1.12.0.md).
+
+## Estabilização 1.11.1
+
+O Piper continua opcional. Ajustar posições ou testar áudio não altera o motor escolhido.
+O espacial aplica-se somente à voz neural; o vídeo mantém sua posição original.
+O modo automático usa regras de palavras-chave e respeita o espacial desligado.
+Áudio avançado e seleção de plataforma ficam recolhidos.
+Esta candidata ainda precisa de escuta numa aula real; consulte
+[as evidências](../docs/reports/1.11.1-validation.md).
 
 ## Sobre a S·IA
 
@@ -18,7 +36,7 @@ sentenças, elimina palavras repetidas, converte o texto em voz e adapta a
 sincronização conforme o ritmo da aula.
 
 Além da leitura, o **S·IA Companion** permite repetir frases, navegar pelo
-histórico da aula, salvar trechos, criar anotações, exportar material de estudo e, de forma opcional, transformar uma cue temporal segura em marcação e cartão de recuperação.
+histórico da aula, salvar trechos, criar anotações e exportar o registro local de frases lidas.
 
 Tudo funciona localmente no navegador. A versão atual não utiliza servidor,
 analytics, anúncios ou API externa de inteligência artificial.
@@ -42,8 +60,8 @@ analytics, anúncios ou API externa de inteligência artificial.
 - Perfis automáticos por curso.
 - S·IA Recall para repetir a última frase.
 - Histórico local com timestamps.
-- Marcação temporal, perguntas determinísticas de recuperação e revisão espaçada local no Companion.
-- Resumo local sob demanda da aula e leitura opcional pelo mesmo núcleo Browser/Piper.
+- Trechos favoritos e notas com referência temporal.
+- Registro local das frases lidas e reprodução do intervalo registrado no vídeo.
 - Favoritos e anotações.
 - Exportação dos trechos salvos em Markdown.
 - Painel lateral nativo S·IA Companion.

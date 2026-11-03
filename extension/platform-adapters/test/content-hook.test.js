@@ -8,7 +8,7 @@ const inputSource = fs.readFileSync(new URL('../caption-input.js', import.meta.u
 const syncSource = fs.readFileSync(new URL('../../sync-engine.js', import.meta.url), 'utf8');
 const learningSource = fs.readFileSync(new URL('../../learning/learning-engine.js', import.meta.url), 'utf8');
 const translationSource = fs.readFileSync(new URL('../../translation/translation-engine.js', import.meta.url), 'utf8');
-const contentSource = fs.readFileSync(new URL('../../content.js', import.meta.url), 'utf8');
+const contentSource = fs.readFileSync(process.env.SIA_CONTENT_SOURCE_PATH || new URL('../../content.js', import.meta.url), 'utf8');
 
 class FakeUtterance {
   constructor(text) {
@@ -49,6 +49,8 @@ function createHarness({
   const spoken = [];
   const piperSpoken = [];
   const primed = [];
+  const engineChanges = [];
+  const spatialChanges = [];
   let now = 1000;
   let nextTimerId = 1;
   const pendingTimers = new Map();
@@ -101,7 +103,7 @@ function createHarness({
     sia_enabled: true,
     sia_lang: 'pt-BR',
     sia_speed: 1.2,
-    sia_voice_engine: 'browser',
+    sia_voice_engine: piperActive ? 'piper-local' : 'browser',
     sia_translate_en_pt: translateEnabled,
     sia_ducking_level: 0.15,
   };
@@ -192,6 +194,11 @@ function createHarness({
     }),
     SiaPiperVoice: {
       isActive: () => piperActive,
+      setActive(value) { engineChanges.push(value); piperActive = value === "piper-local"; },
+      setSpatialPosition(...args) { spatialChanges.push({ type: "position", args }); },
+      setSpatialAudio(...args) { spatialChanges.push({ type: "enabled", args }); },
+      morphSpatialPosition(...args) { spatialChanges.push({ type: "morph", args }); },
+      primeAudio() { return Promise.resolve({ ok: true }); },
       speak(utterance) {
         piperSpoken.push(utterance);
         utterance.onstart?.();
@@ -216,6 +223,8 @@ function createHarness({
   vm.runInContext(learningSource, context);
   vm.runInContext(translationSource, context);
   vm.runInContext(inputSource, context);
+  vm.runInContext(fs.readFileSync(new URL("../../audio-settings.js", import.meta.url), "utf8"), context);
+  vm.runInContext(fs.readFileSync(new URL("../../learning/neuro-director.js", import.meta.url), "utf8"), context);
   vm.runInContext(contentSource, context);
   return {
     context,
@@ -224,6 +233,8 @@ function createHarness({
     spoken,
     piperSpoken,
     primed,
+    engineChanges,
+    spatialChanges,
     setNow(value) {
       now = Number(value);
     },
@@ -245,6 +256,9 @@ function createHarness({
     },
     finishPiper(index = 0) {
       piperSpoken[index]?.onend?.();
+    },
+    emitGlobal(name, detail) {
+      for (const listener of globalListeners.get(name) || []) listener({ detail });
     },
     sendMessage(message) {
       return new Promise(resolve => {
@@ -1076,3 +1090,209 @@ test('audio ducking desativado via configuração restaura volume imediatamente 
 
 
 
+
+
+test('regressão 1.11.1: ajustar posição não troca navegador por Piper', async () => {
+  const h = createHarness({ piperActive: false });
+  h.engineChanges.length = 0;
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_angle', value: 45 });
+  assert.equal(h.context.SiaPiperVoice.isActive(), false);
+  assert.deepEqual(h.engineChanges, []);
+});
+
+test('regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha', async () => {
+  const h = createHarness({ piperActive: false });
+  h.engineChanges.length = 0;
+  const prime = await h.sendMessage({ type: 'SIA_PRIME_NEURAL_AUDIO' });
+  assert.equal(prime.ok, false);
+  const spatial = await h.sendMessage({ type: 'SIA_TEST_SPATIAL_AUDIO', angle: 25, distance: 1 });
+  assert.equal(spatial.ok, false);
+  assert.equal(h.context.SiaPiperVoice.isActive(), false);
+  assert.deepEqual(h.engineChanges, []);
+});
+
+test('regressão 1.11.1: modo automático respeita áudio espacial desligado', async () => {
+  const h = createHarness({ piperActive: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_neuro_director_active', value: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_audio', value: false });
+  h.spatialChanges.length = 0;
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue({ text: 'Importante esta definição é fundamental', source: 'texttrack' }));
+  assert.equal(h.piperSpoken.length, 1);
+  assert.equal(h.spatialChanges.filter(c => c.type === 'morph').length, 0);
+});
+
+test('regressão 1.11.1: automático ajusta a voz quando explicitamente ligado', async () => {
+  const h = createHarness({ piperActive: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_spatial_audio', value: true });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_neuro_director_active', value: true });
+  h.spatialChanges.length = 0;
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue({ text: 'Importante esta definição é fundamental', source: 'texttrack' }));
+  const morph = h.spatialChanges.find(c => c.type === 'morph');
+  assert.ok(morph);
+  assert.equal(morph.args[1], 0.5);
+  assert.equal(morph.args[2], true);
+});
+
+
+function aiGuruHarness(options = {}) {
+  const h = createHarness({ hostname: 'www.ai-guru-academy.com', pathname: '/pt-br/fundamentos/how-to-read-this-catalog/', ...options });
+  h.input.registerPlatform('ai-guru');
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  return h;
+}
+
+test('AI Guru usa a mesma voz nativa e mantém histórico com tempo e identidade da aula', async () => {
+  const h = aiGuruHarness();
+  h.input.push(cue({ platformId: 'ai-guru', text: 'Uma legenda da aula para ouvir.' }));
+  assert.equal(h.spoken.length, 1); assert.equal(h.piperSpoken.length, 0);
+  assert.equal(h.spoken[0].lang, 'pt-BR');
+  const status = await h.sendMessage({ type: 'SIA_GET_STATUS' }); assert.equal(status.platformId, 'ai-guru');
+  const study = await h.sendMessage({ type: 'SIA_GET_LEARNING_CONTEXT' });
+  assert.equal(study.history.at(-1).inicio, 10); assert.equal(study.history.at(-1).fim, 12);
+  assert.equal(study.history.at(-1).curso, 'ai-guru');
+});
+
+test('AI Guru usa Piper compartilhado somente quando selecionado', () => {
+  const h = aiGuruHarness({ piperActive: true });
+  h.input.push(cue({ platformId: 'ai-guru', text: 'Legenda para a voz neural.' }));
+  assert.equal(h.piperSpoken.length, 1); assert.equal(h.spoken.length, 0);
+});
+
+test('AI Guru traduz inglês para português no motor de tradução existente', async () => {
+  const h = aiGuruHarness({ translateEnabled: true, translatorApi: { availability: async () => 'available', create: async () => ({ translate: async () => 'Uma explicação em português.' }) } });
+  h.input.push(cue({ platformId: 'ai-guru', text: 'An explanation in English.' }));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.spoken.length, 1); assert.equal(h.spoken[0].text, 'Uma explicação em português.');
+});
+
+test('AI Guru cancela entrega de tradução antiga ao pausar', async () => {
+  let finish;
+  const h = aiGuruHarness({ translateEnabled: true, translatorApi: { availability: async () => 'available', create: async () => ({ translate: () => new Promise(resolve => { finish = resolve; }) }) } });
+  h.input.push(cue({ platformId: 'ai-guru', text: 'This translation is pending.' }));
+  await new Promise(resolve => setImmediate(resolve));
+  h.input.setPaused(true); finish('Tradução que chegou após a pausa.');
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(h.spoken.length, 0);
+});
+
+test('AI Guru usa o relógio e o volume da mídia ativa no modo Ouvir', async () => {
+  const h = aiGuruHarness();
+  const audio = { ...h.video, volume: 0.7, currentTime: 10.7 };
+  h.context.SiaAiGuruHost = { getMedia: () => audio };
+  h.input.push(cue({ platformId: 'ai-guru', text: 'Leitura enquanto o áudio reproduz.' }));
+  assert.equal(h.spoken.length, 1); assert.ok(audio.volume < 0.7);
+  h.input.setPaused(true); assert.equal(audio.volume, 0.7);
+});
+
+test('AI Guru não retraduz uma legenda já em português', async () => {
+  let translations = 0;
+  const h = aiGuruHarness({ translateEnabled: true, translatorApi: { availability: async () => 'available', create: async () => ({ translate: async () => { translations++; return 'Não deveria traduzir.'; } }) } });
+  h.context.SiaAiGuruHost = { getMedia: () => h.video, getCaptionLanguage: () => 'pt-BR' };
+  h.input.push(cue({ platformId: 'ai-guru', text: 'Esta legenda já está em português.' }));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(translations, 0); assert.equal(h.spoken[0].text, 'Esta legenda já está em português.');
+});
+
+test('AI Guru: bootstrap real conecta adaptador, roteador e núcleo de voz sem fila paralela', async () => {
+  const h = aiGuruHarness({ textTrack: { kind: 'subtitles', language: 'en', mode: 'hidden', cues: [{ text: 'The actual bootstrap caption.', startTime: 10, endTime: 12 }] } });
+  h.video.tagName = 'VIDEO'; h.video.hidden = false; h.video.getAttribute = () => '/stream/lesson.mp4'; h.video.querySelectorAll = () => [];
+  h.context.document.querySelector = selector => selector.includes('video') ? h.video : null;
+  const windowRef = new EventTarget();
+  Object.assign(windowRef, { CustomEvent, setInterval: () => 1, clearInterval() {}, setTimeout, clearTimeout });
+  h.context.window = windowRef;
+  for (const name of ['platform-router.js', 'core-event-bridge.js', 'core-diagnostic-state.js', 'youtube/youtube-caption-parser.js', 'ai-guru/ai-guru-adapter.js', 'ai-guru/ai-guru-host.js']) {
+    vm.runInContext(fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8'), h.context);
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.context.SiaPlatformRouter.getActive().id, 'ai-guru');
+  assert.equal(h.spoken.length, 1); assert.equal(h.spoken[0].text, 'The actual bootstrap caption.');
+  assert.equal(h.context.SiaCoreDiagnostic.get().platformId, 'ai-guru');
+  windowRef.dispatchEvent(new Event('pagehide'));
+  assert.equal(h.context.SiaPlatformRouter.getActive(), null);
+});
+
+for (const piperActive of [false, true]) {
+  test('Foco Total mantém silêncio entre frases e restaura ao desativar; Piper=' + piperActive, async () => {
+    const h = createHarness({ manualTimers: true, piperActive, volume: 0.8 });
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    assert.equal(h.video.volume, 0.8);
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    const utterance = (piperActive ? h.piperSpoken : h.spoken)[0];
+    assert.ok(utterance);
+    utterance.onend();
+    h.advanceTimers(2000);
+    assert.equal(h.video.volume, 0);
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_enabled', value: false });
+    assert.equal(h.video.volume, 0.8);
+  });
+}
+
+test('sair de Foco Total no intervalo restaura volume e preserva modo suave', async () => {
+  const h = createHarness({ manualTimers: true, volume: 0.7 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  assert.equal(h.video.volume, 0.7);
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 15 });
+  assert.equal(h.video.volume, 0.7);
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue());
+  assert.equal(Number(h.video.volume.toFixed(3)), 0.105);
+  h.spoken[0].onend();
+  h.advanceTimers(1000);
+  assert.equal(h.video.volume, 0.7);
+});
+
+for (const piperActive of [false, true]) {
+  test('selecionar Foco Total durante fala não restaura áudio ao concluir; Piper=' + piperActive, async () => {
+    const h = createHarness({ manualTimers: true, piperActive, volume: 0.9 });
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    (piperActive ? h.piperSpoken : h.spoken)[0].onend();
+    h.advanceTimers(3000);
+    assert.equal(h.video.volume, 0);
+    h.video.pause();
+    assert.equal(h.video.volume, 0.9);
+  });
+}
+
+
+test('YouTube sem legendas ou com timing inseguro preserva áudio original em Foco Total', async () => {
+  const h = createHarness({ hostname: 'www.youtube.com', pathname: '/watch', manualTimers: true, volume: 0.65 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  h.tick();
+  h.emitGlobal('SIA_CORE_EVENT', { state: 'WAITING_FOR_CAPTIONS' });
+  h.emitGlobal('SIA_CORE_EVENT', { kind: 'unsafe-cue-blocked', state: 'UNSAFE_TO_SPEAK' });
+  h.advanceTimers(5000);
+  assert.equal(h.video.volume, 0.65);
+  assert.equal(h.spoken.length, 0);
+});
+
+for (const detail of [
+  { state: 'WAITING_FOR_CAPTIONS' },
+  { kind: 'unsafe-cue-blocked', state: 'UNSAFE_TO_SPEAK' },
+  { type: 'SIA_ADAPTER_ERROR' }
+]) {
+  test('perda de fonte segura após narração devolve áudio: ' + JSON.stringify(detail), async () => {
+    const h = createHarness({ manualTimers: true, volume: 0.75 });
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    assert.equal(h.video.volume, 0);
+    h.spoken[0].onend();
+    h.emitGlobal('SIA_CORE_EVENT', detail);
+    h.advanceTimers(3000);
+    assert.equal(h.video.volume, 0.75);
+  });
+}
+
+test('troca de vídeo libera Foco Total até a primeira fala da nova mídia', async () => {
+  const h = createHarness({ manualTimers: true, volume: 0.6 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue());
+  assert.equal(h.video.volume, 0);
+  h.input.setActivePlayer({ videoId: 'sem-legenda', containerId: 'shaka-video-container-1' });
+  assert.equal(h.video.volume, 0.6);
+});

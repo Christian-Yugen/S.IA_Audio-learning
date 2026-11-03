@@ -1,0 +1,9 @@
+test_busy_engine_rejects_parallel_work (test_server.Tests.test_busy_engine_rejects_parallel_work) ... ok
+test_http_auth_validation_and_success (test_server.Tests.test_http_auth_validation_and_success) ... ok
+test_real_engine_orchestration_offsets_and_cache (test_server.Tests.test_real_engine_orchestration_offsets_and_cache) ... ok
+test_valid_video_only (test_server.Tests.test_valid_video_only) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.765s
+
+OK
