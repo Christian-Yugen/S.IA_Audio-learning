@@ -59,7 +59,8 @@ const youtubeBootstrap = Object.freeze({
     "platform-adapters/platform-router.js",
     "platform-adapters/core-event-bridge.js",
     "platform-adapters/core-diagnostic-state.js",
-    "platform-adapters/youtube/youtube-host.js"
+    "platform-adapters/youtube/youtube-host.js",
+    "whisper/client.js"
   ]
 });
 const youtubeInjectedTabs = new Set();
@@ -251,3 +252,40 @@ chrome.commands.onCommand.addListener(command => {
     void enviarParaAbaAtiva({ type: "SIA_REPLAY_LAST" });
   }
 });
+
+// Local Whisper requests are accepted only from the extension's YouTube content script.
+const whisperRequests = new Map();
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (!['sia-whisper-window', 'sia-whisper-cancel', 'sia-whisper-configured'].includes(message?.target)) return;
+  const tab = sender.tab;
+  let url;
+  try { url = new URL(sender.url || tab?.url); } catch { return; }
+  if (!tab?.id || url.protocol !== 'https:' || !['www.youtube.com', 'm.youtube.com', 'youtube.com'].includes(url.hostname)) return;
+  if (message.target === 'sia-whisper-configured') {
+    chrome.storage.session.get('sia_whisper_token').then(data => reply({ configured: Boolean(data.sia_whisper_token) }));
+    return true;
+  }
+  if (message.target === 'sia-whisper-cancel') { whisperRequests.get(tab.id)?.abort(); reply({ ok: true }); return; }
+  if (message.videoId !== url.searchParams.get('v') || !/^[\w-]{11}$/.test(message.videoId) || !Number.isFinite(message.start) || message.start < 0) {
+    reply({ ok: false, error: 'Pedido inválido' }); return;
+  }
+  if (whisperRequests.has(tab.id)) { reply({ ok: false, error: 'Preparação em andamento' }); return; }
+  const controller = new AbortController();
+  whisperRequests.set(tab.id, controller);
+  const timer = setTimeout(() => controller.abort(), 240000);
+  (async () => {
+    const { sia_whisper_token: token } = await chrome.storage.session.get('sia_whisper_token');
+    if (!token) throw new Error('Informe a chave do serviço local no popup.');
+    const response = await fetch('http://127.0.0.1:8765/transcribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ videoId: message.videoId, start: message.start }), signal: controller.signal
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Serviço local indisponível');
+    reply({ ok: true, data });
+  })().catch(error => reply({ ok: false, error: error.message })).finally(() => {
+    clearTimeout(timer); whisperRequests.delete(tab.id);
+  });
+  return true;
+});
+chrome.tabs.onRemoved.addListener(tabId => { whisperRequests.get(tabId)?.abort(); });

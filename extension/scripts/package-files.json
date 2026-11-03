@@ -34,7 +34,9 @@
     "learning/neuro-director.js",
     "translation/translation-engine.js",
     "platform-adapters/ai-guru/ai-guru-adapter.js",
-    "platform-adapters/ai-guru/ai-guru-host.js"
+    "platform-adapters/ai-guru/ai-guru-host.js",
+    "whisper/client.js",
+    "whisper/popup.js"
   ],
   "directories": [
     "icons",

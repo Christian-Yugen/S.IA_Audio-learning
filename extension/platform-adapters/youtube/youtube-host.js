@@ -13,6 +13,9 @@
   let cleanupTimedCues = () => {};
   let requestTimedCueReplay = () => {};
   let booted = false;
+  let whisperActive = false;
+  let nativeReady = false;
+  let whisperLanguage = 'en';
 
   function isYoutubeWatch(url) {
     try {
@@ -72,15 +75,34 @@
       ))
     );
     requestTimedCueReplay = () => window.postMessage({ type: READY_EVENT }, location.origin);
+    globalThis.SiaYoutubeWhisper = {
+      hasNative: () => nativeReady,
+      language: () => whisperActive ? whisperLanguage : 'en',
+      set(data) {
+        if (data.videoId !== currentVideoId() || !Array.isArray(data.cues) || data.cues.length > 20000) return false;
+        if (!data.cues.every(c => c.text && Number.isFinite(c.startTime) && Number.isFinite(c.endTime) && c.startTime >= 0 && c.endTime > c.startTime)) return false;
+        whisperActive = true;
+        whisperLanguage = data.language || 'en';
+        if (data.cues.length) adapter.setExternalTimedCues({ videoId: data.videoId, trackKey: 'whisper-' + data.videoId, cues: data.cues });
+        return true;
+      },
+      clear() {
+        if (!whisperActive) return;
+        whisperActive = false;
+        adapter.clearExternalTimedCues();
+        requestTimedCueReplay();
+      }
+    };
     const onMessage = event => {
       if (event?.origin !== location.origin || (event.source && event.source !== window)) return;
       const data = event?.data || {};
       if (data.type === TIMED_CUES_EVENT) {
         if (!validPayload(data) || data.videoId !== currentVideoId()) return;
-        adapter.setExternalTimedCues?.(data);
+        nativeReady = true;
+        if (!whisperActive) adapter.setExternalTimedCues?.(data);
         return;
       }
-      if (data.type === STATUS_EVENT && data.state === 'ERROR') {
+      if (!whisperActive && data.type === STATUS_EVENT && data.state === 'ERROR') {
         const source = String(data.source || '').trim() || (data.client ? `youtube-${String(data.client).toLowerCase()}` : 'youtube-overlay');
         const reason = String(data.reason || 'timedtext-unavailable');
         const client = String(data.client || '').trim().toLowerCase();
@@ -113,6 +135,8 @@
     const adapter = await module.createYoutubeAdapter({
       ...options,
       emit: event => {
+        if (event?.type === 'SIA_PLATFORM_LEFT') { nativeReady = false; whisperActive = false; }
+        if (event?.type === 'SIA_CAPTION_CHANGED' && event.cue?.source === 'youtube-track' && event.cue.safeToSpeak) nativeReady = true;
         if (event?.type === 'SIA_PLAYER_FOUND') {
           input?.setActivePlayer?.(event.playerIdentity);
           attachVideoInput(document.querySelector('video'));

@@ -586,6 +586,15 @@ export class YoutubeAdapter {
     return true;
   }
 
+  clearExternalTimedCues() {
+    this.externalCues = [];
+    this.externalCueGroups = [];
+    this.externalSourceReady = false;
+    this.externalTrackKey = '';
+    this.aggregator.reset();
+    this.scheduleScan();
+  }
+
   readExternalCues(video) {
     if (!this.externalSourceReady || !this.externalCues.length) return [];
     const currentTime = Number(video?.currentTime);

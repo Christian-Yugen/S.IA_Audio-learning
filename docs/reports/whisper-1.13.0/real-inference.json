@@ -1,0 +1,14 @@
+{
+  "model": "base",
+  "load_seconds": 52.388849017999746,
+  "inference_seconds": 2.508307568999953,
+  "text": " Hello, this is a test of speech recognition. The lesson explains how to build a database and translate a video into Portuguese.",
+  "language": "en",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 8.0,
+      "text": " Hello, this is a test of speech recognition. The lesson explains how to build a database and translate a video into Portuguese."
+    }
+  ]
+}

@@ -46,6 +46,7 @@
     let duckingAnimId = null;
     let duckingHoldTimer = null;
     let duckingEmAndamento = false;
+    let narracaoIniciadaParaFoco = false;
 
     const requestAnimFrame = typeof requestAnimationFrame === "function"
         ? requestAnimationFrame
@@ -139,6 +140,7 @@
             duckingHoldTimer = null;
         }
         duckingEmAndamento = true;
+        narracaoIniciadaParaFoco = true;
         if (volumeBaseVideo === null) {
             volumeBaseVideo = video.volume;
         }
@@ -152,7 +154,7 @@
     }
 
     function aplicarFocoTotal() {
-        if (!extensaoAtiva || !duckingAtivo || duckingNivel !== 0) return;
+        if (!narracaoIniciadaParaFoco || !extensaoAtiva || !duckingAtivo || duckingNivel !== 0) return;
         const video = obterVideoParaDucking();
         if (!video || video.paused || video.ended) return;
         const estavaFalando = duckingEmAndamento;
@@ -194,6 +196,7 @@
     }
 
     function restaurarDuckingImediato() {
+        narracaoIniciadaParaFoco = false;
         duckingEmAndamento = false;
         if (duckingHoldTimer) {
             clearTimeout(duckingHoldTimer);
@@ -1689,7 +1692,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
-            agendarRestauracaoDucking();
+            restaurarDuckingImediato();
             notificarEstadoFala(false);
             emitirEventoH5("error", registro, evento?.error);
             registrarDiagnostico(`fala-erro:${evento.error || "desconhecido"}`, registro.texto);
@@ -1843,7 +1846,7 @@
         utterance.onerror = evento => {
             if (registro.geracao !== geracaoDaFala) return;
 
-            agendarRestauracaoDucking();
+            restaurarDuckingImediato();
             notificarEstadoFala(false);
             registrarDiagnostico("fala-neural-erro", registro.texto);
             ultimoErroSintese = evento?.error || "piper-error";
@@ -2104,6 +2107,7 @@
         const video = obterMidiaDaPagina();
         if (!video || video.paused || video.ended) return false;
         videoMonitorado = video;
+        const legendaWhisperEmPortugues = globalThis.SiaYoutubeWhisper?.language?.() === "pt";
         const legendaAiGuruEmPortugues = PLATAFORMA_AI_GURU && /^pt(?:-|$)/i.test(globalThis.SiaAiGuruHost?.getCaptionLanguage?.() || "en");
         if (!legendaAiGuruEmPortugues) precacheTraducoesFuturas(video, Number(cue.endTime));
         ultimaPosicaoVideo = Number(video.currentTime) || 0;
@@ -2139,7 +2143,7 @@
             sentencaAntecipada: false,
             source: cue.source,
             sourceConfidence: cue.sourceConfidence,
-            naoTraduzir: legendaAiGuruEmPortugues,
+            naoTraduzir: legendaAiGuruEmPortugues || legendaWhisperEmPortugues,
             playerIdentity: cue.playerIdentity,
             nativeOnly: !usarPiper,
             voiceEngine,
@@ -2155,6 +2159,9 @@
 
         removerEntradaDeCaption();
         removerEntradaDeCaption = input.subscribe(evento => {
+            if ([input.EVENTS?.PAUSED, input.EVENTS?.PLAYER_CHANGED, input.EVENTS?.DESTROYED].includes(evento?.type)) {
+                restaurarDuckingImediato();
+            }
             if (PLATAFORMA_AI_GURU && [input.EVENTS?.PAUSED, input.EVENTS?.PLAYER_CHANGED].includes(evento?.type)) {
                 interromperFala();
                 ultimoTextoDetectado = "";
@@ -2894,6 +2901,20 @@
                 ? salvoTranscricao.slice(-CONFIG.maximoTranscricaoFrases)
                 : historicoFrases.map(item => ({ ...item }));
             transcricaoCortada = transcricaoFrases.length >= CONFIG.maximoTranscricaoFrases;
+        });
+        addEventListener("SIA_CORE_EVENT", evento => {
+            const detalhe = evento?.detail || {};
+            const estado = detalhe.state || detalhe.diagnostic?.state;
+            if (detalhe.kind === "unsafe-cue-blocked"
+                || ["UNSAFE_TO_SPEAK", "WAITING_FOR_CAPTIONS", "ERROR", "STOPPED"].includes(estado)
+                || ["SIA_ADAPTER_ERROR", "SIA_PLATFORM_LEFT"].includes(detalhe.type)) {
+                interromperFala();
+            }
+        });
+        addEventListener("SIA_WHISPER_STOPPED", () => {
+            interromperFala();
+            narracaoIniciadaParaFoco = false;
+            restaurarDuckingImediato();
         });
         document.addEventListener("play", aplicarFocoTotal, true);
         document.addEventListener("seeked", aplicarFocoTotal, true);

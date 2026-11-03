@@ -257,6 +257,9 @@ function createHarness({
     finishPiper(index = 0) {
       piperSpoken[index]?.onend?.();
     },
+    emitGlobal(name, detail) {
+      for (const listener of globalListeners.get(name) || []) listener({ detail });
+    },
     sendMessage(message) {
       return new Promise(resolve => {
         if (!messageListener) {
@@ -1213,7 +1216,7 @@ for (const piperActive of [false, true]) {
   test('Foco Total mantém silêncio entre frases e restaura ao desativar; Piper=' + piperActive, async () => {
     const h = createHarness({ manualTimers: true, piperActive, volume: 0.8 });
     await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
-    assert.equal(h.video.volume, 0);
+    assert.equal(h.video.volume, 0.8);
     h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
     h.input.push(cue());
     const utterance = (piperActive ? h.piperSpoken : h.spoken)[0];
@@ -1229,7 +1232,7 @@ for (const piperActive of [false, true]) {
 test('sair de Foco Total no intervalo restaura volume e preserva modo suave', async () => {
   const h = createHarness({ manualTimers: true, volume: 0.7 });
   await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
-  assert.equal(h.video.volume, 0);
+  assert.equal(h.video.volume, 0.7);
   await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 15 });
   assert.equal(h.video.volume, 0.7);
   h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
@@ -1253,3 +1256,43 @@ for (const piperActive of [false, true]) {
     assert.equal(h.video.volume, 0.9);
   });
 }
+
+
+test('YouTube sem legendas ou com timing inseguro preserva áudio original em Foco Total', async () => {
+  const h = createHarness({ hostname: 'www.youtube.com', pathname: '/watch', manualTimers: true, volume: 0.65 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  h.tick();
+  h.emitGlobal('SIA_CORE_EVENT', { state: 'WAITING_FOR_CAPTIONS' });
+  h.emitGlobal('SIA_CORE_EVENT', { kind: 'unsafe-cue-blocked', state: 'UNSAFE_TO_SPEAK' });
+  h.advanceTimers(5000);
+  assert.equal(h.video.volume, 0.65);
+  assert.equal(h.spoken.length, 0);
+});
+
+for (const detail of [
+  { state: 'WAITING_FOR_CAPTIONS' },
+  { kind: 'unsafe-cue-blocked', state: 'UNSAFE_TO_SPEAK' },
+  { type: 'SIA_ADAPTER_ERROR' }
+]) {
+  test('perda de fonte segura após narração devolve áudio: ' + JSON.stringify(detail), async () => {
+    const h = createHarness({ manualTimers: true, volume: 0.75 });
+    await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+    h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+    h.input.push(cue());
+    assert.equal(h.video.volume, 0);
+    h.spoken[0].onend();
+    h.emitGlobal('SIA_CORE_EVENT', detail);
+    h.advanceTimers(3000);
+    assert.equal(h.video.volume, 0.75);
+  });
+}
+
+test('troca de vídeo libera Foco Total até a primeira fala da nova mídia', async () => {
+  const h = createHarness({ manualTimers: true, volume: 0.6 });
+  await h.sendMessage({ type: 'SIA_CONFIG_UPDATE', key: 'sia_ducking_level', value: 0 });
+  h.input.setActivePlayer({ videoId: 'lecture-1', containerId: 'shaka-video-container-1' });
+  h.input.push(cue());
+  assert.equal(h.video.volume, 0);
+  h.input.setActivePlayer({ videoId: 'sem-legenda', containerId: 'shaka-video-container-1' });
+  assert.equal(h.video.volume, 0.6);
+});

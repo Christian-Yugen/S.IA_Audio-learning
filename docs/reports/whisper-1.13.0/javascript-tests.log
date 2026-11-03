@@ -1,0 +1,1844 @@
+✔ adaptador DOM integra diagnóstico sem liberar fala (9.588727ms)
+✔ cue TextTrack temporal é encaminhada como safe-cue, sem chamar áudio (1.719471ms)
+✔ troca de player reconcilia a identidade e encerra sem listener residual (1.873477ms)
+✔ AI Guru: domínio e rota exatos; não ativa em outros sites ou páginas de índice (3.739288ms)
+✔ AI Guru: usa TextTrack temporal e a entrada compartilhada, sem falar enquanto pausado (1.620678ms)
+✔ AI Guru: não antecipa a fala de cue futura e escolhe uma única cue na fronteira (1.366739ms)
+✔ AI Guru: pausa e busca reiniciam deduplicação e permitem reler o mesmo trecho (1.889443ms)
+✔ AI Guru: acompanha o modo Ouvir usando o relógio do áudio e as legendas da aula (3.011701ms)
+✔ AI Guru: fallback WebVTT é limitado à URL de legendas observada no mesmo site (8.023775ms)
+✔ AI Guru: rejeita track externa e não converte texto da página em legenda sem tempo (1.894099ms)
+✔ AI Guru: erro de rede degrada com diagnóstico, sem leitura de texto arbitrário (3.946376ms)
+✔ AI Guru: resultado assíncrono antigo é descartado depois de sair da página (2.451711ms)
+✔ AI Guru: encerra listeners/polling e restaura a faixa que ativou (1.233154ms)
+✔ H0 aceita cue temporal segura para o player ativo (5.660325ms)
+✔ H0 rejeita legenda DOM sem timing e nunca a transforma em entrada segura (0.99991ms)
+✔ H0 rejeita confiança baixa mesmo quando há tempos numéricos (1.31695ms)
+✔ H0 rejeita timing inválido e player incompatível (1.024531ms)
+✔ H1 deduplica a mesma cue e aceita novo intervalo (1.332361ms)
+✔ H1 troca de player limpa a deduplicação e muda a identidade ativa (1.436556ms)
+✔ H2 pausa rejeita nova cue e retomada permite cue segura (1.070409ms)
+✔ H2 destroy encerra o hook e rejeita entradas posteriores (1.833003ms)
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma legenda traduzida.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma legenda traduzida.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+✔ H3 cue segura chega ao mesmo caminho de fala do content script (19.579396ms)
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma ideia importante para revisar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma ideia importante para revisar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma frase segura para estudo.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma frase segura para estudo.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'repeticao-descartada',
+  tempoVideo: 10.5,
+  texto: 'estudo.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 11.1,
+  texto: 'Segunda frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 11.1,
+  texto: 'Segunda frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10,
+  texto: 'A primeira fala.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10,
+  texto: 'A primeira fala.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10,
+  texto: 'Primeira parte da frase completa.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10,
+  texto: 'Primeira parte da frase completa.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'A primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'A primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'A primeira frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 12.1,
+  texto: 'A próxima frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 12.1,
+  texto: 'A próxima frase.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'A explicação continua',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'A explicação continua',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'A explicação continua',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 12.1,
+  texto: 'A frase termina.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 12.1,
+  texto: 'A frase termina.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Primeira legenda traduzida',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Primeira legenda traduzida',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Primeira legenda traduzida',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Segunda legenda traduzida',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Segunda legenda traduzida',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'A aula apresenta o conceito principal.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'A aula apresenta o conceito principal.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'A aula apresenta o conceito principal.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'O exemplo mostra como aplicar esse conceito.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'O exemplo mostra como aplicar esse conceito.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Fala neural da aula.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Fala neural da aula.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Fala que será apagada.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Fala que será apagada.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase antiga que ainda não começou',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase antiga que ainda não começou',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase nova atualizada',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase nova atualizada',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase um em reprodução',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase um em reprodução',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase dois seguinte na tela',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase dois seguinte na tela',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase três terceira na tela',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase três terceira na tela',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'As entradas são confusas e espalhadas por sistemas, portanto, o pipeline deve coletá-las de maneira repetível e governada.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'As entradas são confusas e espalhadas por sistemas, portanto, o pipeline deve coletá-las de maneira repetível e governada.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.ia: leitor de legendas do Coursera ativo.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Neste vídeo, vamos nos aprofundar um pouco mais.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Neste vídeo, vamos nos aprofundar um pouco mais.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Legenda falada com ducking ativo.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Legenda falada com ducking ativo.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase neural com ducking.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase neural com ducking.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Primeira frase neural com ducking.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 12.5,
+  texto: 'Segunda frase contínua neural.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 12.5,
+  texto: 'Segunda frase contínua neural.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 12.5,
+  texto: 'Segunda frase contínua neural.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Frase com ducking a 80% base.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Frase com ducking a 80% base.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Importante esta definição é fundamental',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Importante esta definição é fundamental',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Importante esta definição é fundamental',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Importante esta definição é fundamental',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma legenda da aula para ouvir.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma legenda da aula para ouvir.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Legenda para a voz neural.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Legenda para a voz neural.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma explicação em português.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma explicação em português.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+✔ traduz cue inglesa antes de enviá-la ao núcleo de voz (12.158296ms)
+✔ MVP pedagógico cria marcação e cartão sem alterar o caminho de voz (8.06442ms)
+✔ cue sobreposta descartada pela deduplicação não substitui a cue de estudo (5.107146ms)
+✔ H3 cue insegura não alcança a fala do content script (3.398627ms)
+✔ H4 pausa do vídeo impede cue segura de chegar à fala (3.112969ms)
+✔ H5 cue TextTrack usa voz nativa quando Piper está indisponível (3.788596ms)
+✔ H6 cue TextTrack usa Piper compartilhado quando selecionado (3.958966ms)
+✔ H7 cue temporal do Shaka usa Piper compartilhado quando ativo (4.434416ms)
+✔ H7 cue temporal do Shaka faz fallback nativo quando Piper está indisponível (2.860751ms)
+✔ YouTube cue agregada chega ao mesmo núcleo de voz nativa (2.852842ms)
+✔ status do YouTube expõe estado de áudio e diagnóstico do núcleo compartilhado (2.127723ms)
+✔ YouTube cue agregada usa o Piper compartilhado quando ativo (2.3763ms)
+✔ Coursera reconcilia a previsão quando a fala neural termina cedo e reutiliza o precache (6.961268ms)
+✔ Coursera prepara a primeira cue antes de ela aparecer sem falar antecipadamente (2.950922ms)
+✔ Coursera compõe e reutiliza o precache para sentenças fragmentadas sem pontuação na primeira cue (2.228871ms)
+✔ Coursera pré-carrega a próxima cue quando ela chega progressivamente (2.771338ms)
+✔ continuação neural sem pontuação usa pausa curta sem alterar fila ou fallback (2.72699ms)
+✔ Coursera lê legenda do DOM imediatamente após estabilização sem esperar próxima cue ou pontuação (2.930785ms)
+✔ H5 fonte que não é TextTrack (1.554379ms)
+✔ H5 teste do popup fala na aba ativa e retorna início nativo (1.894797ms)
+✔ H6 teste neural do popup usa o bridge compartilhado na aba ativa (1.308765ms)
+✔ revisão da legenda volta ao vídeo, usa o intervalo registrado e não cria fala livre (4.054757ms)
+✔ revisão contextual preserva a única fila Piper e não sintetiza a transcrição isoladamente (4.575471ms)
+✔ revisão contextual recusa registro sem intervalo temporal seguro (1.801621ms)
+✔ limpar histórico remove também a transcrição integral local (2.150317ms)
+✔ substitui fala enfileirada não iniciada quando uma nova legenda da tela surge (2.462485ms)
+✔ com Piper ativo, nova legenda da tela é enviada diretamente ao Piper sem ficar retida em legendaReserva (2.636909ms)
+✔ legenda DOM bilíngue (português e inglês) extrai e sintetiza apenas a linha em português (3.946425ms)
+✔ Coursera: captura da frase ativa na coluna lateral de Transcrição dispara imediatamente e pré-carrega próxima frase (5.594074ms)
+✔ audio ducking reduz volume do vídeo ao falar frase nativa e restaura ao pausar (2.280914ms)
+✔ audio ducking opera com voz neural Piper e preserva ducking entre legendas consecutivas (4.142275ms)
+✔ audio ducking desativado via configuração restaura volume imediatamente e expõe status (2.43353ms)
+✔ regressão 1.11.1: ajustar posição não troca navegador por Piper (6.344984ms)
+✔ regressão 1.11.1: testar ou preparar áudio espacial não ativa motor sem escolha (60.830475ms)
+✔ regressão 1.11.1: modo automático respeita áudio espacial desligado (55.368009ms)
+✔ regressão 1.11.1: automático ajusta a voz quando explicitamente ligado (48.111312ms)
+✔ AI Guru usa a mesma voz nativa e mantém histórico com tempo e identidade da aula (3.3214ms)
+✔ AI Guru usa Piper compartilhado somente quando selecionado (2.577619ms)
+S.IA: entrada de cues externas ativa.
+✔ AI Guru traduz inglês para português no motor de tradução existente (9.308298ms)
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.7,
+  texto: 'Leitura enquanto o áudio reproduz.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.7,
+  texto: 'Leitura enquanto o áudio reproduz.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Esta legenda já está em português.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Esta legenda já está em português.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+✔ AI Guru cancela entrega de tradução antiga ao pausar (2.008532ms)
+✔ AI Guru usa o relógio e o volume da mídia ativa no modo Ouvir (1.996267ms)
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'The actual bootstrap caption.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'The actual bootstrap caption.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+✔ AI Guru não retraduz uma legenda já em português (5.179404ms)
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-neural-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-neural-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'piper-local',
+  voiceEngineState: 'ready'
+}
+S.IA: entrada de cues externas ativa.
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-finalizada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: true,
+  falaEnfileirada: false,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+S.IA: entrada de cues externas ativa.
+[S·IA diagnóstico] {
+  evento: 'fala-enfileirada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+[S·IA diagnóstico] {
+  evento: 'fala-iniciada',
+  tempoVideo: 10.5,
+  texto: 'Uma cue segura para falar.',
+  speaking: false,
+  pending: false,
+  paused: false,
+  falaAtual: false,
+  falaEnfileirada: true,
+  reserva: false,
+  voiceEngine: 'browser',
+  voiceEngineState: 'idle'
+}
+✔ AI Guru: bootstrap real conecta adaptador, roteador e núcleo de voz sem fila paralela (7.747664ms)
+✔ Foco Total mantém silêncio entre frases e restaura ao desativar; Piper=false (3.725397ms)
+✔ Foco Total mantém silêncio entre frases e restaura ao desativar; Piper=true (4.491768ms)
+✔ sair de Foco Total no intervalo restaura volume e preserva modo suave (2.533901ms)
+✔ selecionar Foco Total durante fala não restaura áudio ao concluir; Piper=false (3.091494ms)
+✔ selecionar Foco Total durante fala não restaura áudio ao concluir; Piper=true (3.326141ms)
+✔ YouTube sem legendas ou com timing inseguro preserva áudio original em Foco Total (7.232231ms)
+✔ perda de fonte segura após narração devolve áudio: {"state":"WAITING_FOR_CAPTIONS"} (6.058604ms)
+✔ perda de fonte segura após narração devolve áudio: {"kind":"unsafe-cue-blocked","state":"UNSAFE_TO_SPEAK"} (3.332137ms)
+✔ perda de fonte segura após narração devolve áudio: {"type":"SIA_ADAPTER_ERROR"} (4.033743ms)
+✔ troca de vídeo libera Foco Total até a primeira fala da nova mídia (4.022132ms)
+✔ cria marcação temporal local com tipo e nota (2.699ms)
+✔ descarta marcação sem texto ou sem intervalo temporal (0.190955ms)
+✔ gera pergunta determinística por tipo de marcação (0.171619ms)
+✔ cria cartão de recuperação vinculado ao timestamp (1.721449ms)
+✔ primeira lembrança agenda revisão para o dia seguinte (0.589319ms)
+✔ lembrança consecutiva amplia o intervalo de revisão (0.314259ms)
+✔ esquecimento retorna a revisão para amanhã e registra lapso (0.412453ms)
+✔ lista cartões vencidos por data e respeita limite (0.425255ms)
+✔ calcula evolução sem confundir tempo assistido com domínio (1.762179ms)
+✔ reúne todas as falas em ordem temporal e mantém a origem de cada trecho (0.486108ms)
+✔ retorna arquivo integral vazio quando ainda não há falas (0.42433ms)
+✔ SiaNeuroDirector expõe o catálogo compartilhado de posições da voz (2.262049ms)
+✔ SiaNeuroDirector classifica frases por regras de palavras-chave das legendas (103.087661ms)
+✔ SiaNeuroDirector calcula palco 3D adaptativo com explicação do insight (1.184075ms)
+✔ SiaNeuroDirector calcula coordenadas cartesianas 3D (0.994663ms)
+✔ SiaNeuroDirector interpola curvas cúbicas de Bézier com suavidade nos extremos (0.206136ms)
+✔ expressões compostas são reconhecidas sem confundir partes de palavras (0.270293ms)
+✔ automação é opt-in e recomenda somente posição da voz (12.931901ms)
+✔ a ponte encaminha eventos de observação ao núcleo comum (2.086725ms)
+✔ a ponte encaminha apenas cue temporal de alta confiança como safe-cue (0.935257ms)
+✔ a ponte bloqueia cue DOM sem timing e conserva o diagnóstico inseguro (3.063821ms)
+✔ o roteador seleciona um adaptador compatível e preserva seu ciclo de vida (2.835458ms)
+✔ o roteador não inicia adaptador em URL incompatível (0.954068ms)
+✔ o diagnóstico limpa motivo inseguro quando uma fonte temporal segura se recupera (1.261318ms)
+✔ o estado diagnóstico comum conserva a fonte e bloqueia cue insegura (2.014735ms)
+✔ bootstrap request permanece bloqueado no YouTube por padrão (4.151405ms)
+✔ bootstrap request injeta somente MAIN e ISOLATED após seleção YouTube (1.688913ms)
+✔ override por aba tem precedência e mismatch de plataforma é rejeitado (3.022867ms)
+✔ reload limpa somente o conjunto de injeção e preserva seleção de domínio (1.230033ms)
+✔ aplicação por aba persiste a seleção e envia desativação ao content script (1.4059ms)
+✔ normaliza domínios de Coursera, Udemy e YouTube por site (2.944795ms)
+✔ mantém o YouTube desligado por padrão e preserva o automático no Coursera/Udemy (0.877263ms)
+✔ aceita a seleção manual quando o domínio corresponde (0.919241ms)
+✔ bloqueia seleção manual incompatível sem tentar forçar outro adaptador (1.052894ms)
+✔ bloqueia rotas YouTube que não são páginas watch (0.875294ms)
+✔ modo automático reconhece somente plataformas suportadas (1.168466ms)
+✔ modo desativado é compatível, mas informa que a S·IA não deve operar (0.725538ms)
+✔ valores desconhecidos não ativam uma plataforma arbitrária (0.809598ms)
+✔ AI Guru tem seleção própria e automática sem ampliar acesso a outros domínios (1.95662ms)
+✔ popup sinaliza AudioContext bloqueado em vez de mostrar conexão genérica (150.305203ms)
+✔ popup não mostra conexão genérica quando YouTube não tem legenda temporal (6.00596ms)
+✔ popup recarrega a aba quando YouTube já estava injetado (9.216132ms)
+✔ popup mantém YouTube após updateConnectionStatus e aplica na aba (13.327227ms)
+✔ popup gerencia perfis de dublagem do audio ducking e persiste o nível selecionado (4.078798ms)
+✔ popup gerencia o palco sonoro 3D espacial e persiste o perfil selecionado (3.092507ms)
+✔ AI Guru aparece no seletor e usa o diagnóstico comum de legendas (2.714662ms)
+✔ bridge H7 emite cue temporal do store Shaka (7.640466ms)
+✔ bridge H7 retransmite a última cue após handshake do host (1.830874ms)
+✔ bridge H7 não emite cue quando o vídeo está pausado (1.081915ms)
+✔ bridge H7 não transforma texto DOM sem timing em cue (1.2352ms)
+✔ sidepanel preserva replay, atualização de favorito/nota e exportação markdown (20.715283ms)
+✔ sidepanel limpa o histórico da aula ao confirmar (3.334719ms)
+✔ sidepanel exibe apenas os 4 trechos mais recentes por padrão e expande sob demanda (4.42246ms)
+✔ sidepanel explica quando não existe aula compatível e desabilita transcrição (2.723567ms)
+✔ sidepanel apresenta estrutura limpa em 3 seções sem cartões confusos (0.909573ms)
+✔ sidepanel orienta a aguardar frases antes de montar o arquivo (2.374561ms)
+✔ sidepanel monta todas as falas e só depois oferece a revisão no vídeo (3.000747ms)
+✔ sidepanel salva todas as falas em um único arquivo local (1.86386ms)
+✔ visualizador waveform reflete estado de fala ativa e retorno ao repouso (3.697827ms)
+✔ sidepanel.html contém todos os elementos visuais do Palco Sonoro 3D (dearVR PRO Style) (1.64824ms)
+✔ sliders de ângulo e distância sincronizam coordenadas acústicas e atualizam o puck (24.984518ms)
+✔ botões de preset definem as posições acústicas exatas e ativam a pílula correspondente (4.179473ms)
+✔ seletor de ducking ajusta convivência com o vídeo e salva nível (1.735952ms)
+✔ botão de teste no fone de ouvido envia SIA_TEST_SPATIAL_AUDIO e exibe confirmação (2.043464ms)
+✔ fluxo interativo de calibração: resposta 'Sim, ouvi separado' confirma estéreo e persiste sia_stereo_calibrated (3.65309ms)
+✔ fluxo interativo de calibração: resposta 'Não, ouvi nos dois' exibe atalho de áudio mono e permite retentar (28.925932ms)
+✔ posição manual preserva o motor escolhido e desliga a automação (4.676393ms)
+✔ painel restaura posição e volume fracionário salvos pelo popup (3.767013ms)
+✔ radar aceita teclado e mantém presets consistentes com o catálogo (2.754374ms)
+✔ interface recolhe áudio avançado e não oferece posição de vídeo ou diagnóstico falso (0.504676ms)
+✔ keeps existing captions untouched and never starts Whisper when native source is usable (4.600394ms)
+✔ holds playback while preparing then feeds original-time cues and resumes (7.015965ms)
+✔ stopped session discards a late transcription and restores held playback (1.644709ms)
+✔ service failure restores original playback and does not inject captions (1.33411ms)
+✔ automatic fallback waits for native caption discovery before requesting Whisper (1.779402ms)
+✔ automatic mode preserves an existing native caption source (1.002464ms)
+✔ recovers original timed captions when translated track is empty (9.850753ms)
+✔ uses current player response instead of stale initial video (2.757168ms)
+✔ does not request translation when track explicitly disallows it (1.841763ms)
+✔ rejects stale initial response when current video has no track (3.000911ms)
+✔ contrato aceita somente watch HTTPS com videoId (1.601071ms)
+✔ contrato libera somente cue temporal de alta confiança (0.384825ms)
+✔ parser lê JSON3 com proteção XSSI (2.287118ms)
+✔ parser lê WebVTT e rejeita cue inválida (1.259705ms)
+✔ parser usa fallback XML sem chamar DOMParser sob Trusted Types (4.708772ms)
+✔ agregador une palavras consecutivas e emite uma frase única (1.298512ms)
+✔ agregador une microcues progressivas e elimina repetição (0.547961ms)
+✔ bridge usa fallback IOS local quando Web timedtext retorna vazio (22.240109ms)
+✔ bridge prioriza pt-BR antes de pt genérico (1.300439ms)
+✔ adapter libera cue temporal estável sem pontuação depois do tempo máximo (2.968505ms)
+✔ adapter agrega legenda externa palavra-a-palavra antes de emitir (1.788456ms)
+✔ adapter escolhe uma única cue externa quando a tolerância sobrepõe frases consecutivas (0.983812ms)
+✔ adapter não rebaixa transcript temporal carregado por overlay durante intervalo (0.465793ms)
+✔ adapter emite imediatamente cue temporal externa já fechada (0.480053ms)
+✔ adapter percorre cues externas, respeita pausa e relê após seek para trás (0.607964ms)
+✔ adapter limpa estado em troca de vídeo YouTube e aceita apenas a cue nova (0.713799ms)
+✔ adapter não repete cue quando a qualidade muda o currentSrc do mesmo vídeo (0.561594ms)
+✔ adapter bloqueia cue durante anúncio e retoma após o anúncio (0.560695ms)
+✔ adapter preserva buffer de TextTrack fragmentado durante intervalo e fala frase única (1.368295ms)
+✔ adapter mantém frase quando a lacuna entre palavras supera a estabilidade atual (0.7662ms)
+✔ adapter não divide sentença longa em grupos pelo limite curto de retenção (1.491139ms)
+✔ adapter preserva frase nativa quando snapshot externo fragmentado já está carregado (1.432473ms)
+✔ adapter usa cues futuras da TextTrack para emitir a sentença inteira de uma vez (0.833093ms)
+✔ adapter mantém prosódia quando a continuação começa na linha visual seguinte (1.583668ms)
+✔ adapter encontra TextTrack e emite cue segura sem áudio próprio (0.691152ms)
+✔ Whisper cleanup removes external cues without changing native tracks (0.167175ms)
+✔ recursos acessíveis usam somente origem e caminho /* exigido pelo Chrome (1.026394ms)
+✔ injeção AI Guru continua restrita às páginas pt-br (1.67736ms)
+✔ offscreen correlaciona duas abas mesmo com requestId repetido (9.752801ms)
+✔ offscreen encaminha silenceScale para o worker Piper (7.95836ms)
+✔ dispose de uma aba não encerra o worker da outra sessão (29.061863ms)
+✔ mantém o motor do navegador como padrão (15.930467ms)
+✔ não assina mudanças globais de motor entre abas (1.109012ms)
+✔ ativa o Piper somente quando selecionado e reproduz o resultado do Worker (42.387647ms)
+✔ preserva a cue quando o AudioContext está bloqueado e retoma após gesto (83.0016ms)
+✔ converte resume pendente em bloqueio recuperável sem perder a cue (1450.969212ms)
+✔ reutiliza a frase pré-sintetizada sem gerar áudio duas vezes (48.3244ms)
+✔ desativa e cancela a fila sem gerar exceção (42.355107ms)
+[S·IA Piper] fallback para voz do navegador Error: [Error] simulated generation error
+    at PiperLocalProvider.processQueue (piper-bridge.js:1081:37)
+✔ converte falha de geração em desativação do provedor (51.70409ms)
+✔ prepara o AudioContext antes da geração neural (1.721717ms)
+✔ não tenta abrir o AudioContext automaticamente ao selecionar Piper (42.108073ms)
+✔ transição suave entre legendas: não interrompe a fala anterior e reproduz a nova em sequência (97.083263ms)
+✔ configura e posiciona a voz 3D no espaço com áudio cristalino 4K transparente (equalpower) e livre de abafamento (1.989703ms)
+✔ atualiza o áudio espacial dinamicamente via SIA_CONFIG_UPDATE (3.599749ms)
+✔ regressão 1.11.1: desligar e religar espacial conserva posição personalizada e motor (1.573061ms)
+✔ estima uma duração mínima para textos curtos (1.429023ms)
+✔ considera palavras e pontuação na duração (1.621848ms)
+✔ distingue continuação de encerramento por pontuação (0.312568ms)
+✔ marca fragmentos sem pontuação como continuação prosódica (0.248826ms)
+✔ remove palavras repetidas entre o fim da fala e a nova cue (1.668931ms)
+✔ descarta uma cue totalmente repetida (0.675878ms)
+✔ distribui a fala antecipada pelo intervalo completo da sentença (0.208622ms)
+✔ remove sobreposição após uma frase concluída com ponto final (0.163994ms)
+✔ aumenta a taxa gradualmente quando a fila reduz o tempo disponível (0.549612ms)
+✔ reduz a correção gradualmente quando o atraso desaparece (0.288461ms)
+✔ considera a calibração de uma voz mais lenta (0.380625ms)
+✔ mantém a taxa base quando a cue tem tempo suficiente (0.375135ms)
+✔ acelera a voz sem ultrapassar o limite configurado (0.147861ms)
+✔ reduz o vídeo e respeita o limite mínimo (0.357337ms)
+✔ preserva uma velocidade personalizada quando não há atraso (0.354573ms)
+✔ normaliza idiomas BCP 47 para o par suportado pelo Chrome (1.511484ms)
+✔ traduz inglês para português e reutiliza o cache (0.952812ms)
+✔ não chama o tradutor quando origem e destino são equivalentes (0.247507ms)
+✔ informa indisponibilidade sem inventar tradução (1.189631ms)
+✔ aquece uma única instância e reaproveita tradução antecipada (7.301134ms)
+ℹ tests 220
+ℹ suites 0
+ℹ pass 220
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13034.619101
